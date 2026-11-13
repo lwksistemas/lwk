@@ -28,6 +28,28 @@ def whatsapp_envio_permitido(config, *, proposta=False, contrato=False, termo=Fa
     return True, None
 
 
+def _extras_mensagem_proposta(documento, label_tipo: str) -> dict:
+    """Número, serviços e empresas da proposta. O prazo do link continua separado."""
+    if (label_tipo or "").casefold() != "proposta":
+        return {}
+    from crm_vendas.proposta_identificacao import numero_proposta_exibicao, servicos_da_proposta
+
+    oportunidade = getattr(documento, "oportunidade", None)
+    lead = getattr(oportunidade, "lead", None) if oportunidade is not None else None
+    empresa_cliente = ""
+    if lead is not None:
+        empresa_cliente = (getattr(lead, "empresa", "") or "").strip()
+        if not empresa_cliente and getattr(lead, "conta_id", None):
+            empresa_cliente = (getattr(getattr(lead, "conta", None), "nome", "") or "").strip()
+    prestadora = getattr(oportunidade, "empresa_prestadora", None) if oportunidade is not None else None
+    return {
+        "numero_proposta": numero_proposta_exibicao(documento),
+        "empresa_cliente": empresa_cliente,
+        "prestadora_nome": (getattr(prestadora, "nome", "") or "").strip(),
+        "servicos": servicos_da_proposta(documento),
+    }
+
+
 def enviar_whatsapp_link_assinatura(
     adapter: AssinaturaAdapter,
     documento,
@@ -94,6 +116,7 @@ def enviar_whatsapp_link_assinatura(
             link=link,
             dias=TOKEN_EXPIRACAO_DIAS,
             vendedor_nome=vendedor_nome,
+            **_extras_mensagem_proposta(documento, label_tipo),
         )
 
     # Texto com link (mesmo caminho do recibo). Botões URL da Evolution/Baileys

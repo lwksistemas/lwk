@@ -57,6 +57,12 @@ export interface PropostaFormContentProps {
   templateAusente?: string;
   /** Nome do vendedor logado para preencher automaticamente */
   vendedorNome?: string;
+  numeroExibicao?: string;
+  comercialmenteVencida?: boolean;
+  validadeAte?: string | null;
+  assinada?: boolean;
+  onRenovar?: () => void;
+  onReemitir?: () => void;
 }
 
 const inputClass = crmFormInputClass;
@@ -89,6 +95,12 @@ export default function PropostaFormContent({
   onSelecionarTemplate,
   templateAusente = '',
   vendedorNome,
+  numeroExibicao,
+  comercialmenteVencida = false,
+  validadeAte,
+  assinada = false,
+  onRenovar,
+  onReemitir,
 }: PropostaFormContentProps) {
   const [vendedores, setVendedores] = useState<Array<{ id: number; nome: string }> | undefined>(undefined);
 
@@ -136,6 +148,81 @@ export default function PropostaFormContent({
       titleClass={pageLayout ? crmFormSectionTitleClass : sectionTitleCls}
       inputClass={inputCls}
     />
+  );
+
+  const prazoSelecionado = !form.validade_dias
+    ? ''
+    : ['7', '15', '30'].includes(form.validade_dias)
+      ? form.validade_dias
+      : 'personalizado';
+  const renderValidade = () => (
+    <div className="space-y-2">
+      {numeroExibicao ? (
+        <p className="text-sm font-medium text-gray-700 dark:text-gray-200">
+          Proposta nº {numeroExibicao}
+        </p>
+      ) : null}
+      <label className={labelCls}>Validade comercial</label>
+      <select
+        value={prazoSelecionado}
+        onChange={(e) => {
+          const valor = e.target.value;
+          if (valor === 'personalizado') {
+            if (!form.validade_dias || ['7', '15', '30'].includes(form.validade_dias)) {
+              onFormChange((f) => ({ ...f, validade_dias: '45' }));
+            }
+            return;
+          }
+          onFormChange((f) => ({ ...f, validade_dias: valor }));
+        }}
+        className={inputCls}
+      >
+        <option value="">Sem prazo</option>
+        <option value="7">7 dias</option>
+        <option value="15">15 dias</option>
+        <option value="30">30 dias</option>
+        <option value="personalizado">Prazo personalizado</option>
+      </select>
+      {prazoSelecionado === 'personalizado' ? (
+        <input
+          type="number"
+          min={1}
+          max={365}
+          value={form.validade_dias}
+          onChange={(e) => onFormChange((f) => ({ ...f, validade_dias: e.target.value }))}
+          className={inputCls}
+          placeholder="Dias"
+        />
+      ) : null}
+      <p className="text-xs text-gray-500 dark:text-gray-400">
+        O link de assinatura continua valendo 7 dias e não altera os valores nem as condições.
+        {validadeAte ? ` Validade até ${validadeAte.split('-').reverse().join('/')}.` : ''}
+      </p>
+      {assinada ? (
+        <p className="text-xs text-gray-600 dark:text-gray-300">
+          Esta proposta já foi assinada. O número permanece. Para outras condições, reemita uma nova proposta.
+        </p>
+      ) : null}
+      {comercialmenteVencida && !assinada ? (
+        <p className="text-xs text-amber-700 dark:text-amber-300">
+          A validade comercial encerrou. Renovar mantém o número e os valores. Reemitir cria outra proposta e deixa esta como está.
+        </p>
+      ) : null}
+      {(onRenovar || onReemitir) && (
+        <div className="flex flex-wrap gap-2">
+          {onRenovar && !assinada ? (
+            <button type="button" onClick={onRenovar} className="px-3 py-1.5 text-sm rounded-md bg-blue-600 text-white">
+              Renovar validade
+            </button>
+          ) : null}
+          {onReemitir ? (
+            <button type="button" onClick={onReemitir} className="px-3 py-1.5 text-sm rounded-md border border-gray-300 dark:border-gray-600">
+              Reemitir proposta
+            </button>
+          ) : null}
+        </div>
+      )}
+    </div>
   );
 
   const renderClienteBlock = () => (
@@ -264,6 +351,7 @@ export default function PropostaFormContent({
                   ))}
                 </select>
               </div>
+              {renderValidade()}
             </section>
             <section className="space-y-4">
               <h3 className={crmFormSectionTitleClass}>Produtos e serviços</h3>
@@ -393,6 +481,7 @@ export default function PropostaFormContent({
           ))}
         </select>
       </div>
+      {renderValidade()}
 
       {/* Assinaturas */}
       <div className={`${spanClass} border-t border-gray-100 dark:border-[#0d1f3c] pt-4 mt-2`}>

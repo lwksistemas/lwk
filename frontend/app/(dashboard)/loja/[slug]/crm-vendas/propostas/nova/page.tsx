@@ -155,6 +155,7 @@ export default function NovaPropostaPage() {
         valor_total: formData.valor_total ? parseFloat(formData.valor_total) : null,
         desconto_tipo: formData.desconto_tipo || 'percentual',
         desconto_valor: formData.desconto_valor ? parseFloat(formData.desconto_valor) : 0,
+        validade_dias: formData.validade_dias ? parseInt(formData.validade_dias, 10) || 15 : null,
         status: formData.status,
         nome_vendedor_assinatura: formData.nome_vendedor_assinatura?.trim() || null,
         nome_cliente_assinatura: formData.nome_cliente_assinatura?.trim() || null,

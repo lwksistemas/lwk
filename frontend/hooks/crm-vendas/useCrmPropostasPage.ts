@@ -24,6 +24,7 @@ export interface CrmProposta {
   vendedor_email?: string;
   vendedor_telefone?: string;
   numero: string;
+  numero_exibicao?: string;
   titulo: string;
   conteudo: string;
   valor_total: string | null;

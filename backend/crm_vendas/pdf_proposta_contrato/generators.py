@@ -2,12 +2,15 @@
 from io import BytesIO
 from xml.sax.saxutils import escape
 
+from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import cm
+from reportlab.pdfgen import canvas as pdfcanvas
 from reportlab.platypus import PageBreak, Paragraph, SimpleDocTemplate, Spacer
 
 from ..emitente_documento import obter_dados_emitente_documento
+from ..proposta_identificacao import numero_proposta_exibicao, texto_validade_comercial
 from .formatters import (
     _obter_dados_loja,
     conteudo_com_descricoes,
@@ -91,10 +94,47 @@ def _completar_logos(loja_data, loja_id):
     return dados
 
 
+def _canvas_rodape_proposta(identificacao: str):
+    """Rodapé com o número já gravado e a página, sem outra sequência."""
+
+    class CanvasRodape(pdfcanvas.Canvas):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self._paginas = []
+
+        def showPage(self):
+            self._paginas.append(dict(self.__dict__))
+            self._startPage()
+
+        def save(self):
+            total = len(self._paginas)
+            for estado in self._paginas:
+                self.__dict__.update(estado)
+                self._desenhar_rodape(total)
+                pdfcanvas.Canvas.showPage(self)
+            pdfcanvas.Canvas.save(self)
+
+        def _desenhar_rodape(self, total: int):
+            if not identificacao:
+                return
+            self.saveState()
+            self.setFont("Helvetica", 8)
+            self.setFillColor(colors.HexColor("#6B7280"))
+            texto = f"Proposta nº {identificacao} | Página {self._pageNumber} de {total}"
+            self.drawCentredString(A4[0] / 2, 0.45 * cm, texto)
+            self.restoreState()
+
+    return CanvasRodape
+
+
 def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
     """Gera PDF da proposta comercial."""
     buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4, topMargin=1.15 * cm, bottomMargin=1.2 * cm, leftMargin=1.55 * cm, rightMargin=1.55 * cm)
+    doc = SimpleDocTemplate(
+        buffer, pagesize=A4,
+        topMargin=1.15 * cm, bottomMargin=1.6 * cm,
+        leftMargin=1.55 * cm, rightMargin=1.55 * cm,
+    )
     elements = []
     styles = getSampleStyleSheet()
     compact = ParagraphStyle("Compact", parent=styles["Normal"], fontSize=9, spaceBefore=0, spaceAfter=1, leading=11)
@@ -104,7 +144,9 @@ def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
     logo_url = loja_data.get("logo")
     logos = _par_logos(logo_url, _logo_prestadora(proposta))
     _build_faixa_logos(elements, *logos)
-    elements.append(Paragraph("PROPOSTA COMERCIAL", _estilo_titulo_proposta()))
+    identificacao = numero_proposta_exibicao(proposta)
+    titulo = "PROPOSTA COMERCIAL" if not identificacao else f"PROPOSTA COMERCIAL Nº {identificacao}"
+    elements.append(Paragraph(escape(titulo), _estilo_titulo_proposta()))
 
     lead = proposta.oportunidade.lead if proposta.oportunidade and proposta.oportunidade.lead else None
     conteudo, fonte_texto, fonte_negrito, tamanho_texto = extrair_letra_do_template(
@@ -136,6 +178,9 @@ def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
         subtitulo = subtitulo_da_versao(_itens_oportunidade(proposta.oportunidade)) or subtitulo_template
     if subtitulo:
         elements.append(Paragraph(escape(subtitulo), _estilo_subtitulo_proposta()))
+    validade = texto_validade_comercial(proposta)
+    if validade:
+        elements.append(Paragraph(escape(validade), _estilo_subtitulo_proposta()))
 
     _build_identificacao_visual(elements, loja_data, lead)
     totais = _build_tabela_investimento_visual(elements, proposta.oportunidade)
@@ -184,7 +229,7 @@ def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
     wm_data = _build_watermark_callback(logo_url, ass_v, ass_c, intensidade_logo)
     _inserir_watermark_flowable(elements, wm_data, preencher_quadro=True, tamanho=tamanho_logo)
 
-    doc.build(elements)
+    doc.build(elements, canvasmaker=_canvas_rodape_proposta(identificacao))
     buffer.seek(0)
     return buffer
 

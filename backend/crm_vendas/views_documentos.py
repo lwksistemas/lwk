@@ -119,6 +119,53 @@ class PropostaViewSet(
 
         return Response({"detail": "Proposta cancelada com sucesso.", "status": "cancelada"})
 
+    @action(detail=True, methods=["post"])
+    def renovar_validade(self, request, pk=None):
+        """Reinicia o prazo comercial. Não mexe em número, valores nem em proposta assinada."""
+        from .proposta_identificacao import validar_dias_comerciais
+
+        proposta = self.get_object()
+        bloqueio = _resposta_documento_assinado(proposta)
+        if bloqueio:
+            return bloqueio
+        informado = request.data.get("validade_dias", proposta.validade_dias)
+        try:
+            dias = validar_dias_comerciais(informado)
+        except ValueError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        proposta.validade_dias = dias
+        proposta.validade_inicio = timezone.localdate()
+        proposta.save(update_fields=["validade_dias", "validade_inicio", "updated_at"])
+        return Response(self.get_serializer(proposta).data)
+
+    @action(detail=True, methods=["post"])
+    def reemitir(self, request, pk=None):
+        """Cria outra proposta com o próximo número. A original, assinada ou não, permanece."""
+        origem = self.get_object()
+        nova = Proposta(
+            loja_id=origem.loja_id,
+            oportunidade_id=origem.oportunidade_id,
+            titulo=origem.titulo,
+            conteudo=origem.conteudo,
+            valor_total=origem.valor_total,
+            desconto_tipo=origem.desconto_tipo,
+            desconto_valor=origem.desconto_valor,
+            validade_dias=origem.validade_dias or 15,
+            observacoes=origem.observacoes,
+            nome_vendedor_assinatura=origem.nome_vendedor_assinatura,
+            nome_cliente_assinatura=origem.nome_cliente_assinatura,
+            emitente_nome=origem.emitente_nome,
+            emitente_endereco=origem.emitente_endereco,
+            emitente_cpf_cnpj=origem.emitente_cpf_cnpj,
+            emitente_responsavel=origem.emitente_responsavel,
+            emitente_email=origem.emitente_email,
+            canal_assinatura_vendedor=origem.canal_assinatura_vendedor,
+            status="rascunho",
+            status_assinatura="rascunho",
+        )
+        nova.save()
+        return Response(self.get_serializer(nova).data, status=status.HTTP_201_CREATED)
+
     @action(detail=True, methods=["get"])
     def download_pdf(self, request, pk=None):
         from .pdf_proposta_contrato import gerar_pdf_proposta

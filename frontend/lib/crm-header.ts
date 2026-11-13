@@ -13,6 +13,7 @@ export interface CrmHeaderBuscaResult {
     id: number;
     titulo: string;
     numero: string;
+    numero_exibicao?: string;
     status: string;
     oportunidade_titulo: string;
     lead_nome: string;

@@ -42,6 +42,7 @@ export interface FormDataProposta extends EmitenteLojaFields {
   desconto_tipo: 'percentual' | 'valor';
   desconto_valor: string;
   status: string;
+  validade_dias: string;
   nome_vendedor_assinatura?: string;
   nome_cliente_assinatura?: string;
 }
@@ -54,6 +55,7 @@ export const EMPTY_FORM_PROPOSTA: FormDataProposta = {
   desconto_tipo: 'percentual',
   desconto_valor: '',
   status: 'rascunho',
+  validade_dias: '15',
   nome_vendedor_assinatura: '',
   nome_cliente_assinatura: '',
   ...EMPTY_EMITENTE_LOJA,

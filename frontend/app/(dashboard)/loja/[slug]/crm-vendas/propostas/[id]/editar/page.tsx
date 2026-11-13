@@ -46,6 +46,10 @@ interface Proposta {
   desconto_valor: string;
   status: string;
   status_assinatura?: string;
+  validade_dias?: number | null;
+  validade_ate?: string | null;
+  numero_exibicao?: string;
+  comercialmente_vencida?: boolean;
   nome_vendedor_assinatura?: string;
   nome_cliente_assinatura?: string;
   emitente_nome?: string;
@@ -73,6 +77,9 @@ export default function EditarPropostaPage() {
   const [submitting, setSubmitting] = useState(false);
   const [salvandoPadrao, setSalvandoPadrao] = useState(false);
   const [formErro, setFormErro] = useState<string | null>(null);
+  const [numeroExibicao, setNumeroExibicao] = useState('');
+  const [comercialmenteVencida, setComercialmenteVencida] = useState(false);
+  const [validadeAte, setValidadeAte] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [reenvioPendente, setReenvioPendente] = useState(false);
   const [reenviando, setReenviando] = useState(false);
@@ -116,6 +123,9 @@ export default function EditarPropostaPage() {
         if (cancelled) return;
         const p = propostaRes.data;
         setStatusAssinaturaAntes(p.status_assinatura);
+        setNumeroExibicao(p.numero_exibicao || '');
+        setComercialmenteVencida(Boolean(p.comercialmente_vencida));
+        setValidadeAte(p.validade_ate || null);
         setOportunidadeTituloInicial(
           formatOportunidadeVinculoLabel({
             titulo: p.oportunidade_titulo,
@@ -132,6 +142,7 @@ export default function EditarPropostaPage() {
           desconto_tipo: p.desconto_tipo || 'percentual',
           desconto_valor: String(p.desconto_valor ?? ''),
           status: p.status || 'rascunho',
+          validade_dias: p.validade_dias ? String(p.validade_dias) : '',
           nome_vendedor_assinatura: p.nome_vendedor_assinatura || '',
           nome_cliente_assinatura: p.nome_cliente_assinatura || '',
           ...emitenteFieldsFromApi(p),
@@ -265,6 +276,7 @@ export default function EditarPropostaPage() {
         valor_total: formData.valor_total ? parseFloat(formData.valor_total) : null,
         desconto_tipo: formData.desconto_tipo || 'percentual',
         desconto_valor: formData.desconto_valor ? parseFloat(formData.desconto_valor) : 0,
+        validade_dias: formData.validade_dias ? parseInt(formData.validade_dias, 10) || 15 : null,
         status: formData.status,
         nome_vendedor_assinatura: formData.nome_vendedor_assinatura?.trim() || null,
         nome_cliente_assinatura: formData.nome_cliente_assinatura?.trim() || null,
@@ -279,6 +291,35 @@ export default function EditarPropostaPage() {
       setFormErro(getCrmApiErrorDetail(err, 'Erro ao salvar.'));
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const renovarValidade = async () => {
+    setFormErro(null);
+    try {
+      const res = await apiClient.post<Proposta>(`/crm-vendas/propostas/${id}/renovar_validade/`, {
+        validade_dias: parseInt(formData.validade_dias, 10) || 15,
+      });
+      setNumeroExibicao(res.data.numero_exibicao || numeroExibicao);
+      setComercialmenteVencida(Boolean(res.data.comercialmente_vencida));
+      setValidadeAte(res.data.validade_ate || null);
+      if (res.data.validade_dias) {
+        setFormData((f) => ({ ...f, validade_dias: String(res.data.validade_dias) }));
+      }
+      toast.success('Validade renovada. O número e os valores permanecem.');
+    } catch (err: unknown) {
+      setFormErro(getCrmApiErrorDetail(err, 'Não foi possível renovar a validade.'));
+    }
+  };
+
+  const reemitirProposta = async () => {
+    setFormErro(null);
+    try {
+      const res = await apiClient.post<Proposta>(`/crm-vendas/propostas/${id}/reemitir/`);
+      toast.success('Nova proposta criada. A anterior permanece como está.');
+      router.push(`/loja/${slug}/crm-vendas/propostas/${res.data.id}/editar`);
+    } catch (err: unknown) {
+      setFormErro(getCrmApiErrorDetail(err, 'Não foi possível reemitir a proposta.'));
     }
   };
 
@@ -305,9 +346,22 @@ export default function EditarPropostaPage() {
       cancelLabel={assinadoPelasDuasPartes ? 'Voltar' : 'Cancelar'}
     >
       {assinadoPelasDuasPartes && (
-        <p className="mb-4 rounded-lg bg-amber-50 dark:bg-amber-900/20 px-3 py-2 text-sm text-amber-800 dark:text-amber-200">
-          Esta proposta já foi assinada pelas duas partes e não pode ser alterada.
-        </p>
+        <div className="mb-4 rounded-lg bg-amber-50 dark:bg-amber-900/20 px-3 py-2 text-sm text-amber-800 dark:text-amber-200">
+          <p>Esta proposta já foi assinada pelas duas partes e não pode ser alterada. O número permanece.</p>
+          <button type="button" onClick={() => void reemitirProposta()} className="mt-2 px-3 py-1.5 rounded-md border border-amber-300">
+            Reemitir proposta
+          </button>
+        </div>
+      )}
+      {!assinadoPelasDuasPartes && comercialmenteVencida && (
+        <div className="mb-4 flex flex-wrap gap-2">
+          <button type="button" onClick={() => void renovarValidade()} className="px-3 py-1.5 text-sm rounded-md bg-blue-600 text-white">
+            Renovar validade
+          </button>
+          <button type="button" onClick={() => void reemitirProposta()} className="px-3 py-1.5 text-sm rounded-md border border-gray-300 dark:border-gray-600">
+            Reemitir proposta
+          </button>
+        </div>
       )}
       <fieldset disabled={assinadoPelasDuasPartes} className="min-w-0">
       <PropostaFormContent
@@ -332,6 +386,10 @@ export default function EditarPropostaPage() {
         pageLayout
         hideError
         hideActions
+        numeroExibicao={numeroExibicao}
+        comercialmenteVencida={comercialmenteVencida}
+        validadeAte={validadeAte}
+        assinada={assinadoPelasDuasPartes}
         templates={templates}
         templateAusente={avisoTemplatesDaPrestadora({
           temOportunidade: Boolean(formData.oportunidade_id),

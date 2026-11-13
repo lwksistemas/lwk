@@ -76,7 +76,7 @@ export function PropostasTable({
 
   const renderCelula = (p: CrmProposta, key: string) => {
     if (key === 'numero') {
-      return <span className="font-mono text-sm text-gray-600 dark:text-gray-400">#{p.numero || '---'}</span>;
+      return <span className="font-mono text-sm text-gray-600 dark:text-gray-400">#{p.numero_exibicao || p.numero || '---'}</span>;
     }
     if (key === 'titulo') return rotuloTituloPropostaLista(p);
     if (key === 'oportunidade') return rotuloOportunidadePropostaLista(p);

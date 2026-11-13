@@ -11,7 +11,7 @@ from __future__ import annotations
 
 SEPARADOR = "━━━━━━━━━━━━━━━━━━━━"
 DIAS_EXPIRACAO_PADRAO = 7
-_PARTICULAS = frozenset({"de", "da", "do", "das", "dos", "e"})
+_PARTICULAS = frozenset({"de", "da", "do", "das", "dos", "e", "por"})
 _SUFIXOS_EMPRESA = {
     "ltda": "Ltda",
     "me": "ME",
@@ -86,6 +86,10 @@ def msg_assinatura_cliente(
     link: str,
     dias: int = DIAS_EXPIRACAO_PADRAO,
     vendedor_nome: str | None = None,
+    numero_proposta: str | None = None,
+    empresa_cliente: str | None = None,
+    prestadora_nome: str | None = None,
+    servicos: str | None = None,
 ) -> str:
     """Mensagem para o cliente assinar proposta ou contrato.
 
@@ -108,6 +112,50 @@ def msg_assinatura_cliente(
         cabecalho = rotulo
         frase = "O documento está pronto para a sua leitura e assinatura."
     prazo = "1 dia" if int(dias) == 1 else f"{int(dias)} dias"
+    if rotulo.casefold() == "proposta" and (numero_proposta or "").strip():
+        from crm_vendas.proposta_identificacao import frase_contratacao
+
+        numero = numero_proposta.strip()
+        cliente_empresa = nome_legivel(empresa_cliente)
+        prestadora = nome_legivel(prestadora_nome)
+        linhas = [
+            f"*{empresa}*",
+            "",
+            f"PROPOSTA COMERCIAL Nº {numero}",
+            "",
+            f"Olá, {saudacao}!" if saudacao else "Olá!",
+            "",
+            frase_contratacao(servicos or "", prestadora),
+            "",
+            "A proposta está disponível para sua análise e assinatura eletrônica.",
+            "",
+            "Dados da proposta",
+            "",
+            f"Cliente: {cliente}",
+        ]
+        if cliente_empresa:
+            linhas.append(f"Empresa: {cliente_empresa}")
+        if vendedor:
+            linhas.append(f"Consultor comercial: {vendedor}")
+        linhas.extend([
+            f"Proposta: Nº {numero}",
+            "",
+            "Acesse sua proposta:",
+            "",
+            link,
+            "",
+            f"Este link é exclusivo para você e permanecerá disponível por {prazo}.",
+            "",
+            "Caso tenha alguma dúvida sobre os serviços ou as condições comerciais, estamos à disposição.",
+            "",
+            "Atenciosamente,",
+        ])
+        if vendedor:
+            linhas.append(vendedor)
+        linhas.append(empresa)
+        if prestadora:
+            linhas.append(prestadora)
+        return "\n".join(linhas)
     linhas = [
         f"*{empresa}*",
         cabecalho,

@@ -90,7 +90,7 @@ def _busca_propostas(term, term_digits, vendedor_id, request, limit, q_icontains
         vendedor_field="oportunidade__vendedor_id",
         liberar_qualidade=True,
     )
-    return list(qs.values("id", "titulo", "numero", "status", "oportunidade__titulo", "oportunidade__lead__nome")[:limit])
+    return list(qs.values("id", "titulo", "numero", "status", "created_at", "oportunidade__titulo", "oportunidade__lead__nome")[:limit])
 
 
 def _serializar_lead(r):
@@ -112,7 +112,24 @@ def _serializar_conta(r):
 
 
 def _serializar_proposta(r):
-    return {"id": r["id"], "titulo": r["titulo"], "numero": r.get("numero") or "", "status": r.get("status") or "", "oportunidade_titulo": r.get("oportunidade__titulo") or "", "lead_nome": r.get("oportunidade__lead__nome") or ""}
+    from types import SimpleNamespace
+
+    from .proposta_identificacao import numero_proposta_exibicao
+
+    ident = numero_proposta_exibicao(SimpleNamespace(
+        numero=r.get("numero") or "",
+        id=r["id"],
+        created_at=r.get("created_at"),
+    ))
+    return {
+        "id": r["id"],
+        "titulo": r["titulo"],
+        "numero": r.get("numero") or "",
+        "numero_exibicao": ident,
+        "status": r.get("status") or "",
+        "oportunidade_titulo": r.get("oportunidade__titulo") or "",
+        "lead_nome": r.get("oportunidade__lead__nome") or "",
+    }
 
 
 @api_view(["GET"])

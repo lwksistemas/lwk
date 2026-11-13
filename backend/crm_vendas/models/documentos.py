@@ -77,6 +77,16 @@ class Proposta(LojaIsolationMixin, models.Model):
         default="email",
         help_text="Canal para enviar link de assinatura ao vendedor após o cliente assinar",
     )
+    validade_dias = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text="Prazo comercial em dias. Não muda o prazo do link nem os valores.",
+    )
+    validade_inicio = models.DateField(
+        null=True,
+        blank=True,
+        help_text="Início da validade comercial. Vazio usa a data de envio ou de criação.",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

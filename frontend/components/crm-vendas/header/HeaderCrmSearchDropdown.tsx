@@ -125,8 +125,8 @@ export function HeaderCrmSearchDropdown({
                   {p.lead_nome && (
                     <span className="text-gray-500 dark:text-gray-400 truncate">• {p.lead_nome}</span>
                   )}
-                  {p.numero && (
-                    <span className="text-gray-400 dark:text-gray-500 text-xs shrink-0">#{p.numero}</span>
+                  {(p.numero_exibicao || p.numero) && (
+                    <span className="text-gray-400 dark:text-gray-500 text-xs shrink-0">#{p.numero_exibicao || p.numero}</span>
                   )}
                 </Link>
               ))}

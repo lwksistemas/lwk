@@ -79,3 +79,28 @@ class RespostaConfirmacaoTests(SimpleTestCase):
         self.assertNotIn("R$", texto)
         self.assertNotIn("🔐", texto)
         self.assertNotIn("RENATA", texto)
+
+    def test_mensagem_de_proposta_leva_o_numero_e_o_prazo_do_link(self):
+        texto = msg_assinatura_cliente(
+            nome="GLAUCIA SORRENTINO",
+            tipo_doc="Proposta",
+            titulo="Sistema",
+            loja_nome="FELIX REPRESENTACOES E COMERCIO LTDA",
+            link="https://api.lwksistemas.com.br/r/abc",
+            dias=7,
+            vendedor_nome="LUIZ HENRIQUE FELIX",
+            numero_proposta="335/2026",
+            empresa_cliente="CLINICA DX DIAGNOSTICO POR IMAGEM LTDA",
+            prestadora_nome="ULTRASIS SISTEMAS MEDICOS",
+            servicos="Sistema de Laudos • Captura DICOM • Worklist",
+        )
+        self.assertIn("PROPOSTA COMERCIAL Nº 335/2026", texto)
+        self.assertIn("Olá, Glaucia!", texto)
+        self.assertIn("Cliente: Glaucia Sorrentino", texto)
+        self.assertIn("Empresa: Clinica Dx Diagnostico por Imagem Ltda", texto)
+        self.assertIn("Consultor comercial: Luiz Henrique Felix", texto)
+        self.assertIn("Proposta: Nº 335/2026", texto)
+        self.assertIn("Sistema de Laudos, com Captura DICOM e Worklist", texto)
+        self.assertIn("disponível por 7 dias", texto)
+        self.assertIn("https://api.lwksistemas.com.br/r/abc", texto)
+        self.assertNotIn("R$", texto)

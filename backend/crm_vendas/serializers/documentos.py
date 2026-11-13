@@ -81,6 +81,9 @@ class PropostaSerializer(serializers.ModelSerializer):
     vendedor_email = serializers.CharField(source="oportunidade.vendedor.email", read_only=True)
     vendedor_telefone = serializers.CharField(source="oportunidade.vendedor.telefone", read_only=True)
     valor_com_desconto = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
+    numero_exibicao = serializers.SerializerMethodField()
+    validade_ate = serializers.SerializerMethodField()
+    comercialmente_vencida = serializers.SerializerMethodField()
 
     class Meta:
         model = Proposta
@@ -88,15 +91,16 @@ class PropostaSerializer(serializers.ModelSerializer):
             "id", "oportunidade", "oportunidade_titulo", "lead_nome", "lead_email", "lead_telefone",
             "conta_nome", "prestador_nome",
             "vendedor_nome", "vendedor_email", "vendedor_telefone", "canal_assinatura_vendedor",
-            "numero", "titulo", "conteudo", "valor_total",
+            "numero", "numero_exibicao", "titulo", "conteudo", "valor_total",
             "desconto_tipo", "desconto_valor", "valor_com_desconto",
+            "validade_dias", "validade_inicio", "validade_ate", "comercialmente_vencida",
             "status", "status_assinatura", "motivo_cancelamento",
             "data_envio", "data_resposta", "observacoes",
             "nome_vendedor_assinatura", "nome_cliente_assinatura",
             *_EMITENTE_FIELDS,
             "created_at", "updated_at",
         ]
-        read_only_fields = ["created_at", "updated_at", "numero"]
+        read_only_fields = ["created_at", "updated_at", "numero", "validade_inicio"]
 
     def get_conta_nome(self, obj):
         return _conta_nome_do_documento(obj)
@@ -109,8 +113,38 @@ class PropostaSerializer(serializers.ModelSerializer):
             return oportunidade.empresa_prestadora.nome
         return None
 
+    def get_numero_exibicao(self, obj):
+        from ..proposta_identificacao import numero_proposta_exibicao
+
+        return numero_proposta_exibicao(obj)
+
+    def get_validade_ate(self, obj):
+        from ..proposta_identificacao import fim_validade_comercial
+
+        fim = fim_validade_comercial(obj)
+        return fim.isoformat() if fim else None
+
+    def get_comercialmente_vencida(self, obj):
+        from ..proposta_identificacao import comercialmente_vencida
+
+        return comercialmente_vencida(obj)
+
+    def validate_validade_dias(self, value):
+        if value in (None, ""):
+            return None
+        from ..proposta_identificacao import validar_dias_comerciais
+
+        try:
+            return validar_dias_comerciais(value)
+        except ValueError as exc:
+            raise serializers.ValidationError(str(exc)) from exc
+
     def validate(self, attrs):
         return limpar_emitente_se_vazio(attrs)
+
+    def create(self, validated_data):
+        validated_data.setdefault("validade_dias", 15)
+        return super().create(validated_data)
 
     def update(self, instance, validated_data):
         """Ao marcar como assinado manualmente, fecha oportunidade e invalida tokens."""

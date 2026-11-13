@@ -10,8 +10,9 @@ from .assinatura_digital_email_layout import (
 )
 
 
-def montar_email_cliente_assinatura(*, lead, documento, loja_nome, link_assinatura, tipo_doc):
+def montar_email_cliente_assinatura(*, lead, documento, loja_nome, link_assinatura, tipo_doc, prazo_link: str | None = None):
     valor = documento.valor_total or "0,00"
+    prazo = (prazo_link or "").strip() or f"por {TOKEN_EXPIRACAO_DIAS} dias"
     body = f"""
                                 <p style="color: #333333; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;">
                                     Olá <strong>{lead.nome}</strong>,
@@ -29,7 +30,7 @@ def montar_email_cliente_assinatura(*, lead, documento, loja_nome, link_assinatu
                                 )}
                                 {cta_assinar_html(link=link_assinatura, color='#667eea', gradient_end='#764ba2')}
                                 {info_box_amarelo_html(
-                                    f'⏰ <strong>Atenção:</strong> Este link é válido por <strong>{TOKEN_EXPIRACAO_DIAS} dias</strong>. '
+                                    f'⏰ <strong>Atenção:</strong> Este link é válido <strong>{prazo}</strong>. '
                                     'Após este período, será necessário solicitar um novo link de assinatura.'
                                 )}
                                 <p style="color: #666666; font-size: 14px; line-height: 1.6; margin: 0;">
@@ -64,7 +65,7 @@ ASSINAR DOCUMENTO
 Clique no link abaixo para visualizar e assinar:
 {link_assinatura}
 
-⏰ ATENÇÃO: Este link é válido por {TOKEN_EXPIRACAO_DIAS} dias.
+⏰ ATENÇÃO: Este link é válido {prazo}.
 
 Se você tiver alguma dúvida sobre este documento, entre em contato conosco.
 

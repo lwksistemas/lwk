@@ -10,7 +10,11 @@ from reportlab.pdfgen import canvas as pdfcanvas
 from reportlab.platypus import PageBreak, Paragraph, SimpleDocTemplate, Spacer
 
 from ..emitente_documento import obter_dados_emitente_documento
-from ..proposta_identificacao import numero_proposta_exibicao, texto_validade_comercial
+from ..proposta_identificacao import (
+    fim_validade_comercial,
+    numero_proposta_exibicao,
+    texto_validade_comercial,
+)
 from .formatters import (
     _obter_dados_loja,
     conteudo_com_descricoes,
@@ -94,8 +98,20 @@ def _completar_logos(loja_data, loja_id):
     return dados
 
 
-def _canvas_rodape_proposta(identificacao: str):
-    """Rodapé com o número já gravado e a página, sem outra sequência."""
+def _estilo_validade_proposta():
+    return ParagraphStyle(
+        "ValidadeProposta",
+        fontName="Helvetica-Bold",
+        fontSize=12,
+        textColor=colors.HexColor("#111827"),
+        leading=16,
+        spaceBefore=1,
+        spaceAfter=8,
+    )
+
+
+def _canvas_rodape_proposta(identificacao: str, validade_ate: str = ""):
+    """Rodapé com o número já gravado, a validade comercial e a página."""
 
     class CanvasRodape(pdfcanvas.Canvas):
         def __init__(self, *args, **kwargs):
@@ -120,7 +136,11 @@ def _canvas_rodape_proposta(identificacao: str):
             self.saveState()
             self.setFont("Helvetica", 8)
             self.setFillColor(colors.HexColor("#6B7280"))
-            texto = f"Proposta nº {identificacao} | Página {self._pageNumber} de {total}"
+            partes = [f"Proposta nº {identificacao}"]
+            if validade_ate:
+                partes.append(f"Válida até {validade_ate}")
+            partes.append(f"Página {self._pageNumber} de {total}")
+            texto = " | ".join(partes)
             self.drawCentredString(A4[0] / 2, 0.45 * cm, texto)
             self.restoreState()
 
@@ -147,6 +167,11 @@ def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
     identificacao = numero_proposta_exibicao(proposta)
     titulo = "PROPOSTA COMERCIAL" if not identificacao else f"PROPOSTA COMERCIAL Nº {identificacao}"
     elements.append(Paragraph(escape(titulo), _estilo_titulo_proposta()))
+    validade = texto_validade_comercial(proposta)
+    if validade:
+        elements.append(Paragraph(escape(validade), _estilo_validade_proposta()))
+    fim_validade = fim_validade_comercial(proposta)
+    validade_ate = fim_validade.strftime("%d/%m/%Y") if fim_validade else ""
 
     lead = proposta.oportunidade.lead if proposta.oportunidade and proposta.oportunidade.lead else None
     conteudo, fonte_texto, fonte_negrito, tamanho_texto = extrair_letra_do_template(
@@ -178,9 +203,6 @@ def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
         subtitulo = subtitulo_da_versao(_itens_oportunidade(proposta.oportunidade)) or subtitulo_template
     if subtitulo:
         elements.append(Paragraph(escape(subtitulo), _estilo_subtitulo_proposta()))
-    validade = texto_validade_comercial(proposta)
-    if validade:
-        elements.append(Paragraph(escape(validade), _estilo_subtitulo_proposta()))
 
     _build_identificacao_visual(elements, loja_data, lead)
     totais = _build_tabela_investimento_visual(elements, proposta.oportunidade)
@@ -229,7 +251,7 @@ def gerar_pdf_proposta(proposta, incluir_assinaturas=True) -> BytesIO:
     wm_data = _build_watermark_callback(logo_url, ass_v, ass_c, intensidade_logo)
     _inserir_watermark_flowable(elements, wm_data, preencher_quadro=True, tamanho=tamanho_logo)
 
-    doc.build(elements, canvasmaker=_canvas_rodape_proposta(identificacao))
+    doc.build(elements, canvasmaker=_canvas_rodape_proposta(identificacao, validade_ate))
     buffer.seek(0)
     return buffer
 

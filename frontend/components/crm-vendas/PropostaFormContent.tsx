@@ -195,7 +195,8 @@ export default function PropostaFormContent({
         />
       ) : null}
       <p className="text-xs text-gray-500 dark:text-gray-400">
-        O link de assinatura continua valendo 7 dias e não altera os valores nem as condições.
+        O link enviado ao cliente fica disponível até o fim dessa validade e não altera os valores nem as condições.
+        Sem prazo, o link continua valendo 7 dias.
         {validadeAte ? ` Validade até ${validadeAte.split('-').reverse().join('/')}.` : ''}
       </p>
       {assinada ? (

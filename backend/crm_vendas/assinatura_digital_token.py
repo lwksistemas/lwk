@@ -63,13 +63,17 @@ def criar_token_assinatura(documento, tipo, loja_id):
                 email = ""
         email = (email or "").strip()
 
-    # Gerar token único
+    from .proposta_identificacao import delta_token_assinatura
+
+    # O prazo da proposta segue a validade comercial. Contrato permanece em 7 dias.
+    delta = delta_token_assinatura(documento, tipo)
+    expira_em = timezone.now() + delta
     payload = {
         "doc_type": documento.__class__.__name__.lower(),
         "doc_id": documento.id,
         "tipo": tipo,
         "loja_id": loja_id,
-        "exp": int((timezone.now() + timedelta(days=TOKEN_EXPIRACAO_DIAS)).timestamp()),
+        "exp": int(expira_em.timestamp()),
     }
     # Gerar token - Django já usa base64 URL-safe
     token = dumps(payload)
@@ -89,7 +93,7 @@ def criar_token_assinatura(documento, tipo, loja_id):
         "nome_assinante": nome,
         "email_assinante": email,
         "token": token,
-        "token_expira_em": timezone.now() + timedelta(days=TOKEN_EXPIRACAO_DIAS),
+        "token_expira_em": expira_em,
         "loja_id": loja_id,
         "ip_address": "0.0.0.0",  # Será atualizado ao assinar
     }

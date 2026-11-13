@@ -28,6 +28,14 @@ def whatsapp_envio_permitido(config, *, proposta=False, contrato=False, termo=Fa
     return True, None
 
 
+def _prazo_link_documento(documento, label_tipo: str) -> str | None:
+    if (label_tipo or "").casefold() != "proposta":
+        return None
+    from crm_vendas.proposta_identificacao import texto_prazo_link
+
+    return texto_prazo_link(documento)
+
+
 def _extras_mensagem_proposta(documento, label_tipo: str) -> dict:
     """Número, serviços e empresas da proposta. O prazo do link continua separado."""
     if (label_tipo or "").casefold() != "proposta":
@@ -116,6 +124,7 @@ def enviar_whatsapp_link_assinatura(
             link=link,
             dias=TOKEN_EXPIRACAO_DIAS,
             vendedor_nome=vendedor_nome,
+            prazo_texto=_prazo_link_documento(documento, label_tipo),
             **_extras_mensagem_proposta(documento, label_tipo),
         )
 

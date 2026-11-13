@@ -121,6 +121,57 @@ def servicos_da_proposta(proposta) -> str:
     return subtitulo_da_versao(_itens_oportunidade(oportunidade))
 
 
+class LinkComercialEncerrado(Exception):
+    """A validade comercial acabou e o link do cliente não pode ser enviado."""
+
+
+def texto_prazo_link(proposta) -> str:
+    """Texto do prazo do link. Sem validade comercial, permanece 7 dias."""
+    fim = fim_validade_comercial(proposta)
+    if not fim:
+        return "por 7 dias"
+    return f"até {fim.strftime('%d/%m/%Y')}"
+
+
+def delta_token_assinatura(documento, tipo, agora=None):
+    """O link da proposta expira no fim da validade comercial.
+
+    Contrato e proposta sem prazo continuam com 7 dias.
+    O vendedor ainda assina se o cliente já assinou e o prazo comercial acabou.
+    """
+    from datetime import datetime as datahora
+
+    if type(documento).__name__ != "Proposta" and getattr(documento, "validade_dias", None) in (None, ""):
+        return timedelta(days=7)
+    fim = fim_validade_comercial(documento)
+    if not fim:
+        return timedelta(days=7)
+    if agora is None:
+        try:
+            from django.utils import timezone
+
+            momento = timezone.localtime(timezone.now())
+        except Exception:
+            momento = datahora.now()
+    elif isinstance(agora, datetime):
+        momento = agora
+    else:
+        momento = datahora.combine(agora, datahora.min.time())
+    hoje = momento.date()
+    if hoje > fim:
+        if tipo == "vendedor" and getattr(documento, "status_assinatura", "") == "aguardando_vendedor":
+            return timedelta(days=7)
+        raise LinkComercialEncerrado(
+            "A validade comercial desta proposta encerrou. "
+            "Renove a validade para enviar o link ao cliente."
+        )
+    limite = datahora.combine(fim, datahora.max.time().replace(microsecond=0))
+    restante = limite - momento.replace(tzinfo=None)
+    if restante.total_seconds() < 3600:
+        return timedelta(hours=1)
+    return restante
+
+
 def validar_dias_comerciais(valor) -> int:
     try:
         dias = int(valor)

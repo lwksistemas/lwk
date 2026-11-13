@@ -33,6 +33,11 @@ def enviar_email_assinatura_cliente(documento, assinatura, request):
     link_assinatura = construir_link_assinatura(assinatura.token)
     loja_nome = obter_loja_nome(assinatura.loja_id)
     tipo_doc = tipo_documento(documento)
+    prazo_link = None
+    if type(documento).__name__ == "Proposta":
+        from .proposta_identificacao import texto_prazo_link
+
+        prazo_link = texto_prazo_link(documento)
 
     html_content, texto_plano = montar_email_cliente_assinatura(
         lead=lead,
@@ -40,6 +45,7 @@ def enviar_email_assinatura_cliente(documento, assinatura, request):
         loja_nome=loja_nome,
         link_assinatura=link_assinatura,
         tipo_doc=tipo_doc,
+        prazo_link=prazo_link,
     )
 
     try:

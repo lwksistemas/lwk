@@ -90,6 +90,7 @@ def msg_assinatura_cliente(
     empresa_cliente: str | None = None,
     prestadora_nome: str | None = None,
     servicos: str | None = None,
+    prazo_texto: str | None = None,
 ) -> str:
     """Mensagem para o cliente assinar proposta ou contrato.
 
@@ -111,7 +112,10 @@ def msg_assinatura_cliente(
     else:
         cabecalho = rotulo
         frase = "O documento está pronto para a sua leitura e assinatura."
-    prazo = "1 dia" if int(dias) == 1 else f"{int(dias)} dias"
+    if (prazo_texto or "").strip():
+        prazo = prazo_texto.strip()
+    else:
+        prazo = "por 1 dia" if int(dias) == 1 else f"por {int(dias)} dias"
     if rotulo.casefold() == "proposta" and (numero_proposta or "").strip():
         from crm_vendas.proposta_identificacao import frase_contratacao
 
@@ -144,7 +148,7 @@ def msg_assinatura_cliente(
             "",
             link,
             "",
-            f"Este link é exclusivo para você e permanecerá disponível por {prazo}.",
+            f"Este link é exclusivo para você e permanecerá disponível {prazo}.",
             "",
             "Caso tenha alguma dúvida sobre os serviços ou as condições comerciais, estamos à disposição.",
             "",
@@ -171,7 +175,7 @@ def msg_assinatura_cliente(
         linhas.extend(["", "*Vendedor*", vendedor])
     linhas.extend([
         "",
-        f"Leia e assine pelo link. Ele vale por {prazo} e é exclusivo para você.",
+        f"Leia e assine pelo link. Ele vale {prazo} e é exclusivo para você.",
         "",
         link,
     ])

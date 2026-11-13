@@ -127,8 +127,13 @@ def _reenviar_para_cliente(documento, fk_field, loja_id, canal, request):
         return False, None, "Lead não possui email cadastrado."
     if canal == "whatsapp" and not (getattr(lead, "telefone", None) or "").strip():
         return False, None, "Lead não possui telefone cadastrado."
+    from .proposta_identificacao import LinkComercialEncerrado
+
     filt = {fk_field: documento, "tipo": "cliente", "assinado": False}
-    assinatura = criar_token_assinatura(documento, "cliente", loja_id)
+    try:
+        assinatura = criar_token_assinatura(documento, "cliente", loja_id)
+    except LinkComercialEncerrado as exc:
+        return False, None, str(exc)
     if canal == "whatsapp":
         ok, err = enviar_whatsapp_assinatura_cliente(documento, assinatura, request, user=getattr(request, "user", None))
         if ok:

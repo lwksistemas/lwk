@@ -8,6 +8,7 @@ from crm_vendas.proposta_identificacao import (
     fim_validade_comercial,
     frase_contratacao,
     numero_proposta_exibicao,
+    texto_prazo_link,
     texto_validade_comercial,
 )
 
@@ -50,6 +51,31 @@ class NumeroPropostaTest(TestCase):
         self.assertTrue(comercialmente_vencida(proposta, date(2026, 11, 13)))
         self.assertEqual(numero_proposta_exibicao(proposta), "216/2026")
         self.assertEqual(proposta.valor_total, "1000")
+
+    def test_sem_validade_o_link_continua_de_sete_dias(self):
+        proposta = SimpleNamespace(validade_dias=None, validade_inicio=None, data_envio=None, created_at=None)
+        self.assertEqual(texto_prazo_link(proposta), "por 7 dias")
+
+    def test_o_link_vai_ate_o_fim_da_validade_comercial(self):
+        from datetime import timedelta as delta
+
+        from crm_vendas.proposta_identificacao import LinkComercialEncerrado, delta_token_assinatura
+
+        proposta = SimpleNamespace(
+            numero="218",
+            validade_dias=7,
+            validade_inicio=date(2026, 11, 13),
+            data_envio=None,
+            created_at=date(2026, 11, 13),
+            status_assinatura="rascunho",
+        )
+        self.assertEqual(texto_prazo_link(proposta), "até 20/11/2026")
+        self.assertEqual(texto_validade_comercial(proposta, date(2026, 11, 13)), "Validade comercial: 7 dias, até 20/11/2026.")
+        prazo = delta_token_assinatura(proposta, "cliente", datetime(2026, 11, 13, 12, 0))
+        self.assertGreater(prazo, delta(days=6))
+        self.assertLess(prazo, delta(days=8))
+        with self.assertRaises(LinkComercialEncerrado):
+            delta_token_assinatura(proposta, "cliente", datetime(2026, 11, 21, 8, 0))
 
     def test_frase_dos_servicos_cita_a_prestadora(self):
         texto = frase_contratacao(

@@ -51,7 +51,12 @@ class AssinaturaDigitalMixin:
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        assinatura = criar_token_assinatura(doc, "cliente", loja_id)
+        from .proposta_identificacao import LinkComercialEncerrado
+
+        try:
+            assinatura = criar_token_assinatura(doc, "cliente", loja_id)
+        except LinkComercialEncerrado as exc:
+            return None, Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
         doc.status_assinatura = "aguardando_cliente"
         update_fields = ["status_assinatura", "updated_at"]
         if hasattr(doc, "status") and doc.status == "rascunho":

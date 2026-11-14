@@ -127,6 +127,12 @@ export const estoqueApi = {
       email: string;
       forma?: string;
       criada_em?: string;
+      nfce?: {
+        status: string;
+        mensagem: string;
+        numero?: number | null;
+        venda_id?: number;
+      } | null;
     }>("/estoque/vendas/", data),
   vendas: (params?: { data?: string }) =>
     cbGetList<{
@@ -143,6 +149,13 @@ export const estoqueApi = {
     }>("/estoque/vendas/", params),
   cancelarVenda: (id: number) =>
     cbPost<{ id: number; status: string }>(`/estoque/vendas/${id}/cancelar/`, {}),
+  emitirNfce: (id: number) =>
+    cbPost<{
+      status: string;
+      mensagem: string;
+      numero?: number | null;
+      venda_id?: number;
+    }>(`/estoque/vendas/${id}/nfce/`, {}),
   caixa: () =>
     cbGet<{
       aberta: boolean;
@@ -338,6 +351,50 @@ export type PedidoCompraItem = {
 };
 
 type CanalResult = { sucesso?: boolean; erro?: string };
+
+export const nfceApi = {
+  config: () =>
+    cbGet<{
+      habilitada: boolean;
+      regime: string;
+      id_csc: string;
+      csc_informado: boolean;
+      inscricao_estadual: string;
+      serie: number;
+      ambiente_homologacao: boolean;
+      ncm_padrao: string;
+      codigo_municipio: string;
+      aliquota_icms: string;
+      certificado_a1: boolean;
+      proximo_numero: number;
+    }>("/nfce-config/"),
+  salvar: (data: {
+    habilitada?: boolean;
+    regime?: string;
+    id_csc?: string;
+    csc?: string;
+    inscricao_estadual?: string;
+    serie?: number;
+    ambiente_homologacao?: boolean;
+    ncm_padrao?: string;
+    codigo_municipio?: string;
+    aliquota_icms?: string;
+  }) =>
+    cbPut<{
+      habilitada: boolean;
+      regime: string;
+      id_csc: string;
+      csc_informado: boolean;
+      inscricao_estadual: string;
+      serie: number;
+      ambiente_homologacao: boolean;
+      ncm_padrao: string;
+      codigo_municipio: string;
+      aliquota_icms: string;
+      certificado_a1: boolean;
+      proximo_numero: number;
+    }>("/nfce-config/", data),
+};
 
 export const locaisAtendimentoApi = {
   list: () => cbGet<LocalAtendimentoItem[]>("/locais-atendimento/"),

@@ -507,6 +507,12 @@ def cancelar_venda_balcao(venda) -> None:
 
     if venda.status == VendaBalcao.STATUS_CANCELADA:
         raise VendaProdutoError("Esta venda já foi cancelada.")
+    from .nfce.emissao import NfceErro, cancelar_cupom_da_venda
+
+    try:
+        cancelar_cupom_da_venda(venda)
+    except NfceErro as exc:
+        raise VendaProdutoError(str(exc)) from exc
     with tenant_atomic():
         for item in venda.itens.select_related("produto"):
             if item.estornado or not item.estoque_baixado:

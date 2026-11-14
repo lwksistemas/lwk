@@ -40,6 +40,12 @@ class ProdutoEstoqueSerializer(serializers.ModelSerializer):
         model = ProdutoEstoque
         exclude = ["loja_id"]
 
+    def validate_ncm(self, value):
+        ncm = "".join(ch for ch in str(value or "") if ch.isdigit())
+        if ncm and len(ncm) != 8:
+            raise serializers.ValidationError("O NCM tem 8 dígitos.")
+        return ncm
+
     def _resolve_loja_id(self):
         request = self.context.get("request")
         loja_id = self.context.get("loja_id")

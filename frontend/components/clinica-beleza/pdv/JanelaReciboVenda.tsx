@@ -9,6 +9,8 @@ export function JanelaReciboVenda({
   onImprimir,
   onWhatsapp,
   onEmail,
+  onImprimirCupom,
+  onTentarCupom,
   onFechar,
 }: {
   entrega: EntregaRecibo;
@@ -17,6 +19,8 @@ export function JanelaReciboVenda({
   onImprimir: () => void;
   onWhatsapp: () => void;
   onEmail: () => void;
+  onImprimirCupom: () => void;
+  onTentarCupom: () => void;
   onFechar: () => void;
 }) {
   return (
@@ -37,6 +41,16 @@ export function JanelaReciboVenda({
           <p className="flex justify-between gap-3"><span className="inline-flex items-center gap-2 text-gray-500"><CalendarDays size={14} /> Data e hora</span><strong>{entrega.quando}</strong></p>
         </div>
         {aviso && <p className="mb-3 text-center text-sm text-gray-600">{aviso}</p>}
+        {entrega.nfce && (
+          <div className="mb-3 rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-700">
+            <p>{entrega.nfce.mensagem || "Cupom fiscal"}</p>
+            {entrega.nfce.status === "autorizada" ? (
+              <button type="button" onClick={onImprimirCupom} className="mt-2 font-semibold text-sky-700">Imprimir cupom fiscal</button>
+            ) : entrega.nfce.status !== "cancelada" ? (
+              <button type="button" onClick={onTentarCupom} className="mt-2 font-semibold text-sky-700">Tentar o cupom de novo</button>
+            ) : null}
+          </div>
+        )}
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <button type="button" onClick={onImprimir} className="rounded-xl bg-sky-50 px-2 py-3 text-center text-sky-700">
             <Printer size={18} className="mx-auto" />

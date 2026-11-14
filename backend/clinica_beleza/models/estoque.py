@@ -97,6 +97,13 @@ class ProdutoEstoque(LojaIsolationMixin, models.Model):
         verbose_name="Pode vender ao cliente",
         help_text="Insumo de procedimento continua só baixando o estoque. Só o marcado aqui entra no recibo.",
     )
+    ncm = models.CharField(
+        max_length=8,
+        blank=True,
+        default="",
+        verbose_name="NCM",
+        help_text="Oito dígitos do cupom fiscal. Vazio usa o NCM padrão da clínica, se houver.",
+    )
     validade = models.DateField(null=True, blank=True, verbose_name="Data de validade")
     lote = models.CharField(max_length=50, blank=True, default="", verbose_name="Lote")
     numero_nota = models.CharField(

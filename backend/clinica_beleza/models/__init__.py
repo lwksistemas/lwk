@@ -45,6 +45,7 @@ from .fornecedores import (
     PedidoCompraPaciente,
 )
 from .fotos import PacienteFotoAcompanhamento
+from .nfce import NfceConfig, NfceCupom
 from .nfse_config import ClinicaBelezaNFSeConfig
 from .orcamento import OrcamentoConsulta, OrcamentoItem
 from .patients import Patient, PatientAnamnese, PrazoPagamentoClinica
@@ -93,6 +94,8 @@ __all__ = [
     "LoteProdutoEstoque",
     "MemedTimbrado",
     "MovimentacaoEstoque",
+    "NfceConfig",
+    "NfceCupom",
     "NfeDistribuicaoEstado",
     "NotaEntradaNfe",
     "NomeAgenda",

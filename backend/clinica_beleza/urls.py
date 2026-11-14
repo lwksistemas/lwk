@@ -4,6 +4,7 @@ from django.urls import path
 
 from crm_vendas.views_crm_whatsapp_login import LoginConfigView
 
+from .nfce.views import NfceConfigView, VendaNfceView
 from .views_venda_produto import (
     CaixaFechamentoHtmlView,
     CaixaFechamentosView,
@@ -493,6 +494,7 @@ urlpatterns = [
     path("estoque/caixa/fechar/", CaixaFecharView.as_view(), name="estoque-caixa-fechar"),
     path("estoque/vendas/", VendaProdutoListView.as_view(), name="estoque-vendas"),
     path("estoque/vendas/<int:pk>/cancelar/", VendaProdutoCancelarView.as_view(), name="estoque-vendas-cancelar"),
+    path("estoque/vendas/<int:pk>/nfce/", VendaNfceView.as_view(), name="estoque-vendas-nfce"),
     path("estoque/pedidos/", PedidoCompraListView.as_view(), name="estoque-pedidos"),
     path("estoque/pedidos/assinantes/", PedidoCompraAssinantesView.as_view(), name="estoque-pedidos-assinantes"),
     path("estoque/pedidos/buscar-pacientes/", PedidoCompraBuscarPacientesView.as_view(), name="estoque-pedidos-buscar-pacientes"),
@@ -539,6 +541,7 @@ urlpatterns = [
     # Configuração NFS-e (individual por loja)
     path("nfse-config/", NFSeConfigView.as_view(), name="nfse-config"),
     path("nfse-config/test-issnet/", NFSeConfigTestISSNetView.as_view(), name="nfse-config-test-issnet"),
+    path("nfce-config/", NfceConfigView.as_view(), name="nfce-config"),
 
     # Webhook Asaas da loja (conta própria — configurar URL no painel Asaas)
     path("webhooks/asaas/<str:loja_slug>/", clinica_beleza_asaas_webhook, name="asaas-webhook"),

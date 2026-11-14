@@ -13,6 +13,7 @@ import {
   History,
   Database,
   FileText,
+  Receipt,
   Palette,
   Phone,
   Sparkles,
@@ -116,6 +117,13 @@ export default function ClinicaBelezaConfiguracoesPage() {
       href: `${base}/nota-fiscal`,
       icon: FileText,
       itens: ['Provedor de NF', 'Certificado digital', 'Emissão automática (opcional)'],
+    },
+    {
+      titulo: 'Cupom fiscal (NFC-e)',
+      descricao: 'Cupom das vendas de produto. O recibo de pagamento continua.',
+      href: `${base}/cupom-fiscal`,
+      icon: Receipt,
+      itens: ['Regime e CSC da SEFAZ-SP', 'Inscrição estadual', 'Homologação ou produção'],
     },
     {
       titulo: 'Backup',

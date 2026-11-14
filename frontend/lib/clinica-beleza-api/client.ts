@@ -12,7 +12,7 @@ import {
   templatesApi,
   termosConsentimentoApi,
 } from "./client-entities";
-import { estoqueApi, financeiroApi, locaisAtendimentoApi, lojaApi, meApi, nomesAgendaApi, retornoApi } from "./client-ops";
+import { estoqueApi, financeiroApi, locaisAtendimentoApi, lojaApi, meApi, nfceApi, nomesAgendaApi, retornoApi } from "./client-ops";
 import { cbDelete, cbGet, cbGetList, cbPatch, cbPost, cbPut } from "./client-http";
 import { clinicaBelezaFetch } from "./fetch";
 
@@ -35,6 +35,7 @@ export class ClinicaBelezaAPI {
   static me = meApi;
   static financeiro = financeiroApi;
   static estoque = estoqueApi;
+  static nfce = nfceApi;
 
   static memed: MemedApi = {
     timbrado: {

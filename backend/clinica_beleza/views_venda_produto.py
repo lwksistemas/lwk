@@ -21,6 +21,12 @@ from .venda_produto_service import (
 from .views_base import resolve_loja_id_from_request
 
 
+def _nfce_da_venda(venda):
+    from .nfce.views import resumo_nfce
+
+    return resumo_nfce(venda)
+
+
 def _venda_resumo(venda) -> dict:
     payment = venda.payment if venda.payment_id else None
     return {
@@ -35,6 +41,7 @@ def _venda_resumo(venda) -> dict:
         "recibo_numero": venda.payment_id,
         "forma": payment.get_payment_method_display() if payment is not None else "",
         "criada_em": venda.created_at.isoformat() if venda.created_at else "",
+        "nfce": _nfce_da_venda(venda),
     }
 
 
@@ -50,7 +57,7 @@ class VendaProdutoListView(APIView):
         from .models import VendaBalcao
 
         loja_id = resolve_loja_id_from_request(request)
-        qs = VendaBalcao.objects.filter(loja_id=loja_id).select_related("payment", "paciente")
+        qs = VendaBalcao.objects.filter(loja_id=loja_id).select_related("payment", "paciente", "cupom_nfce")
         dia = parse_date(str(request.query_params.get("data") or ""))
         if dia:
             qs = qs.filter(
@@ -77,7 +84,11 @@ class VendaProdutoListView(APIView):
             )
         except VendaProdutoError as exc:
             return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
-        return Response(_venda_resumo(venda), status=status.HTTP_201_CREATED)
+        from .nfce.emissao import emitir_para_resposta
+
+        corpo = _venda_resumo(venda)
+        corpo["nfce"] = emitir_para_resposta(venda)
+        return Response(corpo, status=status.HTTP_201_CREATED)
 
 
 class CaixaSessaoView(APIView):

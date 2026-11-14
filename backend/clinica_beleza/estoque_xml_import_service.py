@@ -579,7 +579,7 @@ def confirmar_importacao_xml(
                     raise ValueError(f'O produto vinculado a "{nome}" não está mais no estoque.')
                 if rastreio_obrigatorio_faltando(existente.exige_lote, acao, item.get("lote") or "", validade):
                     raise ValueError(f'"{nome}" exige lote e validade antes de entrar no estoque.')
-                _somar_entrada(existente, quantidade, custo, validade, item.get("lote") or "", item.get("numero_nota") or "", cat)
+                _somar_entrada(existente, quantidade, custo, validade, item.get("lote") or "", item.get("numero_nota") or "", cat, item.get("ncm") or "")
                 MovimentacaoEstoque.objects.create(produto=existente, tipo="entrada", quantidade=quantidade, motivo=motivo)
                 _depois_da_entrada(item, existente, fator, quantidade, custo, validade, usuario)
                 atualizados += 1
@@ -588,7 +588,7 @@ def confirmar_importacao_xml(
             chave_novo = gtin_util(item.get("gtin") or "") or normalizar_nome(nome)
             ja_criado = novos_da_nota.get(chave_novo) if chave_novo else None
             if ja_criado is not None:
-                _somar_entrada(ja_criado, quantidade, custo, validade, item.get("lote") or "", item.get("numero_nota") or "", cat)
+                _somar_entrada(ja_criado, quantidade, custo, validade, item.get("lote") or "", item.get("numero_nota") or "", cat, item.get("ncm") or "")
                 MovimentacaoEstoque.objects.create(produto=ja_criado, tipo="entrada", quantidade=quantidade, motivo=motivo)
                 _depois_da_entrada(item, ja_criado, fator, quantidade, custo, validade, usuario)
                 atualizados += 1
@@ -596,21 +596,25 @@ def confirmar_importacao_xml(
 
             unidade = item.get("unidade_estoque") or item.get("unidade_medida") or "unidade"
             nome_estoque = nome_do_cadastro(item)
+            ncm = "".join(ch for ch in str(item.get("ncm") or "") if ch.isdigit())[:8]
+            dados_produto = {
+                "nome": nome_estoque,
+                "categoria": (cat.slug if cat else None) or item.get("categoria") or "outro",
+                "marca": "",
+                "unidade_medida": unidade,
+                "quantidade_atual": str(quantidade),
+                "quantidade_minima": 0,
+                "preco_custo": str(custo),
+                "preco_venda": 0,
+                "lote": item.get("lote") or "",
+                "validade": validade.isoformat() if validade else None,
+                "numero_nota": item.get("numero_nota") or "",
+                "observacoes": item.get("observacoes") or "",
+            }
+            if len(ncm) == 8:
+                dados_produto["ncm"] = ncm
             serializer = ProdutoEstoqueSerializer(
-                data={
-                    "nome": nome_estoque,
-                    "categoria": (cat.slug if cat else None) or item.get("categoria") or "outro",
-                    "marca": "",
-                    "unidade_medida": unidade,
-                    "quantidade_atual": str(quantidade),
-                    "quantidade_minima": 0,
-                    "preco_custo": str(custo),
-                    "preco_venda": 0,
-                    "lote": item.get("lote") or "",
-                    "validade": validade.isoformat() if validade else None,
-                    "numero_nota": item.get("numero_nota") or "",
-                    "observacoes": item.get("observacoes") or "",
-                },
+                data=dados_produto,
                 context={"loja_id": loja_id},
             )
             if not serializer.is_valid():
@@ -625,7 +629,7 @@ def confirmar_importacao_xml(
     return {"criados": criados, "atualizados": atualizados, "ignorados": ignorados, "consumos": consumos, "erros": []}
 
 
-def _somar_entrada(produto, quantidade: Decimal, custo: Decimal, validade, lote: str, numero_nota: str, cat) -> None:
+def _somar_entrada(produto, quantidade: Decimal, custo: Decimal, validade, lote: str, numero_nota: str, cat, ncm: str = "") -> None:
     produto.quantidade_atual += quantidade
     produto.preco_custo = custo
     if validade and (not produto.validade or validade < produto.validade):
@@ -635,6 +639,10 @@ def _somar_entrada(produto, quantidade: Decimal, custo: Decimal, validade, lote:
     if numero_nota:
         produto.numero_nota = str(numero_nota)[:50]
     campos = ["quantidade_atual", "preco_custo", "validade", "lote", "numero_nota", "updated_at"]
+    ncm_digits = "".join(ch for ch in str(ncm or "") if ch.isdigit())[:8]
+    if len(ncm_digits) == 8 and not (produto.ncm or "").strip():
+        produto.ncm = ncm_digits
+        campos.append("ncm")
     if cat and not produto.categoria_id:
         produto.categoria = cat
         campos.append("categoria")

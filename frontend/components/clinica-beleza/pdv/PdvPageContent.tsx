@@ -476,6 +476,8 @@ export function PdvPageContent() {
           quando: quandoRecibo(criada.criada_em),
           telefone: criada.telefone || telefoneRecibo.trim(),
           email: criada.email || emailRecibo.trim(),
+          vendaId: criada.id,
+          nfce: criada.nfce,
         });
         setAvisoEntrega("");
         chaveVenda.current = "";
@@ -735,6 +737,17 @@ export function PdvPageContent() {
           onImprimir={() => void imprimirRecibo(entrega.paymentId)}
           onWhatsapp={() => void enviarReciboEscolhido("whatsapp")}
           onEmail={() => void enviarReciboEscolhido("email")}
+          onImprimirCupom={() => {
+            if (!entrega.vendaId) return;
+            void imprimirHtml(`/estoque/vendas/${entrega.vendaId}/nfce/`, "Não foi possível abrir o cupom fiscal.");
+          }}
+          onTentarCupom={() => {
+            if (!entrega.vendaId) return;
+            void ClinicaBelezaAPI.estoque.emitirNfce(entrega.vendaId).then((nfce) => {
+              setEntrega((atual) => atual ? { ...atual, nfce } : atual);
+              setAvisoEntrega("");
+            }).catch((falha) => setAvisoEntrega(mensagemErro(falha, "Não foi possível emitir o cupom.")));
+          }}
           onFechar={() => { setEntrega(null); setAvisoEntrega(""); }}
         />
       )}

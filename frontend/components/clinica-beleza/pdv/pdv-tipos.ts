@@ -29,6 +29,8 @@ export type EntregaRecibo = {
   quando: string;
   telefone: string;
   email: string;
+  vendaId?: number;
+  nfce?: { status: string; mensagem: string; numero?: number | null } | null;
 };
 
 export type VendaHistorico = {

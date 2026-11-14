@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { ClinicaBelezaAPI, type PacienteFotoItem } from "@/lib/clinica-beleza-api";
 import { useToast } from "@/components/ui/Toast";
+import { prepararArquivoImagemUpload } from "@/lib/image-prepare";
 import { MAX_FOTOS_POR_CONSULTA } from "../fotos/fotos-constants";
 
 const MIN_COMPARAR = 2;
@@ -88,7 +89,8 @@ export function useConsultaFotosTab(
   const salvarArquivo = async (file: File) => {
     setSalvando(true);
     try {
-      await ClinicaBelezaAPI.consultas.fotos.salvarArquivo(consultaId, file);
+      const preparada = await prepararArquivoImagemUpload(file);
+      await ClinicaBelezaAPI.consultas.fotos.salvarArquivo(consultaId, preparada);
       await carregar();
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : "Erro ao salvar foto.");

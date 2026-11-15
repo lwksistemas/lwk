@@ -2,6 +2,7 @@ from decimal import Decimal
 
 from rest_framework import serializers
 
+from .caixa_service import rotulo_formas
 from .models import PAINEIS, Agendamento, Cliente, Profissional, Servico
 
 
@@ -108,7 +109,7 @@ class AgendamentoSerializer(serializers.ModelSerializer):
             "valor": f"{item.valor:.2f}",
             "desconto": f"{item.desconto:.2f}",
             "forma": item.forma,
-            "forma_label": item.get_forma_display(),
+            "forma_label": rotulo_formas(item.partes, item.forma),
             "comissao_valor": f"{item.comissao_valor:.2f}",
         }
 

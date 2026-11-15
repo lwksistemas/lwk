@@ -14,6 +14,24 @@ function dois(valor: number) {
   return String(valor).padStart(2, "0");
 }
 
+type LinhaPagamento = { id: string; forma: string; valor: string };
+
+const FORMAS_SALAO = [
+  ["dinheiro", "Dinheiro"],
+  ["pix", "Pix"],
+  ["debito", "Débito"],
+  ["credito", "Crédito"],
+] as const;
+
+function lerReais(texto: string) {
+  const numero = Number(String(texto).replace(",", "."));
+  return Number.isFinite(numero) ? Math.round(numero * 100) / 100 : 0;
+}
+
+function reais(valor: number) {
+  return valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
 function paraApi(data: Date) {
   return `${data.getFullYear()}-${dois(data.getMonth() + 1)}-${dois(data.getDate())}T${dois(data.getHours())}:${dois(data.getMinutes())}:00`;
 }
@@ -56,7 +74,9 @@ export default function AgendaSalaoPage() {
   const [form, setForm] = useState<Record<string, string> | null>(null);
   const [selecionado, setSelecionado] = useState<AgendamentoSalao | null>(null);
   const [desconto, setDesconto] = useState("");
-  const [formaPagamento, setFormaPagamento] = useState("pix");
+  const [receberAberto, setReceberAberto] = useState(false);
+  const [quitar, setQuitar] = useState(true);
+  const [linhas, setLinhas] = useState<LinhaPagamento[]>([{ id: "1", forma: "dinheiro", valor: "" }]);
   const [confirmaWhatsapp, setConfirmaWhatsapp] = useState(false);
   const [jornadas, setJornadas] = useState<Record<number, JornadaDia[]>>({});
   const [aviso, setAviso] = useState("");
@@ -238,16 +258,56 @@ export default function AgendaSalaoPage() {
     }
   }
 
+  function abrirReceber() {
+    if (!selecionado) return;
+    const preco = Number(selecionado.preco || 0);
+    setErro("");
+    setDesconto("");
+    setQuitar(true);
+    setLinhas([{ id: "1", forma: "dinheiro", valor: preco.toFixed(2) }]);
+    setReceberAberto(true);
+  }
+
+  function mudarDesconto(texto: string) {
+    setDesconto(texto);
+    if (!selecionado || linhas.length !== 1) return;
+    const liquido = Math.max(0, Math.round((Number(selecionado.preco || 0) - lerReais(texto)) * 100) / 100);
+    setLinhas([{ ...linhas[0], valor: liquido.toFixed(2) }]);
+  }
+
   async function receber() {
     if (!selecionado) return;
+    const preco = Number(selecionado.preco || 0);
+    const valorDesconto = lerReais(desconto);
+    const total = Math.round((preco - valorDesconto) * 100) / 100;
+    if (valorDesconto < 0 || valorDesconto > preco) {
+      setErro("O desconto não pode passar do valor do serviço.");
+      return;
+    }
+    const soma = Math.round(linhas.reduce((acc, linha) => acc + lerReais(linha.valor), 0) * 100) / 100;
+    if (total > 0) {
+      if (linhas.some((linha) => lerReais(linha.valor) <= 0)) {
+        setErro("Informe o valor de cada forma de pagamento.");
+        return;
+      }
+      if (soma > total + 0.001) {
+        setErro(`A soma das formas passa do total a receber (${reais(total)}).`);
+        return;
+      }
+      if (Math.abs(soma - total) > 0.009) {
+        setErro(`Para quitar, a soma das formas deve ser igual ao total a receber (${reais(total)}).`);
+        return;
+      }
+    }
     setErro("");
     try {
       const atualizado = await SalaoAPI.receber(selecionado.id, {
-        desconto: desconto.replace(",", ".") || "0",
-        forma: formaPagamento,
+        desconto: valorDesconto.toFixed(2),
+        formas: total > 0 ? linhas.map((linha) => ({ forma: linha.forma, valor: lerReais(linha.valor).toFixed(2) })) : [],
       });
       setSelecionado(atualizado);
       setDesconto("");
+      setReceberAberto(false);
       carregar();
     } catch (exc) {
       setErro(exc instanceof Error ? exc.message : "Não foi possível receber.");
@@ -528,7 +588,24 @@ export default function AgendaSalaoPage() {
           aoFechar={() => { setForm(null); setErro(""); if (!selecionado) setConfirmarExclusao(false); }}
         />
       ) : null}
-      {selecionado && !form ? (
+      {selecionado && receberAberto ? (
+        <ModalReceber
+          cliente={selecionado.cliente_nome}
+          servico={selecionado.servico_nome}
+          profissional={selecionado.profissional_nome}
+          preco={Number(selecionado.preco || 0)}
+          desconto={desconto}
+          linhas={linhas}
+          quitar={quitar}
+          erro={erro}
+          aoDesconto={mudarDesconto}
+          aoLinhas={setLinhas}
+          aoQuitar={setQuitar}
+          aoConfirmar={receber}
+          aoFechar={() => { setReceberAberto(false); setErro(""); }}
+        />
+      ) : null}
+      {selecionado && !form && !receberAberto ? (
         <div className="fixed inset-0 z-40 grid place-items-center bg-black/40 p-4" role="dialog" aria-modal="true" aria-labelledby="agenda-detalhe" onClick={(evento) => { if (evento.target === evento.currentTarget) { setSelecionado(null); setConfirmarExclusao(false); } }}>
           <div className="max-h-[90vh] w-full max-w-lg overflow-auto rounded-3xl bg-white p-5">
           <p id="agenda-detalhe" className="font-medium">{selecionado.cliente_nome}</p>
@@ -541,16 +618,7 @@ export default function AgendaSalaoPage() {
             {selecionado.status === "SCHEDULED" || selecionado.status === "CONFIRMED" ? <button type="button" className="rounded-full bg-[#1f8f86] px-3 py-1.5 text-sm text-white" onClick={() => mudarStatus("IN_PROGRESS")}>Iniciar atendimento</button> : null}
             {selecionado.status === "IN_PROGRESS" ? <button type="button" className="rounded-full bg-[#1f8a4c] px-3 py-1.5 text-sm text-white" onClick={() => mudarStatus("COMPLETED")}>Finalizar</button> : null}
             {selecionado.status === "COMPLETED" && !selecionado.recebido ? (
-              <span className="flex flex-wrap items-center gap-2">
-                <input className="w-28 rounded-lg border px-2 py-1.5 text-sm" inputMode="decimal" placeholder="Desconto R$" value={desconto} onChange={(evento) => setDesconto(evento.target.value)} />
-                <select className="rounded-lg border px-2 py-1.5 text-sm" value={formaPagamento} onChange={(evento) => setFormaPagamento(evento.target.value)}>
-                  <option value="dinheiro">Dinheiro</option>
-                  <option value="pix">Pix</option>
-                  <option value="debito">Débito</option>
-                  <option value="credito">Crédito</option>
-                </select>
-                <button type="button" className="rounded-full bg-[#7a3044] px-3 py-1.5 text-sm text-white" onClick={receber}>Receber</button>
-              </span>
+              <button type="button" className="rounded-full bg-[#7a3044] px-3 py-1.5 text-sm text-white" onClick={abrirReceber}>Receber</button>
             ) : null}
             {selecionado.recebido ? (
               <>
@@ -629,6 +697,96 @@ function Formulario({
       </div>
       </div>
     </form>
+    </div>
+  );
+}
+
+function ModalReceber({
+  cliente, servico, profissional, preco, desconto, linhas, quitar, erro,
+  aoDesconto, aoLinhas, aoQuitar, aoConfirmar, aoFechar,
+}: {
+  cliente: string;
+  servico: string;
+  profissional: string;
+  preco: number;
+  desconto: string;
+  linhas: LinhaPagamento[];
+  quitar: boolean;
+  erro: string;
+  aoDesconto: (valor: string) => void;
+  aoLinhas: (linhas: LinhaPagamento[]) => void;
+  aoQuitar: (valor: boolean) => void;
+  aoConfirmar: () => void;
+  aoFechar: () => void;
+}) {
+  const valorDesconto = lerReais(desconto);
+  const total = Math.round((preco - valorDesconto) * 100) / 100;
+  const distribuido = Math.round(linhas.reduce((acc, linha) => acc + lerReais(linha.valor), 0) * 100) / 100;
+  const somaOk = total <= 0 || Math.abs(distribuido - total) < 0.01;
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-labelledby="receber-pagamento" onClick={(evento) => { if (evento.target === evento.currentTarget) aoFechar(); }}>
+      <div className="max-h-[90vh] w-full max-w-3xl overflow-auto rounded-2xl bg-white shadow-xl">
+        <div className="flex items-center justify-between border-b px-4 py-3">
+          <h2 id="receber-pagamento" className="text-lg font-bold">Receber pagamento</h2>
+          <button type="button" className="rounded-lg px-2 py-1 text-lg leading-none" onClick={aoFechar} aria-label="Fechar">×</button>
+        </div>
+        <div className="space-y-4 p-5">
+          <div className="grid gap-6 md:grid-cols-2">
+            <div className="space-y-2 text-sm">
+              <p className="text-xs font-semibold uppercase text-gray-500">Dados do atendimento</p>
+              <p><strong>Cliente:</strong> {cliente}</p>
+              <p><strong>Serviço:</strong> {servico}</p>
+              <p><strong>Profissional:</strong> {profissional}</p>
+              <p><strong>Valor do serviço:</strong> {reais(preco)}</p>
+              <p className="border-t pt-1 font-semibold">Total: {reais(preco)}</p>
+              <label className="block pt-2 text-sm font-medium">Desconto (R$)
+                <input type="number" step="0.01" min="0" className="mt-1 w-full rounded-lg border px-3 py-2" value={desconto} placeholder="0,00" onChange={(evento) => aoDesconto(evento.target.value)} />
+              </label>
+              <p className="pt-1 text-base font-bold text-[#7a3044]">Total a receber: {reais(Math.max(0, total))}</p>
+            </div>
+            {total <= 0 ? (
+              <p className="rounded-lg border p-3 text-sm text-gray-600">Desconto integral. Nada a receber — confirme para quitar o atendimento.</p>
+            ) : (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-semibold uppercase text-gray-500">Formas de pagamento</p>
+                  <button type="button" className="text-sm font-medium text-[#7a3044]" onClick={() => aoLinhas([...linhas, { id: String(Date.now()), forma: "pix", valor: "" }])}>+ Adicionar forma</button>
+                </div>
+                {linhas.map((linha, indice) => (
+                  <div key={linha.id} className="space-y-2 rounded-lg border p-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-gray-500">Forma {indice + 1}</span>
+                      {linhas.length > 1 ? <button type="button" className="text-xs text-red-600" onClick={() => aoLinhas(linhas.filter((item) => item.id !== linha.id))}>Remover</button> : null}
+                    </div>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      <label className="text-xs font-medium">Forma
+                        <select className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" value={linha.forma} onChange={(evento) => aoLinhas(linhas.map((item) => item.id === linha.id ? { ...item, forma: evento.target.value } : item))}>
+                          {FORMAS_SALAO.map(([valor, nome]) => <option key={valor} value={valor}>{nome}</option>)}
+                        </select>
+                      </label>
+                      <label className="text-xs font-medium">Valor (R$)
+                        <input type="number" step="0.01" min="0" className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" value={linha.valor} onChange={(evento) => aoLinhas(linhas.map((item) => item.id === linha.id ? { ...item, valor: evento.target.value } : item))} />
+                      </label>
+                    </div>
+                  </div>
+                ))}
+                <p className={`text-sm font-medium ${somaOk ? "text-green-700" : "text-amber-700"}`}>
+                  Distribuído: {reais(distribuido)} / {reais(Math.max(0, total))}{somaOk ? " ✓" : ""}
+                </p>
+              </div>
+            )}
+          </div>
+          {erro ? <p className="rounded-lg bg-red-50 p-2 text-sm text-red-700">{erro}</p> : null}
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={quitar || total <= 0} disabled={total <= 0} onChange={(evento) => aoQuitar(evento.target.checked)} />
+            Quitar pagamento completo
+          </label>
+          <div className="flex gap-2 border-t pt-2">
+            <button type="button" className="flex-1 rounded-lg border py-2" onClick={aoFechar}>Cancelar</button>
+            <button type="button" className="flex-1 rounded-lg bg-[#7a3044] py-2 text-white" onClick={aoConfirmar}>Confirmar</button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

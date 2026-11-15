@@ -158,7 +158,7 @@ export const SalaoAPI = {
     salaoFetch<AgendamentoSalao>(`/agendamentos/${id}/`, { method: "PATCH", body: JSON.stringify(corpo) }),
   excluirAgendamento: (id: number) =>
     salaoFetch<AgendamentoSalao>(`/agendamentos/${id}/`, { method: "DELETE" }),
-  receber: (id: number, corpo: { desconto: string; forma: string }) =>
+  receber: (id: number, corpo: { desconto: string; forma?: string; formas?: { forma: string; valor: string }[] }) =>
     salaoFetch<AgendamentoSalao>(`/agendamentos/${id}/receber/`, { method: "POST", body: JSON.stringify(corpo) }),
   estornarRecebimento: (id: number) => salaoFetch(`/recebimentos/${id}/`, { method: "DELETE" }),
   caixa: (start: string, end: string) =>

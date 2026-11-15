@@ -3,7 +3,7 @@ from datetime import datetime, time, timedelta
 from decimal import Decimal
 
 from salao_cabeleireiro.agenda_service import avaliar_jornada, intervalos_conflitam
-from salao_cabeleireiro.caixa_service import calcular_recebimento
+from salao_cabeleireiro.caixa_service import calcular_recebimento, interpretar_formas, rotulo_formas
 from salao_cabeleireiro.comunicacao_service import regras_de
 from salao_cabeleireiro.mensagens import na_janela_lembrete, texto_cancelamento, texto_confirmacao
 from salao_cabeleireiro.serializers import painel_valido
@@ -56,6 +56,23 @@ class CaixaSalaoTest(unittest.TestCase):
         valor, comissao = calcular_recebimento("70,00", "0", "33.33")
         self.assertEqual(valor, Decimal("70.00"))
         self.assertEqual(comissao, Decimal("23.33"))
+
+    def test_uma_forma_antiga_continua_valendo(self):
+        partes = interpretar_formas({"forma": "pix"}, Decimal("40.00"))
+        self.assertEqual(partes, [{"forma": "pix", "valor": "40.00"}])
+
+    def test_duas_formas_precisam_fechar_o_total(self):
+        partes = interpretar_formas(
+            {"formas": [{"forma": "dinheiro", "valor": "15.00"}, {"forma": "pix", "valor": "25.00"}]},
+            Decimal("40.00"),
+        )
+        self.assertEqual(len(partes), 2)
+        self.assertEqual(rotulo_formas(partes, "dinheiro"), "Dinheiro e Pix")
+        with self.assertRaises(ValueError):
+            interpretar_formas({"formas": [{"forma": "pix", "valor": "10.00"}]}, Decimal("40.00"))
+
+    def test_desconto_integral_nao_exige_forma(self):
+        self.assertEqual(interpretar_formas({}, Decimal("0.00")), [])
 
 
 class MensagemSalaoTest(unittest.TestCase):

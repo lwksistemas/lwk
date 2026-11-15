@@ -155,6 +155,7 @@ class Recebimento(models.Model):
     desconto = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("0"))
     valor = models.DecimalField(max_digits=10, decimal_places=2)
     forma = models.CharField(max_length=20, choices=FORMAS_PAGAMENTO)
+    partes = models.JSONField(default=list, blank=True)
     comissao_percentual = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal("0"))
     comissao_valor = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("0"))
     observacao = models.CharField(max_length=200, blank=True, default="")

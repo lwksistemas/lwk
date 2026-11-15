@@ -10,10 +10,10 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .agenda_service import conflito_horario, interpretar_inicio
-from .caixa_service import FORMAS, calcular_recebimento, quantia
+from .caixa_service import calcular_recebimento, interpretar_formas, quantia, rotulo_formas
 from .comunicacao_service import avisar_mudanca, enviar_evento, regras_de, validar_regras, whatsapp_pronto
 from .catalogo import garantir_catalogo_inicial
-from .models import PAINEIS, STATUS_AGENDAMENTO, STATUS_OCUPA_HORARIO, Agendamento, Bloqueio, Cliente, HorarioTrabalho, Profissional, Recebimento, SalaoConfig, Servico
+from .models import FORMAS_PAGAMENTO, PAINEIS, STATUS_AGENDAMENTO, STATUS_OCUPA_HORARIO, Agendamento, Bloqueio, Cliente, HorarioTrabalho, Profissional, Recebimento, SalaoConfig, Servico
 from .loja_config import cores_gravadas
 from .permissions import IsSalaoAdmin, IsSalaoMembro, contexto_salao, usuario_e_admin
 from .serializers import AgendamentoSerializer, ClienteSerializer, ProfissionalSerializer, ServicoSerializer, painel_valido
@@ -656,9 +656,6 @@ class ReceberAgendamentoView(APIView):
             return _erro("Conclua o atendimento antes de receber.")
         if any(item.is_active for item in agendamento.recebimentos.all()):
             return _erro("Este atendimento já foi recebido.")
-        forma = (request.data.get("forma") or "").strip()
-        if forma not in FORMAS:
-            return _erro("Escolha dinheiro, Pix, débito ou crédito.")
         try:
             desconto = quantia(request.data.get("desconto") or 0)
             valor, comissao = calcular_recebimento(
@@ -666,6 +663,7 @@ class ReceberAgendamentoView(APIView):
                 desconto,
                 agendamento.profissional.comissao_percentual,
             )
+            partes = interpretar_formas(request.data, valor)
         except ValueError as exc:
             return _erro(str(exc))
         Recebimento.objects.create(
@@ -674,7 +672,8 @@ class ReceberAgendamentoView(APIView):
             valor_servico=agendamento.servico.preco,
             desconto=desconto,
             valor=valor,
-            forma=forma,
+            forma=partes[0]["forma"] if partes else "dinheiro",
+            partes=partes,
             comissao_percentual=agendamento.profissional.comissao_percentual,
             comissao_valor=comissao,
             observacao=(request.data.get("observacao") or "")[:200],
@@ -724,8 +723,10 @@ class CaixaView(APIView):
         por_profissional = {}
         for item in itens:
             total += item.valor
-            forma = por_forma.setdefault(item.forma, {"forma": item.forma, "nome": item.get_forma_display(), "total": Decimal("0")})
-            forma["total"] += item.valor
+            for parte in item.partes or [{"forma": item.forma, "valor": item.valor}]:
+                codigo = parte["forma"]
+                forma = por_forma.setdefault(codigo, {"forma": codigo, "nome": dict(FORMAS_PAGAMENTO).get(codigo, codigo), "total": Decimal("0")})
+                forma["total"] += Decimal(str(parte["valor"]))
             comissao = por_profissional.setdefault(item.profissional_id, {
                 "nome": item.profissional.nome,
                 "quantidade": 0,
@@ -751,7 +752,7 @@ class CaixaView(APIView):
                     "servico": item.agendamento.servico.nome,
                     "profissional": item.profissional.nome,
                     "forma": item.forma,
-                    "forma_label": item.get_forma_display(),
+                    "forma_label": rotulo_formas(item.partes, item.forma),
                     "desconto": _dinheiro(item.desconto),
                     "valor": _dinheiro(item.valor),
                     "comissao": _dinheiro(item.comissao_valor),

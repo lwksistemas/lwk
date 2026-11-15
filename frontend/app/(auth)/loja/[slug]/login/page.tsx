@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { authService, markInternalNavigation } from '@/lib/auth';
-import { homePathForTipo, isTipoCRMVendas } from '@/lib/loja-tipo';
+import { aplicarCookieAppLoja, homePathForTipo } from '@/lib/loja-tipo';
 import { resolveLoginBackground, getLoginBackgroundHintFromSlug, getLoginBackgroundFallbackColor, preloadLoginBackground, getLoginThemeColor, cacheLojaLoginContext, getInitialLoginBackgroundForSlug, preloadImageUrl } from '@/lib/login-default-backgrounds';
 import { themeLabelForTipo } from '@/lib/loja-theme';
 import { LoginBackgroundLayer } from '@/components/auth/LoginBackgroundLayer';
@@ -178,15 +178,10 @@ export default function LojaLoginDinamicoPage() {
       }
     }
 
-    const usaCrm = lojaInfo && isTipoCRMVendas(lojaInfo.tipo_loja_nome);
     const destino = lojaInfo
       ? homePathForTipo(slug, lojaInfo.tipo_loja_nome)
       : `/loja/${slug}/dashboard`;
-    if (typeof document !== 'undefined') {
-      document.cookie = usaCrm
-        ? 'loja_usa_crm=1; path=/; max-age=86400; SameSite=Lax'
-        : 'loja_usa_crm=; path=/; max-age=0';
-    }
+    if (lojaInfo) aplicarCookieAppLoja(lojaInfo.tipo_loja_nome);
     markInternalNavigation();
     window.location.replace(`${destino}?_t=${Date.now()}`);
   };

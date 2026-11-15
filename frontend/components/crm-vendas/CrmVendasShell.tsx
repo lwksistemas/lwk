@@ -94,6 +94,7 @@ export function CrmVendasShell({ children }: { children: ReactNode }) {
         sessionStorage.setItem('current_loja_id', String(data.id));
         if (data?.slug) sessionStorage.setItem('loja_slug', data.slug);
         document.cookie = 'loja_usa_crm=1; path=/; max-age=86400; SameSite=Lax';
+        document.cookie = 'loja_usa_salao=; path=/; max-age=0';
       }
       await fetchCrmMe();
     } catch (err: unknown) {

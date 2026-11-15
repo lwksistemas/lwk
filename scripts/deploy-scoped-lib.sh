@@ -9,11 +9,12 @@ Uso: TARGET [app ...]
   frontend              login, superadmin e o site geral
   frontend crm_vendas   só a tela do CRM
   frontend clinica_beleza  só a tela da clínica da beleza
+  frontend salao_cabeleireiro  só a tela do salão de cabeleireiro
   backend [app ...]     API + worker; migrate/ensure só desse app e só nas lojas desse tipo
   all [app ...]         frontend + backend + worker (sem Evolution/mídia)
   infra                 Evolution e mídia
 
-Apps: clinica_beleza  crm_vendas  whatsapp  nfse_integration
+Apps: clinica_beleza  crm_vendas  salao_cabeleireiro  whatsapp  nfse_integration
 
 Exemplos:
   bash scripts/deploy-beta-isolated.sh frontend
@@ -141,6 +142,7 @@ lwk_deploy_target() {
       case "$fe_app" in
         crm_vendas|crm-vendas) fe_svc="frontend-crm" ;;
         clinica_beleza|clinica-beleza) fe_svc="frontend-clinica" ;;
+        salao_cabeleireiro|salao-cabeleireiro) fe_svc="frontend-salao" ;;
       esac
       echo "=== Rebuild só ${fe_svc} ==="
       lwk_compose_up_build "$compose_file" "$fe_svc"

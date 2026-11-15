@@ -20,6 +20,7 @@ describe('tipos em produção', () => {
     );
     expect(isTipoCRMVendas('CRM Vendas')).toBe(true);
     expect(homePathForTipo('felix', 'CRM Vendas')).toBe('/loja/felix/crm-vendas');
+    expect(homePathForTipo('bella', 'Salão de Cabeleireiro')).toBe('/loja/bella/salao-cabeleireiro');
   });
 
   it('manda as configurações para o app dono', () => {
@@ -28,6 +29,9 @@ describe('tipos em produção', () => {
     );
     expect(configuracoesPathForTipo('felix', 'CRM Vendas')).toBe(
       '/loja/felix/crm-vendas/configuracoes',
+    );
+    expect(configuracoesPathForTipo('bella', 'Salão de Cabeleireiro')).toBe(
+      '/loja/bella/salao-cabeleireiro/configuracoes',
     );
   });
 });

@@ -72,6 +72,7 @@ class MultiTenantRouter:
             "crm_vendas",
             "nfse_integration",
             "products",
+            "salao_cabeleireiro",
             "stores",
             "whatsapp",
         ),

@@ -23,6 +23,18 @@
         proxy_cache_bypass $http_upgrade;
     }
 
+    location /fe-salao/ {
+        proxy_pass http://127.0.0.1:3004;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+    }
+
     location ~ ^/loja/[^/]+/crm-vendas(/|$) {
         proxy_pass http://127.0.0.1:3002;
         proxy_http_version 1.1;
@@ -44,6 +56,18 @@
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 
+    location ~ ^/loja/[^/]+/salao-cabeleireiro(/|$) {
+        proxy_pass http://127.0.0.1:3004;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+    }
+
     location ~ ^/loja/[^/]+/(clinica-beleza|agenda|relatorios|dashboard)(/|$) {
         proxy_pass http://127.0.0.1:3003;
         proxy_http_version 1.1;
@@ -63,6 +87,9 @@
         set $loja_app_upstream 127.0.0.1:3003;
         if ($cookie_loja_usa_crm = "1") {
             set $loja_app_upstream 127.0.0.1:3002;
+        }
+        if ($cookie_loja_usa_salao = "1") {
+            set $loja_app_upstream 127.0.0.1:3004;
         }
         proxy_pass http://$loja_app_upstream;
         proxy_http_version 1.1;

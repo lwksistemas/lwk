@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import { formatApiErrorBody } from '@/lib/api-errors';
-import { isTipoCRMVendas } from '@/lib/loja-tipo';
+import { aplicarCookieAppLoja, homePathForTipo } from '@/lib/loja-tipo';
 import PasswordInput from '@/components/auth/PasswordInput';
 import { AuthScreenShell } from '@/components/auth/AuthScreenShell';
 import { cacheLojaLoginContext } from '@/lib/login-default-backgrounds';
@@ -27,14 +27,8 @@ export default function TrocarSenhaLojaComSlugPage() {
   const [erro, setErro] = useState('');
 
   const irParaOApp = useCallback((tipo: string) => {
-    const crm = Boolean(tipo && isTipoCRMVendas(tipo));
-    if (typeof document !== 'undefined') {
-      document.cookie = crm
-        ? 'loja_usa_crm=1; path=/; max-age=86400; SameSite=Lax'
-        : 'loja_usa_crm=; path=/; max-age=0';
-    }
-    const destino = crm ? `/loja/${slug}/crm-vendas` : `/loja/${slug}/dashboard`;
-    window.location.replace(destino);
+    aplicarCookieAppLoja(tipo);
+    window.location.replace(homePathForTipo(slug, tipo));
   }, [slug]);
 
   const loadLojaInfo = useCallback(async () => {

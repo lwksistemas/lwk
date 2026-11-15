@@ -48,6 +48,7 @@ ENSURE_POR_APP: dict[str, tuple[str, ...]] = {
         "ensure_nfe_entrada_schedule",
         "ensure_caixa_fechamento_schedule",
     ),
+    "salao_cabeleireiro": (),
     "crm_vendas": (
         "ensure_relatorio_comissao_table",
         "ensure_crm_config_colunas",

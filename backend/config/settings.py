@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     "asaas_integration.apps.AsaasIntegrationConfig",  # App Asaas (signals no ready)
     "nfse_integration.apps.NfseIntegrationConfig",  # App de integração NFS-e (ISSNet, API Nacional, etc)
     "clinica_beleza.apps.ClinicaBelezaConfig",  # App de clínica da beleza
+    "salao_cabeleireiro.apps.SalaoCabeleireiroConfig",  # Salão de Cabeleireiro
     "notificacoes.apps.NotificacoesConfig",  # Base de notificações (in-app, push, email, etc.)
     "push.apps.PushConfig",  # Push notifications (VAPID)
     "whatsapp.apps.WhatsappConfig",  # WhatsApp oficial (Meta Cloud API) - ETAPA 4

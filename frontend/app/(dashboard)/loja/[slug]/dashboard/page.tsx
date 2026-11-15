@@ -5,7 +5,7 @@ import dynamic from 'next/dynamic';
 import { useRouter, useParams } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import { useLojaAuth } from '@/hooks/useLojaAuth';
-import { isTipoClinicaBeleza, isTipoCRMVendas } from '@/lib/loja-tipo';
+import { aplicarCookieAppLoja, isTipoClinicaBeleza, isTipoCRMVendas, isTipoSalaoCabeleireiro } from '@/lib/loja-tipo';
 import {
   readLojaInfoPublicaCache,
   writeLojaInfoPublicaCache,
@@ -166,12 +166,24 @@ export default function LojaDashboardDinamicoPage() {
 
   if (isTipoCRMVendas(lojaInfo.tipo_loja_nome)) {
     if (typeof window !== 'undefined') {
-      document.cookie = 'loja_usa_crm=1; path=/; max-age=86400; SameSite=Lax';
+      aplicarCookieAppLoja(lojaInfo.tipo_loja_nome);
       window.location.replace(`/loja/${lojaInfo.slug}/crm-vendas`);
     }
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
         <p className="text-gray-600 dark:text-gray-400">Redirecionando ao CRM...</p>
+      </div>
+    );
+  }
+
+  if (isTipoSalaoCabeleireiro(lojaInfo.tipo_loja_nome)) {
+    if (typeof window !== 'undefined') {
+      aplicarCookieAppLoja(lojaInfo.tipo_loja_nome);
+      window.location.replace(`/loja/${lojaInfo.slug}/salao-cabeleireiro`);
+    }
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <p className="text-gray-600 dark:text-gray-400">Abrindo o salão...</p>
       </div>
     );
   }

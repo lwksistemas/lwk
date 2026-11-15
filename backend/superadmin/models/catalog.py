@@ -58,6 +58,11 @@ class TipoLoja(models.Model):
                 "clinica-de-estetica": "CLIBEL", "clinica-da-beleza": "CLIBEL",
                 "clinica-beleza": "CLIBEL",
                 "crm-vendas": "CRMVND",
+                "salao-cabeleireiro": "SALAO",
+                "salao-de-cabeleireiro": "SALAO",
+                "salao-de-cabelereiro": "SALAO",
+                "cabeleireiro": "SALAO",
+                "cabelereiro": "SALAO",
                 "clinica-estetica": "CLIBEL",
             }
             self.codigo = slug_to_codigo.get((self.slug or "").strip(), "")

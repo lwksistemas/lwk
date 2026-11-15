@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { homePathFromAppCookie } from '@/lib/loja-tipo';
 
 /**
  * Middleware de Isolamento de Grupos
@@ -89,8 +90,11 @@ export function middleware(request: NextRequest) {
     
     // Se for loja mas tentando acessar outra loja
     if (userType === 'loja' && lojaSlug && requestedSlug && requestedSlug !== lojaSlug) {
-      const usaCrm = request.cookies.get('loja_usa_crm')?.value === '1';
-      const destino = usaCrm ? `/loja/${lojaSlug}/crm-vendas` : `/loja/${lojaSlug}/dashboard`;
+      const destino = homePathFromAppCookie(
+        lojaSlug,
+        request.cookies.get('loja_usa_crm')?.value === '1',
+        request.cookies.get('loja_usa_salao')?.value === '1',
+      );
       return NextResponse.redirect(new URL(destino, request.url));
     }
     
@@ -110,6 +114,9 @@ function getRedirectUrl(userType: string, lojaSlug?: string, request?: NextReque
       if (!lojaSlug) return '/';
       if (request?.cookies.get('loja_usa_crm')?.value === '1') {
         return `/loja/${lojaSlug}/crm-vendas`;
+      }
+      if (request?.cookies.get('loja_usa_salao')?.value === '1') {
+        return `/loja/${lojaSlug}/salao-cabeleireiro`;
       }
       return `/loja/${lojaSlug}/dashboard`;
     default:

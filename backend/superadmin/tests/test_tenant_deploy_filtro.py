@@ -37,6 +37,7 @@ class TenantDeployFiltroTest(SimpleTestCase):
         self.assertNotIn("clinica-beleza", slugs)
         self.assertNotIn("hotel", slugs)
         self.assertNotIn("cabeleireiro", slugs)
+        self.assertNotIn("salao-cabeleireiro", slugs)
 
     def test_clinica_nao_inclui_loja_so_crm(self):
         slugs = slugs_tipo_que_usam_app("clinica_beleza")

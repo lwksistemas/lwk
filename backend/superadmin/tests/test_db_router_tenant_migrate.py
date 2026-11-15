@@ -28,6 +28,7 @@ class TenantAllowMigrateTest(SimpleTestCase):
         permitidos = _apps_permitidos_schema_loja()
         self.assertIn("clinica_beleza", permitidos)
         self.assertIn("crm_vendas", permitidos)
+        self.assertIn("salao_cabeleireiro", permitidos)
         self.assertNotIn("asaas_integration", permitidos)
 
     @patch("config.db_router._tipo_slug_para_db", return_value="crm-vendas")

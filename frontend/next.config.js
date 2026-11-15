@@ -65,7 +65,9 @@ const assetPrefix =
     ? "/fe-crm"
     : frontendApp === "clinica-beleza"
       ? "/fe-clinica"
-      : undefined;
+      : frontendApp === "salao-cabeleireiro"
+        ? "/fe-salao"
+        : undefined;
 
 const nextConfig = {
   output: "standalone",

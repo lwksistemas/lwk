@@ -4,12 +4,15 @@ import { useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { authService, UserType } from '@/lib/auth';
 import apiClient from '@/lib/api-client';
+import { homePathFromAppCookie } from '@/lib/loja-tipo';
 
 function getLojaDashboardPath(lojaSlug: string): string {
   if (typeof document === 'undefined') return `/loja/${lojaSlug}/dashboard`;
-  return document.cookie.includes('loja_usa_crm=1')
-    ? `/loja/${lojaSlug}/crm-vendas`
-    : `/loja/${lojaSlug}/dashboard`;
+  return homePathFromAppCookie(
+    lojaSlug,
+    document.cookie.includes('loja_usa_crm=1'),
+    document.cookie.includes('loja_usa_salao=1'),
+  );
 }
 
 interface RouteGuardProps {

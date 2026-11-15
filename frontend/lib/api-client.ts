@@ -78,6 +78,7 @@ export async function clearSessionAndRedirect(loginUrl: string, message?: string
   document.cookie = 'user_type=; path=/; max-age=0';
   document.cookie = 'loja_slug=; path=/; max-age=0';
   document.cookie = 'loja_usa_crm=; path=/; max-age=0';
+  document.cookie = 'loja_usa_salao=; path=/; max-age=0';
   if (message && typeof window !== 'undefined') alert(message);
   if (typeof window !== 'undefined') window.location.href = loginUrl;
 }

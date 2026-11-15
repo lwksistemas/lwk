@@ -3,16 +3,17 @@
 import Link from "next/link";
 import { useParams, usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import { Calendar, ChevronLeft, ChevronRight, LayoutDashboard, Scissors, Settings, Users, UserRound, Wallet } from "lucide-react";
 import { SalaoAPI, type PainelSalao } from "@/lib/salao-api";
 
 const ITENS = [
-  ["", "Visão geral"],
-  ["/agenda", "Agenda"],
-  ["/clientes", "Clientes"],
-  ["/servicos", "Serviços"],
-  ["/profissionais", "Profissionais"],
-  ["/financeiro", "Caixa"],
-  ["/configuracoes", "Configurações"],
+  { caminho: "", nome: "Visão geral", icone: LayoutDashboard },
+  { caminho: "/agenda", nome: "Agenda", icone: Calendar },
+  { caminho: "/clientes", nome: "Clientes", icone: Users },
+  { caminho: "/servicos", nome: "Serviços", icone: Scissors },
+  { caminho: "/profissionais", nome: "Profissionais", icone: UserRound },
+  { caminho: "/financeiro", nome: "Caixa", icone: Wallet },
+  { caminho: "/configuracoes", nome: "Configurações", icone: Settings },
 ] as const;
 
 const TEMAS: Record<PainelSalao, { barra: string; fundo: string; tinta: string }> = {
@@ -56,39 +57,28 @@ export function SalaoShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className={`min-h-screen ${oculto ? "grid grid-cols-1" : "grid grid-cols-1 md:grid-cols-[240px_minmax(0,1fr)]"}`} style={{ background: fundo, color: tema.tinta }}>
-      {oculto ? null : (
-        <aside className="flex flex-col p-4 text-white md:min-h-screen" style={{ background: barra }}>
-          <div className="mb-3 flex items-center justify-between gap-2">
-            <p className="px-2 text-2xl font-semibold">Salão</p>
-            <button type="button" onClick={alternarMenu} className="rounded-full bg-white/15 px-3 py-1 text-sm md:hidden">
-              Ocultar
-            </button>
-          </div>
-          <nav className="flex flex-1 flex-col gap-1">
-            {ITENS.map(([caminho, nome]) => {
-              const href = `${base}${caminho}`;
-              const ativo = caminho === "" ? pathname === base : pathname.startsWith(href);
-              return (
-                <Link key={nome} href={href} className={`rounded-lg px-3 py-2 text-sm ${ativo ? "bg-white/20" : "hover:bg-white/10"}`}>
-                  {nome}
-                </Link>
-              );
-            })}
-          </nav>
-          <button type="button" onClick={alternarMenu} className="mt-4 hidden rounded-lg px-3 py-2 text-left text-sm text-white/80 hover:bg-white/10 md:block">
-            Ocultar menu
+    <div className={`min-h-screen ${oculto ? "grid grid-cols-[4.25rem_minmax(0,1fr)]" : "grid grid-cols-1 md:grid-cols-[240px_minmax(0,1fr)]"}`} style={{ background: fundo, color: tema.tinta }}>
+      <aside className={`flex flex-col text-white md:min-h-screen ${oculto ? "items-center px-2 py-3" : "p-4"}`} style={{ background: barra }}>
+        <div className={`mb-3 flex items-center gap-2 ${oculto ? "justify-center" : "justify-between"}`}>
+          {oculto ? null : <p className="px-2 text-2xl font-semibold">Salão</p>}
+          <button type="button" onClick={alternarMenu} className="grid h-8 w-8 place-items-center rounded-lg bg-white/15" title={oculto ? "Mostrar menu" : "Ocultar menu"} aria-label={oculto ? "Mostrar menu" : "Ocultar menu"}>
+            {oculto ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
           </button>
-        </aside>
-      )}
+        </div>
+        <nav className="flex flex-1 flex-col gap-1">
+          {ITENS.map(({ caminho, nome, icone: Icone }) => {
+            const href = `${base}${caminho}`;
+            const ativo = caminho === "" ? pathname === base : pathname.startsWith(href);
+            return (
+              <Link key={nome} href={href} title={nome} aria-label={nome} className={`flex items-center gap-2 rounded-lg text-sm ${oculto ? "justify-center px-2 py-2" : "px-3 py-2"} ${ativo ? "bg-white/20" : "hover:bg-white/10"}`}>
+                <Icone size={18} className="shrink-0" />
+                {oculto ? null : nome}
+              </Link>
+            );
+          })}
+        </nav>
+      </aside>
       <div className="min-w-0 p-4 sm:p-5">
-        {oculto ? (
-          <div className="mb-4">
-            <button type="button" onClick={alternarMenu} className="rounded-full border border-black/10 bg-white px-3 py-1.5 text-sm">
-              Mostrar menu
-            </button>
-          </div>
-        ) : null}
         {children}
       </div>
     </div>

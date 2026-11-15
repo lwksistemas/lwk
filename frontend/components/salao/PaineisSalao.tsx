@@ -155,7 +155,7 @@ function PainelSemana({ resumo, slug, cadastro, demonstracao = false }: { resumo
     const data = new Date(semana.inicio);
     data.setDate(semana.inicio.getDate() + indice);
     return data;
-  });
+  }).filter((dia) => diaTemAtendimento(dia, filtro, profissionais, jornadas));
   const base = `/loja/${slug}/salao-cabeleireiro`;
 
   useEffect(() => {
@@ -213,7 +213,7 @@ function PainelSemana({ resumo, slug, cadastro, demonstracao = false }: { resumo
               <button type="button" className="rounded-full border px-3 py-1 text-xs" onClick={() => setCursor(new Date(semana.inicio.getFullYear(), semana.inicio.getMonth(), semana.inicio.getDate() - 7))}>Anterior</button>
               <button type="button" className="rounded-full border px-3 py-1 text-xs" onClick={() => setCursor(new Date())}>Hoje</button>
               <button type="button" className="rounded-full border px-3 py-1 text-xs" onClick={() => setCursor(new Date(semana.inicio.getFullYear(), semana.inicio.getMonth(), semana.inicio.getDate() + 7))}>Próxima</button>
-              <span className="text-xs text-[#6d6480]">{semana.inicio.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })} – {new Date(semana.fim.getTime() - 86400000).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}</span>
+              <span className="text-xs text-[#6d6480]">{(dias[0] || semana.inicio).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })} – {(dias[dias.length - 1] || new Date(semana.fim.getTime() - 86400000)).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}</span>
             </div>
           </div>
           <label className="mb-3 flex items-center gap-2 text-sm text-[#6d6480]">
@@ -224,7 +224,7 @@ function PainelSemana({ resumo, slug, cadastro, demonstracao = false }: { resumo
             </select>
           </label>
           {visiveis.length === 0 ? <Vazio texto="Nenhum agendamento nesta semana." href={`${base}/agenda`} acao="Novo agendamento" /> : null}
-          <div className="grid min-w-[720px]" style={{ gridTemplateColumns: "52px repeat(7, minmax(0, 1fr))" }}>
+          <div className="grid min-w-[640px]" style={{ gridTemplateColumns: `52px repeat(${Math.max(dias.length, 1)}, minmax(0, 1fr))` }}>
             <span />
             {dias.map((dia) => (
               <span key={dia.toISOString()} className={`px-1 pb-2 text-center text-xs ${mesmoDia(dia, new Date()) ? "font-semibold text-[#4c1d78]" : "text-[#6d6480]"}`}>
@@ -479,6 +479,19 @@ function inicioDaSemana(data: Date) {
   copia.setHours(0, 0, 0, 0);
   copia.setDate(copia.getDate() - ((copia.getDay() + 6) % 7));
   return copia;
+}
+
+export function diaTemAtendimento(
+  dia: Date,
+  filtro: number | "todos",
+  profissionais: { id: number }[],
+  jornadas: Record<number, JornadaDia[]>,
+) {
+  const pessoas = filtro === "todos" ? profissionais : profissionais.filter((pessoa) => pessoa.id === filtro);
+  const comJornada = pessoas.filter((pessoa) => (jornadas[pessoa.id] || []).length > 0);
+  if (!comJornada.length) return true;
+  const indice = (dia.getDay() + 6) % 7;
+  return comJornada.some((pessoa) => (jornadas[pessoa.id] || []).some((linha) => linha.dia_semana === indice && linha.ativo));
 }
 
 function mesmoDia(esquerda: Date, direita: Date) {

@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { SalaoAPI, type AgendamentoSalao, type ClienteSalao, type ProfissionalSalao, type ServicoSalao } from "@/lib/salao-api";
+import { diaTemAtendimento } from "@/components/salao/PaineisSalao";
+import { SalaoAPI, type AgendamentoSalao, type ClienteSalao, type JornadaDia, type ProfissionalSalao, type ServicoSalao } from "@/lib/salao-api";
 
 const HORA_INICIO = 8;
 const HORA_FIM = 20;
@@ -57,6 +58,7 @@ export default function AgendaSalaoPage() {
   const [desconto, setDesconto] = useState("");
   const [formaPagamento, setFormaPagamento] = useState("pix");
   const [confirmaWhatsapp, setConfirmaWhatsapp] = useState(false);
+  const [jornadas, setJornadas] = useState<Record<number, JornadaDia[]>>({});
   const [aviso, setAviso] = useState("");
 
   const periodo = useMemo(() => {
@@ -88,8 +90,8 @@ export default function AgendaSalaoPage() {
       const data = new Date(inicio);
       data.setDate(inicio.getDate() + indice);
       return { id: data.toDateString(), titulo: data.toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit" }), data };
-    });
-  }, [periodo.inicio, modo, profissionais]);
+    }).filter((coluna) => diaTemAtendimento(coluna.data, "todos", profissionais, jornadas));
+  }, [periodo.inicio, modo, profissionais, jornadas]);
 
   const carregar = useCallback(() => {
     setErro("");
@@ -109,6 +111,16 @@ export default function AgendaSalaoPage() {
   }, [periodo.inicio, periodo.fim]);
 
   useEffect(() => { carregar(); }, [carregar]);
+
+  const profissionaisIds = profissionais.map((pessoa) => pessoa.id).join(",");
+  useEffect(() => {
+    if (!profissionaisIds) return;
+    let vivo = true;
+    Promise.all(profissionais.map(async (pessoa) => [pessoa.id, await SalaoAPI.jornada(pessoa.id)] as const))
+      .then((pares) => { if (vivo) setJornadas(Object.fromEntries(pares)); })
+      .catch(() => undefined);
+    return () => { vivo = false; };
+  }, [profissionaisIds, profissionais]);
 
   useEffect(() => {
     SalaoAPI.comunicacao().then((dados) => setConfirmaWhatsapp(dados.confirmacao)).catch(() => undefined);

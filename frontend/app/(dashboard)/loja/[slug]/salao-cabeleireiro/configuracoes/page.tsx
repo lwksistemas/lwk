@@ -1,8 +1,10 @@
 "use client";
 
+import Link from "next/link";
+import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { PainelDoSalao } from "@/components/salao/PaineisSalao";
-import { SalaoAPI, type PainelSalao } from "@/lib/salao-api";
+import { SalaoAPI, type ComunicacaoSalao, type PainelSalao } from "@/lib/salao-api";
 
 const OPCOES: { id: PainelSalao; nome: string; texto: string }[] = [
   { id: "operacao", nome: "Operação do dia", texto: "Cards do dia, gráfico da semana e a agenda de hoje." },
@@ -103,6 +105,7 @@ export default function ConfiguracoesSalaoPage() {
           );
         })}
       </div>
+      <MensagensWhatsapp />
       {confirmar ? (
         <div className="fixed inset-0 z-30 grid place-items-center bg-black/40 p-4" role="dialog" aria-modal="true" aria-labelledby="confirmar-layout">
           <div className="w-full max-w-md rounded-3xl bg-white p-5">
@@ -116,6 +119,72 @@ export default function ConfiguracoesSalaoPage() {
         </div>
       ) : null}
     </div>
+  );
+}
+
+function MensagensWhatsapp() {
+  const params = useParams();
+  const slug = params.slug as string;
+  const [regras, setRegras] = useState<ComunicacaoSalao | null>(null);
+  const [erro, setErro] = useState("");
+  const [aviso, setAviso] = useState("");
+
+  useEffect(() => {
+    SalaoAPI.comunicacao().then(setRegras).catch((exc: Error) => setErro(exc.message));
+  }, []);
+
+  async function gravar() {
+    if (!regras?.pode_gravar) return;
+    setErro("");
+    setAviso("");
+    try {
+      const salvo = await SalaoAPI.salvarComunicacao({
+        confirmacao: regras.confirmacao,
+        lembrete: regras.lembrete,
+        lembrete_horas: regras.lembrete_horas,
+        reagendamento: regras.reagendamento,
+        cancelamento: regras.cancelamento,
+      });
+      setRegras(salvo);
+      setAviso("As mensagens ficaram gravadas. Nada sai enquanto a opção estiver desligada.");
+    } catch (exc) {
+      setErro(exc instanceof Error ? exc.message : "Não foi possível gravar.");
+    }
+  }
+
+  if (!regras) return erro ? <p className="mt-6 text-sm text-red-700">{erro}</p> : null;
+  const campo = (chave: "confirmacao" | "lembrete" | "reagendamento" | "cancelamento", nome: string) => (
+    <label key={chave} className="flex items-center gap-2 text-sm">
+      <input type="checkbox" checked={regras[chave]} disabled={!regras.pode_gravar} onChange={(evento) => setRegras({ ...regras, [chave]: evento.target.checked })} />
+      {nome}
+    </label>
+  );
+
+  return (
+    <section className="mt-6 rounded-3xl border border-[#f0e4e6] bg-white p-4">
+      <h2 className="text-lg font-semibold">Mensagens no WhatsApp</h2>
+      <p className="mt-1 max-w-2xl text-sm text-[#8a6e74]">
+        Confirmação, lembrete, mudança de horário e cancelamento. Tudo começa desligado. O número conectado é o da loja.
+      </p>
+      {regras.whatsapp_pronto ? null : <p className="mt-2 text-sm text-[#8a6e74]">O WhatsApp desta loja ainda não está conectado.</p>}
+      <Link href={`/loja/${slug}/configuracoes/whatsapp`} className="mt-2 inline-block text-sm underline">Conectar WhatsApp</Link>
+      <div className="mt-4 grid gap-2">
+        {campo("confirmacao", "Confirmação de horário")}
+        {campo("lembrete", "Lembrete antes do atendimento")}
+        {campo("reagendamento", "Aviso quando o horário muda")}
+        {campo("cancelamento", "Aviso de cancelamento")}
+        <label className="flex items-center gap-2 text-sm">
+          Lembrete
+          <select className="rounded-lg border px-2 py-1" value={regras.lembrete_horas} disabled={!regras.pode_gravar || !regras.lembrete} onChange={(evento) => setRegras({ ...regras, lembrete_horas: Number(evento.target.value) })}>
+            <option value={24}>24 horas antes</option>
+            <option value={2}>2 horas antes</option>
+          </select>
+        </label>
+      </div>
+      {erro ? <p className="mt-3 text-sm text-red-700">{erro}</p> : null}
+      {aviso ? <p className="mt-3 text-sm text-[#1f8a4c]">{aviso}</p> : null}
+      {regras.pode_gravar ? <button type="button" className="mt-4 rounded-full bg-[#7a3044] px-4 py-2 text-sm text-white" onClick={gravar}>Gravar mensagens</button> : null}
+    </section>
   );
 }
 

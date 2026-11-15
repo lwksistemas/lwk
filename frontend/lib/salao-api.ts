@@ -73,6 +73,7 @@ export type AgendamentoSalao = {
   servico_nome: string;
   preco: string;
   observacoes: string;
+  aviso?: string;
   recebido?: {
     id: number;
     valor: string;
@@ -81,6 +82,16 @@ export type AgendamentoSalao = {
     forma_label: string;
     comissao_valor: string;
   } | null;
+};
+
+export type ComunicacaoSalao = {
+  confirmacao: boolean;
+  lembrete: boolean;
+  lembrete_horas: number;
+  reagendamento: boolean;
+  cancelamento: boolean;
+  whatsapp_pronto: boolean;
+  pode_gravar: boolean;
 };
 
 export type CaixaSalao = {
@@ -131,6 +142,11 @@ async function salaoFetch<T>(path: string, options: RequestInit = {}, retried = 
 
 export const SalaoAPI = {
   config: () => salaoFetch<{ painel: PainelSalao; pode_trocar: boolean; paineis: { id: PainelSalao; nome: string }[] }>("/config/"),
+  comunicacao: () => salaoFetch<ComunicacaoSalao>("/comunicacao/"),
+  salvarComunicacao: (corpo: Pick<ComunicacaoSalao, "confirmacao" | "lembrete" | "lembrete_horas" | "reagendamento" | "cancelamento">) =>
+    salaoFetch<ComunicacaoSalao>("/comunicacao/", { method: "PUT", body: JSON.stringify(corpo) }),
+  enviarWhatsapp: (id: number, evento: "confirmacao" | "lembrete" | "reagendamento" | "cancelamento") =>
+    salaoFetch<{ enviado: boolean }>(`/agendamentos/${id}/whatsapp/`, { method: "POST", body: JSON.stringify({ evento }) }),
   salvarPainel: (painel: PainelSalao) =>
     salaoFetch("/config/", { method: "PUT", body: JSON.stringify({ painel }) }),
   resumo: () => salaoFetch<ResumoSalao>("/resumo/"),

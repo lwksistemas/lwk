@@ -45,6 +45,11 @@ class SalaoConfig(models.Model):
 
     loja_id = models.IntegerField(unique=True, db_index=True)
     painel = models.CharField(max_length=20, choices=PAINEIS, default="operacao")
+    enviar_confirmacao = models.BooleanField(default=False)
+    enviar_lembrete = models.BooleanField(default=False)
+    lembrete_horas = models.PositiveSmallIntegerField(default=24)
+    enviar_reagendamento = models.BooleanField(default=False)
+    enviar_cancelamento = models.BooleanField(default=False)
     objects = LojaIsolationManager()
 
     def save(self, *args, **kwargs):

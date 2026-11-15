@@ -11,6 +11,7 @@ from rest_framework.views import APIView
 
 from .agenda_service import conflito_horario, interpretar_inicio
 from .caixa_service import FORMAS, calcular_recebimento, quantia
+from .comunicacao_service import avisar_mudanca, enviar_evento, regras_de, validar_regras, whatsapp_pronto
 from .catalogo import garantir_catalogo_inicial
 from .models import PAINEIS, STATUS_AGENDAMENTO, STATUS_OCUPA_HORARIO, Agendamento, Bloqueio, Cliente, HorarioTrabalho, Profissional, Recebimento, SalaoConfig, Servico
 from .permissions import IsSalaoAdmin, IsSalaoMembro, contexto_salao, usuario_e_admin
@@ -276,6 +277,8 @@ class AgendamentoDetailView(GetObjectMixin, APIView):
             chave in request.data for chave in ("status", "inicio", "profissional", "servico", "duracao_minutos")
         ):
             return _erro("Desfaça o recebimento antes de alterar este atendimento.")
+        inicio_anterior = agendamento.inicio
+        status_anterior = agendamento.status
         status_novo = request.data.get("status")
         if status_novo:
             if status_novo not in {codigo for codigo, _ in STATUS_AGENDAMENTO}:
@@ -312,7 +315,12 @@ class AgendamentoDetailView(GetObjectMixin, APIView):
             if mensagem:
                 return _erro(mensagem, status.HTTP_409_CONFLICT)
         agendamento.save()
-        return Response(AgendamentoSerializer(agendamento).data)
+        return _resposta_agenda(agendamento, avisar_mudanca(
+            agendamento,
+            inicio_anterior=inicio_anterior,
+            status_anterior=status_anterior,
+            user=request.user,
+        ))
 
     def delete(self, request, pk):
         agendamento = self.get_object(pk)
@@ -320,9 +328,22 @@ class AgendamentoDetailView(GetObjectMixin, APIView):
             return _erro(self.not_found_message, status.HTTP_404_NOT_FOUND)
         if agendamento.recebimentos.filter(is_active=True).exists():
             return _erro("Desfaça o recebimento antes de cancelar este atendimento.")
+        status_anterior = agendamento.status
         agendamento.status = "CANCELLED"
         agendamento.save(update_fields=["status", "updated_at"])
-        return Response(AgendamentoSerializer(agendamento).data)
+        return _resposta_agenda(agendamento, avisar_mudanca(
+            agendamento,
+            inicio_anterior=agendamento.inicio,
+            status_anterior=status_anterior,
+            user=request.user,
+        ))
+
+
+def _resposta_agenda(agendamento, aviso):
+    dados = AgendamentoSerializer(agendamento).data
+    if aviso:
+        dados["aviso"] = aviso
+    return Response(dados)
 
 
 def _hora(valor, obrigatorio=False):
@@ -737,3 +758,42 @@ class CaixaView(APIView):
                 for item in itens
             ],
         })
+
+
+class ComunicacaoView(APIView):
+    def get_permissions(self):
+        if self.request.method == "PUT":
+            return [IsAuthenticated(), IsSalaoAdmin()]
+        return [IsAuthenticated(), IsSalaoMembro()]
+
+    def get(self, request):
+        loja, prof = contexto_salao(request)
+        dados = regras_de(_config())
+        dados["whatsapp_pronto"] = whatsapp_pronto(getattr(loja, "id", None))
+        dados["pode_gravar"] = usuario_e_admin(loja, prof, request.user) if loja else False
+        return Response(dados)
+
+    def put(self, request):
+        try:
+            campos = validar_regras(request.data)
+        except (TypeError, ValueError) as exc:
+            return _erro(str(exc) or "Não foi possível gravar as mensagens.")
+        config = _config()
+        for chave, valor in campos.items():
+            setattr(config, chave, valor)
+        config.save(update_fields=list(campos))
+        return self.get(request)
+
+
+class WhatsappAgendamentoView(APIView):
+    permission_classes = [IsAuthenticated, IsSalaoMembro]
+
+    def post(self, request, pk):
+        agendamento = _agendamento_completo(pk)
+        if agendamento is None:
+            return _erro("Agendamento não encontrado.", status.HTTP_404_NOT_FOUND)
+        evento = (request.data.get("evento") or "confirmacao").strip()
+        ok, erro = enviar_evento(agendamento, evento, user=request.user, manual=True)
+        if not ok:
+            return _erro(erro or "Não foi possível enviar o WhatsApp.")
+        return Response({"enviado": True})

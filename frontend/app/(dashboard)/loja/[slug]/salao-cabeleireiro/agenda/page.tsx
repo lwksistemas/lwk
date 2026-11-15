@@ -56,6 +56,8 @@ export default function AgendaSalaoPage() {
   const [selecionado, setSelecionado] = useState<AgendamentoSalao | null>(null);
   const [desconto, setDesconto] = useState("");
   const [formaPagamento, setFormaPagamento] = useState("pix");
+  const [confirmaWhatsapp, setConfirmaWhatsapp] = useState(false);
+  const [aviso, setAviso] = useState("");
 
   const periodo = useMemo(() => {
     if (modo === "dia") {
@@ -109,6 +111,10 @@ export default function AgendaSalaoPage() {
   useEffect(() => { carregar(); }, [carregar]);
 
   useEffect(() => {
+    SalaoAPI.comunicacao().then((dados) => setConfirmaWhatsapp(dados.confirmacao)).catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
     const dia = searchParams.get("dia");
     if (!dia) return;
     const data = deApi(dia);
@@ -160,6 +166,7 @@ export default function AgendaSalaoPage() {
   async function salvar() {
     if (!form) return;
     setErro("");
+    setAviso("");
     const corpo: Record<string, unknown> = {
       inicio: form.inicio,
       profissional: Number(form.profissional),
@@ -172,8 +179,10 @@ export default function AgendaSalaoPage() {
       corpo.cliente_telefone = form.cliente_telefone;
     }
     try {
-      if (selecionado) await SalaoAPI.atualizarAgendamento(selecionado.id, corpo);
-      else await SalaoAPI.criarAgendamento(corpo);
+      const atualizado = selecionado
+        ? await SalaoAPI.atualizarAgendamento(selecionado.id, corpo)
+        : await SalaoAPI.criarAgendamento(corpo);
+      setAviso(atualizado.aviso || "");
       setForm(null);
       setSelecionado(null);
       carregar();
@@ -184,12 +193,26 @@ export default function AgendaSalaoPage() {
 
   async function mudarStatus(status: string) {
     if (!selecionado) return;
+    setAviso("");
     try {
       const atualizado = await SalaoAPI.atualizarAgendamento(selecionado.id, { status });
       setSelecionado(atualizado);
+      setAviso(atualizado.aviso || "");
       carregar();
     } catch (exc) {
       setErro(exc instanceof Error ? exc.message : "Não foi possível atualizar.");
+    }
+  }
+
+  async function enviarConfirmacao() {
+    if (!selecionado) return;
+    setErro("");
+    setAviso("");
+    try {
+      await SalaoAPI.enviarWhatsapp(selecionado.id, "confirmacao");
+      setAviso("Confirmação enviada no WhatsApp.");
+    } catch (exc) {
+      setErro(exc instanceof Error ? exc.message : "Não foi possível enviar o WhatsApp.");
     }
   }
 
@@ -273,6 +296,7 @@ export default function AgendaSalaoPage() {
         </div>
       </div>
       {erro ? <p className="mb-2 text-sm text-red-700">{erro}</p> : null}
+      {aviso ? <p className="mb-2 text-sm text-[#1f8a4c]">{aviso}</p> : null}
       {profissionais.length === 0 ? <p className="mb-2 text-sm text-[#8a6e74]">Cadastre um profissional para abrir as colunas do dia.</p> : null}
       {modo === "mes" ? (
         <Mes cursor={cursor} eventos={eventos} aoAbrir={(data) => { setCursor(data); setModo("dia"); }} />
@@ -345,6 +369,7 @@ export default function AgendaSalaoPage() {
           <p className="text-sm text-[#8a6e74]">{selecionado.profissional_nome} · {new Date(selecionado.inicio).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })} · {selecionado.status_label} · {selecionado.preco}</p>
           <div className="mt-3 flex flex-wrap gap-2">
             {selecionado.status === "SCHEDULED" ? <button type="button" className="rounded-full bg-[#7a3044] px-3 py-1.5 text-sm text-white" onClick={() => mudarStatus("CONFIRMED")}>Confirmar</button> : null}
+            {confirmaWhatsapp && (selecionado.status === "SCHEDULED" || selecionado.status === "CONFIRMED") ? <button type="button" className="rounded-full border px-3 py-1.5 text-sm" onClick={enviarConfirmacao}>Enviar confirmação</button> : null}
             {selecionado.status === "SCHEDULED" || selecionado.status === "CONFIRMED" ? <button type="button" className="rounded-full bg-[#1f8f86] px-3 py-1.5 text-sm text-white" onClick={() => mudarStatus("IN_PROGRESS")}>Iniciar atendimento</button> : null}
             {selecionado.status === "IN_PROGRESS" ? <button type="button" className="rounded-full bg-[#1f8a4c] px-3 py-1.5 text-sm text-white" onClick={() => mudarStatus("COMPLETED")}>Finalizar</button> : null}
             {selecionado.status === "COMPLETED" && !selecionado.recebido ? (

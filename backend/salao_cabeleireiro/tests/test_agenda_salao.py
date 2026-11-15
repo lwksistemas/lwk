@@ -4,6 +4,8 @@ from decimal import Decimal
 
 from salao_cabeleireiro.agenda_service import avaliar_jornada, intervalos_conflitam
 from salao_cabeleireiro.caixa_service import calcular_recebimento
+from salao_cabeleireiro.comunicacao_service import regras_de
+from salao_cabeleireiro.mensagens import na_janela_lembrete, texto_cancelamento, texto_confirmacao
 from salao_cabeleireiro.serializers import painel_valido
 
 
@@ -54,6 +56,37 @@ class CaixaSalaoTest(unittest.TestCase):
         valor, comissao = calcular_recebimento("70,00", "0", "33.33")
         self.assertEqual(valor, Decimal("70.00"))
         self.assertEqual(comissao, Decimal("23.33"))
+
+
+class MensagemSalaoTest(unittest.TestCase):
+    def test_confirmacao_fala_de_horario_e_nao_de_consulta(self):
+        inicio = datetime(2026, 11, 16, 14, 30)
+        texto = texto_confirmacao(
+            nome="Ana",
+            servico="Corte",
+            profissional="Lia",
+            inicio=inicio,
+            salao="Salão Teste",
+        )
+        self.assertIn("16/11 às 14:30", texto)
+        self.assertIn("Corte", texto)
+        self.assertNotIn("consulta", texto.lower())
+        self.assertNotIn("paciente", texto.lower())
+
+    def test_cancelamento_cita_o_horario(self):
+        texto = texto_cancelamento(nome="Ana", servico="Escova", inicio=datetime(2026, 11, 16, 9, 0), salao="Salão Teste")
+        self.assertIn("cancelado", texto)
+        self.assertIn("09:00", texto)
+
+    def test_lembrete_de_24h_nao_pega_o_horario_de_amanha_a_noite(self):
+        agora = datetime(2026, 11, 15, 10, 0)
+        self.assertTrue(na_janela_lembrete(datetime(2026, 11, 16, 10, 0), agora, 24))
+        self.assertFalse(na_janela_lembrete(datetime(2026, 11, 16, 18, 0), agora, 24))
+
+    def test_regras_comecam_desligadas(self):
+        self.assertEqual(regras_de(None)["confirmacao"], False)
+        self.assertEqual(regras_de(None)["lembrete"], False)
+        self.assertEqual(regras_de(None)["lembrete_horas"], 24)
 
 
 class PainelSalaoTest(unittest.TestCase):

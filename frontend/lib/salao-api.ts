@@ -90,7 +90,12 @@ async function salaoFetch<T>(path: string, options: RequestInit = {}, retried = 
   if (response.status === 204) return null as T;
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    const mensagem = typeof data.error === "string" ? data.error : "Não foi possível concluir.";
+    const detalhe = typeof data.detail === "string" ? data.detail : "";
+    const mensagem = typeof data.error === "string"
+      ? data.error
+      : response.status === 429
+        ? "Muitas consultas em seguida. Aguarde um instante e atualize a página."
+        : detalhe || "Não foi possível concluir.";
     throw new Error(mensagem);
   }
   return data as T;

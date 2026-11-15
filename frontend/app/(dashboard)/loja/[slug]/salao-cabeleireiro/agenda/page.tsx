@@ -55,29 +55,37 @@ export default function AgendaSalaoPage() {
   const [form, setForm] = useState<Record<string, string> | null>(null);
   const [selecionado, setSelecionado] = useState<AgendamentoSalao | null>(null);
 
-  const intervalo = useMemo(() => {
+  const periodo = useMemo(() => {
     if (modo === "dia") {
       const inicio = new Date(cursor);
       inicio.setHours(0, 0, 0, 0);
       const fim = new Date(inicio);
       fim.setDate(fim.getDate() + 1);
-      return { inicio, fim, colunas: profissionais.map((item) => ({ id: String(item.id), titulo: item.nome, data: inicio })) };
+      return { inicio: inicio.getTime(), fim: fim.getTime() };
     }
     if (modo === "mes") {
       const inicio = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
       const fim = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1);
-      return { inicio, fim, colunas: [] as { id: string; titulo: string; data: Date }[] };
+      return { inicio: inicio.getTime(), fim: fim.getTime() };
     }
     const inicio = inicioDaSemana(cursor);
     const fim = new Date(inicio);
     fim.setDate(fim.getDate() + 7);
-    const colunas = Array.from({ length: 7 }, (_, indice) => {
+    return { inicio: inicio.getTime(), fim: fim.getTime() };
+  }, [cursor, modo]);
+
+  const colunas = useMemo(() => {
+    const inicio = new Date(periodo.inicio);
+    if (modo === "dia") {
+      return profissionais.map((item) => ({ id: String(item.id), titulo: item.nome, data: inicio }));
+    }
+    if (modo === "mes") return [] as { id: string; titulo: string; data: Date }[];
+    return Array.from({ length: 7 }, (_, indice) => {
       const data = new Date(inicio);
       data.setDate(inicio.getDate() + indice);
       return { id: data.toDateString(), titulo: data.toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit" }), data };
     });
-    return { inicio, fim, colunas };
-  }, [cursor, modo, profissionais]);
+  }, [periodo.inicio, modo, profissionais]);
 
   const carregar = useCallback(() => {
     setErro("");
@@ -85,7 +93,7 @@ export default function AgendaSalaoPage() {
       SalaoAPI.profissionais(),
       SalaoAPI.servicos(),
       SalaoAPI.clientes(),
-      SalaoAPI.agenda(paraApi(intervalo.inicio), paraApi(intervalo.fim)),
+      SalaoAPI.agenda(paraApi(new Date(periodo.inicio)), paraApi(new Date(periodo.fim))),
     ])
       .then(([listaProfissionais, listaServicos, listaClientes, listaEventos]) => {
         setProfissionais(listaProfissionais);
@@ -94,7 +102,7 @@ export default function AgendaSalaoPage() {
         setEventos(listaEventos);
       })
       .catch((exc: Error) => setErro(exc.message));
-  }, [intervalo.inicio, intervalo.fim]);
+  }, [periodo.inicio, periodo.fim]);
 
   useEffect(() => { carregar(); }, [carregar]);
 
@@ -240,13 +248,13 @@ export default function AgendaSalaoPage() {
         <Mes cursor={cursor} eventos={eventos} aoAbrir={(data) => { setCursor(data); setModo("dia"); }} />
       ) : (
         <div className="overflow-auto rounded-2xl border border-[#f0e4e6] bg-white">
-          <div className="grid" style={{ gridTemplateColumns: `64px repeat(${Math.max(intervalo.colunas.length, 1)}, minmax(140px, 1fr))` }}>
+          <div className="grid" style={{ gridTemplateColumns: `64px repeat(${Math.max(colunas.length, 1)}, minmax(140px, 1fr))` }}>
             <div />
-            {intervalo.colunas.map((coluna) => <div key={coluna.id} className="border-b border-l px-2 py-2 text-center text-xs text-[#8a6e74]">{coluna.titulo}</div>)}
+            {colunas.map((coluna) => <div key={coluna.id} className="border-b border-l px-2 py-2 text-center text-xs text-[#8a6e74]">{coluna.titulo}</div>)}
             <div>
               {horas.map((hora) => <div key={hora} style={{ height: ALTURA_HORA }} className="pr-2 text-right text-xs text-[#8a6e74]">{dois(hora)}:00</div>)}
             </div>
-            {intervalo.colunas.map((coluna) => (
+            {colunas.map((coluna) => (
               <div
                 key={coluna.id}
                 className="relative border-l"

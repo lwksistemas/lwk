@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useParams, usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Calendar, ChevronLeft, ChevronRight, LayoutDashboard, Scissors, Settings, Users, UserRound, Wallet } from "lucide-react";
+import { Calendar, ChevronLeft, ChevronRight, LayoutDashboard, LogOut, Scissors, Settings, Users, UserRound, Wallet } from "lucide-react";
+import { useLojaAuth } from "@/hooks/useLojaAuth";
 import { SalaoAPI, type PainelSalao } from "@/lib/salao-api";
 
 const ITENS = [
@@ -26,6 +27,7 @@ export function SalaoShell({ children }: { children: React.ReactNode }) {
   const params = useParams();
   const pathname = usePathname();
   const slug = params.slug as string;
+  const { handleLogout } = useLojaAuth(slug);
   const base = `/loja/${slug}/salao-cabeleireiro`;
   const [oculto, setOculto] = useState(false);
   const [painel, setPainel] = useState<PainelSalao>("operacao");
@@ -77,6 +79,10 @@ export function SalaoShell({ children }: { children: React.ReactNode }) {
             );
           })}
         </nav>
+        <button type="button" onClick={handleLogout} title="Sair" aria-label="Sair" className={`mt-4 flex items-center gap-2 rounded-lg text-sm text-white/80 hover:bg-white/10 ${oculto ? "justify-center px-2 py-2" : "px-3 py-2"}`}>
+          <LogOut size={18} className="shrink-0" />
+          {oculto ? null : "Sair"}
+        </button>
       </aside>
       <div className="min-w-0 p-4 sm:p-5">
         {children}

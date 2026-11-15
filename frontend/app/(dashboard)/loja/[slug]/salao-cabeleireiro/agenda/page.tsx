@@ -382,7 +382,7 @@ export default function AgendaSalaoPage() {
                       style={{ top: Math.max(0, topo), height: Math.max(36, (item.duracao_minutos / 60) * ALTURA_HORA), background: corStatus(item.status) }}
                     >
                       <span className="block truncate">{dois(inicio.getHours())}:{dois(inicio.getMinutes())} {item.profissional_nome}</span>
-                      <span className="block truncate">{item.servico_nome}</span>
+                      <span className="block truncate">{item.cliente_nome}</span>
                     </button>
                   );
                 })}

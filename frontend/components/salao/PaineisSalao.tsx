@@ -250,7 +250,7 @@ function PainelSemana({ resumo, slug, cadastro, demonstracao = false }: { resumo
                       {lista.map((item) => (
                         <Link key={item.id} href={`${base}/agenda?horario=${item.id}&dia=${dataLocal(new Date(item.inicio))}`} className="mb-0.5 block truncate rounded px-1 py-0.5 text-[10px] leading-tight text-white" style={{ background: corServico(item.servico_nome) }} title={`${new Date(item.inicio).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })} · ${item.profissional_nome} · ${item.servico_nome} · ${item.cliente_nome}`}>
                           <span className="block truncate">{item.profissional_nome}</span>
-                          <span className="block truncate opacity-80">{item.servico_nome}</span>
+                          <span className="block truncate opacity-80">{item.cliente_nome}</span>
                         </Link>
                       ))}
                       {podeCriar ? <Link href={destino} className="block px-1 py-2 text-[10px] text-[#6d6480]" title="Novo agendamento">+</Link> : null}

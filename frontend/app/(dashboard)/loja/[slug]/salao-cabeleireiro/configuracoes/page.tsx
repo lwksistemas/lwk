@@ -36,7 +36,9 @@ export default function ConfiguracoesSalaoPage() {
   const [erro, setErro] = useState("");
   const [aviso, setAviso] = useState("");
   const [layoutAberto, setLayoutAberto] = useState(false);
+  const [mensagensAberto, setMensagensAberto] = useState(false);
   const layoutRef = useRef<HTMLDivElement>(null);
+  const mensagensRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     SalaoAPI.config()
@@ -50,6 +52,10 @@ export default function ConfiguracoesSalaoPage() {
   useEffect(() => {
     if (layoutAberto) layoutRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [layoutAberto]);
+
+  useEffect(() => {
+    if (mensagensAberto) mensagensRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [mensagensAberto]);
 
   async function escolher(proximo: PainelSalao) {
     if (!podeTrocar || proximo === painel) return;
@@ -74,8 +80,9 @@ export default function ConfiguracoesSalaoPage() {
     <div>
       <h1 className="mb-1 text-2xl font-semibold sm:text-3xl">Configurações</h1>
       <p className="mb-4 max-w-2xl text-sm text-[#8a6e74]">Assinatura, login, aparência, recibo, nota, cupom e backup deste salão.</p>
-      <ul className="mb-8 divide-y divide-[#f0e4e6] overflow-hidden rounded-3xl border border-[#f0e4e6] bg-white">
+      <ul className="mb-8 grid gap-3 md:grid-cols-2">
         {LISTA.map((item) => {
+          const painelLocal = item.href === "#layout" ? layoutAberto : item.href === "#mensagens" ? mensagensAberto : false;
           const conteudo = (
             <>
               <span className="min-w-0 text-left">
@@ -83,22 +90,26 @@ export default function ConfiguracoesSalaoPage() {
                 <span className="mt-0.5 block text-sm text-[#8a6e74]">{item.descricao}</span>
                 <span className="mt-1 block text-xs text-[#8a6e74]">{item.itens.join(" · ")}</span>
               </span>
-              <ChevronRight size={18} className={`mt-1 shrink-0 text-[#8a6e74] ${item.href === "#layout" && layoutAberto ? "rotate-90" : ""}`} />
+              <ChevronRight size={18} className={`mt-1 shrink-0 text-[#8a6e74] ${painelLocal ? "rotate-90" : ""}`} />
             </>
           );
-          if (item.href === "#layout") {
+          if (item.href === "#layout" || item.href === "#mensagens") {
+            const aberto = item.href === "#layout" ? layoutAberto : mensagensAberto;
+            const alternar = item.href === "#layout"
+              ? () => setLayoutAberto((valor) => !valor)
+              : () => setMensagensAberto((valor) => !valor);
             return (
-              <li key={item.titulo}>
-                <button type="button" className="flex w-full items-start justify-between gap-3 px-4 py-3 hover:bg-[#fbf6f4]" aria-expanded={layoutAberto} onClick={() => setLayoutAberto((aberto) => !aberto)}>
+              <li key={item.titulo} className="overflow-hidden rounded-3xl border border-[#f0e4e6] bg-white">
+                <button type="button" className="flex h-full w-full items-start justify-between gap-3 px-4 py-3 hover:bg-[#fbf6f4]" aria-expanded={aberto} onClick={alternar}>
                   {conteudo}
                 </button>
               </li>
             );
           }
-          const href = item.href.startsWith("#") ? item.href : item.href === "assinatura" ? `/loja/${slug}/assinatura` : `${base}/${item.href}`;
+          const href = item.href === "assinatura" ? `/loja/${slug}/assinatura` : `${base}/${item.href}`;
           return (
-            <li key={item.titulo}>
-              <Link href={href} className="flex items-start justify-between gap-3 px-4 py-3 hover:bg-[#fbf6f4]">
+            <li key={item.titulo} className="overflow-hidden rounded-3xl border border-[#f0e4e6] bg-white">
+              <Link href={href} className="flex h-full items-start justify-between gap-3 px-4 py-3 hover:bg-[#fbf6f4]">
                 {conteudo}
               </Link>
             </li>
@@ -164,9 +175,11 @@ export default function ConfiguracoesSalaoPage() {
       </div>
       </div>
       ) : null}
-      <div id="mensagens">
-        <MensagensWhatsapp />
-      </div>
+      {mensagensAberto ? (
+        <div id="mensagens" ref={mensagensRef}>
+          <MensagensWhatsapp />
+        </div>
+      ) : null}
       {confirmar ? (
         <div className="fixed inset-0 z-30 grid place-items-center bg-black/40 p-4" role="dialog" aria-modal="true" aria-labelledby="confirmar-layout">
           <div className="w-full max-w-md rounded-3xl bg-white p-5">

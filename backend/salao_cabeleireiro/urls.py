@@ -1,5 +1,6 @@
 from django.urls import path
 
+from .loja_config import IdentidadeView, LojaInfoView
 from .views import (
     AgendaView,
     AgendamentoDetailView,
@@ -23,6 +24,8 @@ from .views import (
 
 urlpatterns = [
     path("config/", ConfigView.as_view(), name="salao-config"),
+    path("identidade/", IdentidadeView.as_view(), name="salao-identidade"),
+    path("loja-info/", LojaInfoView.as_view(), name="salao-loja-info"),
     path("comunicacao/", ComunicacaoView.as_view(), name="salao-comunicacao"),
     path("resumo/", ResumoView.as_view(), name="salao-resumo"),
     path("agenda/", AgendaView.as_view(), name="salao-agenda"),

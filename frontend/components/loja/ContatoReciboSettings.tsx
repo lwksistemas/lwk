@@ -20,16 +20,17 @@ type ContatoReciboInfo = {
 };
 
 type ContatoReciboSettingsProps = {
-  /** Prefixo da API da clínica. */
-  apiPrefix: "/clinica-beleza";
+  apiPrefix: "/clinica-beleza" | "/salao-cabeleireiro";
   accentColor?: string;
   entidadeLabel?: string;
+  publicoLabel?: string;
 };
 
 export function ContatoReciboSettings({
   apiPrefix,
   accentColor = "#8B3D52",
   entidadeLabel = "clínica",
+  publicoLabel = "paciente",
 }: ContatoReciboSettingsProps) {
   const toast = useToast();
   const [loading, setLoading] = useState(true);
@@ -97,7 +98,7 @@ export function ContatoReciboSettings({
           Contato no recibo
         </h2>
         <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-          Telefone, e-mail, cor e logomarca do recibo impresso ou enviado ao paciente.
+          Telefone, e-mail, cor e logomarca do recibo impresso ou enviado ao {publicoLabel}.
           A logo da tela de login não entra mais no recibo. Se o telefone ou o e-mail
           ficarem em branco, o sistema usa os dados do administrador da {entidadeLabel}.
         </p>

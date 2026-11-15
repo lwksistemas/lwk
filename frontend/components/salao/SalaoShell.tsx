@@ -28,20 +28,26 @@ export function SalaoShell({ children }: { children: React.ReactNode }) {
   const base = `/loja/${slug}/salao-cabeleireiro`;
   const [oculto, setOculto] = useState(false);
   const [painel, setPainel] = useState<PainelSalao>("operacao");
+  const [cores, setCores] = useState({ menu: "", fundo: "" });
   const tema = TEMAS[painel];
+  const barra = cores.menu || tema.barra;
+  const fundo = cores.fundo || tema.fundo;
 
   useEffect(() => {
     setOculto(window.localStorage.getItem("salao-menu") === "oculto");
     document.cookie = "loja_usa_salao=1; path=/; max-age=86400; SameSite=Lax";
     document.cookie = "loja_usa_crm=; path=/; max-age=0";
-    SalaoAPI.config().then((dados) => setPainel(dados.painel)).catch(() => undefined);
+    SalaoAPI.config().then((dados) => {
+      setPainel(dados.painel);
+      setCores({ menu: dados.cor_primaria || "", fundo: dados.cor_fundo_pagina || "" });
+    }).catch(() => undefined);
     function aoTrocar(evento: Event) {
       const proximo = (evento as CustomEvent<PainelSalao>).detail;
       if (proximo === "operacao" || proximo === "gestao" || proximo === "semana") setPainel(proximo);
     }
     window.addEventListener("salao-painel", aoTrocar);
     return () => window.removeEventListener("salao-painel", aoTrocar);
-  }, []);
+  }, [pathname]);
 
   function alternarMenu() {
     const proximo = !oculto;
@@ -50,9 +56,9 @@ export function SalaoShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className={`min-h-screen ${oculto ? "grid grid-cols-1" : "grid grid-cols-1 md:grid-cols-[240px_minmax(0,1fr)]"}`} style={{ background: tema.fundo, color: tema.tinta }}>
+    <div className={`min-h-screen ${oculto ? "grid grid-cols-1" : "grid grid-cols-1 md:grid-cols-[240px_minmax(0,1fr)]"}`} style={{ background: fundo, color: tema.tinta }}>
       {oculto ? null : (
-        <aside className="flex flex-col p-4 text-white md:min-h-screen" style={{ background: tema.barra }}>
+        <aside className="flex flex-col p-4 text-white md:min-h-screen" style={{ background: barra }}>
           <div className="mb-3 flex items-center justify-between gap-2">
             <p className="px-2 text-2xl font-semibold">Salão</p>
             <button type="button" onClick={alternarMenu} className="rounded-full bg-white/15 px-3 py-1 text-sm md:hidden">

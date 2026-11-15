@@ -14,6 +14,7 @@ from .caixa_service import FORMAS, calcular_recebimento, quantia
 from .comunicacao_service import avisar_mudanca, enviar_evento, regras_de, validar_regras, whatsapp_pronto
 from .catalogo import garantir_catalogo_inicial
 from .models import PAINEIS, STATUS_AGENDAMENTO, STATUS_OCUPA_HORARIO, Agendamento, Bloqueio, Cliente, HorarioTrabalho, Profissional, Recebimento, SalaoConfig, Servico
+from .loja_config import cores_gravadas
 from .permissions import IsSalaoAdmin, IsSalaoMembro, contexto_salao, usuario_e_admin
 from .serializers import AgendamentoSerializer, ClienteSerializer, ProfissionalSerializer, ServicoSerializer, painel_valido
 
@@ -54,6 +55,7 @@ class ConfigView(APIView):
             "painel": config.painel,
             "paineis": [{"id": codigo, "nome": nome} for codigo, nome in PAINEIS],
             "pode_trocar": usuario_e_admin(loja, prof, request.user),
+            **cores_gravadas(loja),
         })
 
     def put(self, request):

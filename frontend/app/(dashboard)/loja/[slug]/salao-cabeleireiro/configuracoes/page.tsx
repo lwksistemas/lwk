@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import { ChevronRight } from "lucide-react";
 import { PainelDoSalao } from "@/components/salao/PaineisSalao";
 import { SalaoAPI, type ComunicacaoSalao, type PainelSalao } from "@/lib/salao-api";
 
@@ -12,7 +13,22 @@ const OPCOES: { id: PainelSalao; nome: string; texto: string }[] = [
   { id: "gestao", nome: "Gestão do mês", texto: "Receita do mês, serviços mais vendidos e aniversariantes." },
 ];
 
+const LISTA = [
+  { titulo: "Layout do dashboard", descricao: "Operação do dia, agenda da semana ou gestão do mês.", href: "#layout", itens: ["Visualizar com dados de demonstração", "Gravar o layout do salão"] },
+  { titulo: "Pagar assinatura", descricao: "Baixar boleto e ver o histórico de pagamentos.", href: "assinatura", itens: ["Baixar boleto", "Histórico de pagamento"] },
+  { titulo: "Identidade visual", descricao: "Cor do menu, fundo das páginas e cores dos status da agenda.", href: "aparencia", itens: ["Cor do menu", "Fundo das páginas", "Cores dos status na agenda"] },
+  { titulo: "Configurar tela de login", descricao: "Logo, fundo e cores da tela de login do salão.", href: "login", itens: ["Logo", "Imagem de fundo", "Cores do login"] },
+  { titulo: "Contato no recibo", descricao: "Telefone, e-mail, cor e logomarca do recibo.", href: "contato", itens: ["Telefone do salão", "E-mail do salão", "Cor e logomarca do recibo"] },
+  { titulo: "Mensagens no WhatsApp", descricao: "Confirmação, lembrete, mudança de horário e cancelamento.", href: "#mensagens", itens: ["Confirmação de horário", "Lembrete", "Aviso de mudança e cancelamento"] },
+  { titulo: "Nota fiscal (NFS-e)", descricao: "Provedor e certificado. A emissão continua desligada.", href: "nota-fiscal", itens: ["Provedor de NF", "Certificado digital", "Emissão desligada"] },
+  { titulo: "Cupom fiscal (NFC-e)", descricao: "Regime, CSC e inscrição estadual. O recibo continua.", href: "cupom-fiscal", itens: ["Regime e CSC", "Inscrição estadual", "Homologação ou produção"] },
+  { titulo: "Backup", descricao: "Exportar uma cópia dos dados deste salão.", href: "backup", itens: ["Exportar backup", "Clientes, agenda e caixa"] },
+];
+
 export default function ConfiguracoesSalaoPage() {
+  const params = useParams();
+  const slug = params.slug as string;
+  const base = `/loja/${slug}/salao-cabeleireiro/configuracoes`;
   const [painel, setPainel] = useState<PainelSalao>("operacao");
   const [podeTrocar, setPodeTrocar] = useState(false);
   const [previa, setPrevia] = useState<PainelSalao | null>(null);
@@ -51,6 +67,25 @@ export default function ConfiguracoesSalaoPage() {
   return (
     <div>
       <h1 className="mb-1 text-2xl font-semibold sm:text-3xl">Configurações</h1>
+      <p className="mb-4 max-w-2xl text-sm text-[#8a6e74]">Assinatura, login, aparência, recibo, nota, cupom e backup deste salão.</p>
+      <ul className="mb-8 divide-y divide-[#f0e4e6] overflow-hidden rounded-3xl border border-[#f0e4e6] bg-white">
+        {LISTA.map((item) => {
+          const href = item.href.startsWith("#") ? item.href : item.href === "assinatura" ? `/loja/${slug}/assinatura` : `${base}/${item.href}`;
+          return (
+            <li key={item.titulo}>
+              <Link href={href} className="flex items-start justify-between gap-3 px-4 py-3 hover:bg-[#fbf6f4]">
+                <span className="min-w-0">
+                  <span className="block font-medium">{item.titulo}</span>
+                  <span className="mt-0.5 block text-sm text-[#8a6e74]">{item.descricao}</span>
+                  <span className="mt-1 block text-xs text-[#8a6e74]">{item.itens.join(" · ")}</span>
+                </span>
+                <ChevronRight size={18} className="mt-1 shrink-0 text-[#8a6e74]" />
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+      <h2 id="layout" className="mb-1 text-xl font-semibold">Layout do dashboard</h2>
       <p className="mb-5 max-w-2xl text-sm text-[#8a6e74]">
         {podeTrocar
           ? "A prévia mostra clientes, horários, serviços e recebimentos de demonstração. Nada disso entra no salão. A troca pede confirmação e só o administrador grava."
@@ -105,7 +140,9 @@ export default function ConfiguracoesSalaoPage() {
           );
         })}
       </div>
-      <MensagensWhatsapp />
+      <div id="mensagens">
+        <MensagensWhatsapp />
+      </div>
       {confirmar ? (
         <div className="fixed inset-0 z-30 grid place-items-center bg-black/40 p-4" role="dialog" aria-modal="true" aria-labelledby="confirmar-layout">
           <div className="w-full max-w-md rounded-3xl bg-white p-5">

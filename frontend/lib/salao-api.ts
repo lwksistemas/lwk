@@ -141,7 +141,7 @@ async function salaoFetch<T>(path: string, options: RequestInit = {}, retried = 
 }
 
 export const SalaoAPI = {
-  config: () => salaoFetch<{ painel: PainelSalao; pode_trocar: boolean; paineis: { id: PainelSalao; nome: string }[] }>("/config/"),
+  config: () => salaoFetch<{ painel: PainelSalao; pode_trocar: boolean; paineis: { id: PainelSalao; nome: string }[]; cor_primaria: string; cor_fundo_pagina: string }>("/config/"),
   comunicacao: () => salaoFetch<ComunicacaoSalao>("/comunicacao/"),
   salvarComunicacao: (corpo: Pick<ComunicacaoSalao, "confirmacao" | "lembrete" | "lembrete_horas" | "reagendamento" | "cancelamento">) =>
     salaoFetch<ComunicacaoSalao>("/comunicacao/", { method: "PUT", body: JSON.stringify(corpo) }),

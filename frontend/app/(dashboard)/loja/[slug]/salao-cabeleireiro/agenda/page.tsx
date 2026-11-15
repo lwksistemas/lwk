@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { diaTemAtendimento } from "@/components/salao/PaineisSalao";
-import { SalaoAPI, type AgendamentoSalao, type ClienteSalao, type JornadaDia, type ProfissionalSalao, type ServicoSalao } from "@/lib/salao-api";
+import { SalaoAPI, type AgendamentoSalao, type BloqueioSalao, type ClienteSalao, type JornadaDia, type ProfissionalSalao, type ServicoSalao } from "@/lib/salao-api";
 
 const HORA_INICIO = 8;
 const HORA_FIM = 20;
@@ -61,6 +61,9 @@ export default function AgendaSalaoPage() {
   const [jornadas, setJornadas] = useState<Record<number, JornadaDia[]>>({});
   const [aviso, setAviso] = useState("");
   const [confirmarExclusao, setConfirmarExclusao] = useState(false);
+  const [bloqueios, setBloqueios] = useState<BloqueioSalao[]>([]);
+  const [folgaAberta, setFolgaAberta] = useState(false);
+  const [folga, setFolga] = useState({ titulo: "", profissional: "", data_inicio: "", data_fim: "", horario_inicio: "", horario_fim: "" });
 
   const periodo = useMemo(() => {
     if (modo === "dia") {
@@ -112,6 +115,11 @@ export default function AgendaSalaoPage() {
   }, [periodo.inicio, periodo.fim]);
 
   useEffect(() => { carregar(); }, [carregar]);
+
+  const recarregarBloqueios = useCallback(() => {
+    SalaoAPI.bloqueios().then(setBloqueios).catch(() => undefined);
+  }, []);
+  useEffect(() => { recarregarBloqueios(); }, [recarregarBloqueios]);
 
   const profissionaisIds = profissionais.map((pessoa) => pessoa.id).join(",");
   useEffect(() => {
@@ -304,6 +312,55 @@ export default function AgendaSalaoPage() {
     }
   }
 
+  function abrirFolga() {
+    const dia = `${cursor.getFullYear()}-${dois(cursor.getMonth() + 1)}-${dois(cursor.getDate())}`;
+    setErro("");
+    setFolga({
+      titulo: "",
+      profissional: String(profissionais[0]?.id || ""),
+      data_inicio: dia,
+      data_fim: dia,
+      horario_inicio: "",
+      horario_fim: "",
+    });
+    setFolgaAberta(true);
+  }
+
+  async function criarFolga(evento: React.FormEvent) {
+    evento.preventDefault();
+    setErro("");
+    try {
+      await SalaoAPI.bloquear({
+        titulo: folga.titulo,
+        tipo: "folga",
+        profissional: Number(folga.profissional),
+        data_inicio: folga.data_inicio,
+        data_fim: folga.data_fim || folga.data_inicio,
+        horario_inicio: folga.horario_inicio,
+        horario_fim: folga.horario_fim,
+      });
+      setFolga({ ...folga, titulo: "", horario_inicio: "", horario_fim: "" });
+      recarregarBloqueios();
+    } catch (exc) {
+      setErro(exc instanceof Error ? exc.message : "Não foi possível gravar a folga.");
+    }
+  }
+
+  async function removerFolga(id: number) {
+    setErro("");
+    try {
+      await SalaoAPI.removerBloqueio(id);
+      recarregarBloqueios();
+    } catch (exc) {
+      setErro(exc instanceof Error ? exc.message : "Não foi possível remover a folga.");
+    }
+  }
+
+  function folgasDoDia(data: Date) {
+    const iso = `${data.getFullYear()}-${dois(data.getMonth() + 1)}-${dois(data.getDate())}`;
+    return bloqueios.filter((item) => item.data_inicio <= iso && item.data_fim >= iso);
+  }
+
   const horas = Array.from({ length: HORA_FIM - HORA_INICIO }, (_, indice) => HORA_INICIO + indice);
 
   return (
@@ -313,7 +370,8 @@ export default function AgendaSalaoPage() {
           <h1 className="text-3xl font-semibold">Agenda</h1>
           <p className="text-sm text-[#8a6e74]">Dia por profissional, semana por dia e mês. O horário ocupado não aceita outro atendimento.</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <button type="button" className="rounded-full border bg-white px-3 py-1.5 text-sm" onClick={abrirFolga}>Folgas e bloqueios</button>
           <button type="button" className="rounded-full border bg-white px-3 py-1.5 text-sm" onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate() - (modo === "mes" ? 30 : modo === "semana" ? 7 : 1)))}>Anterior</button>
           <button type="button" className="rounded-full border bg-white px-3 py-1.5 text-sm" onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate() + (modo === "mes" ? 30 : modo === "semana" ? 7 : 1)))}>Próxima</button>
           {(["dia", "semana", "mes"] as const).map((item) => (
@@ -333,7 +391,17 @@ export default function AgendaSalaoPage() {
         <div className="overflow-auto rounded-2xl border border-[#f0e4e6] bg-white">
           <div className="grid" style={{ gridTemplateColumns: `64px repeat(${Math.max(colunas.length, 1)}, minmax(140px, 1fr))` }}>
             <div />
-            {colunas.map((coluna) => <div key={coluna.id} className="border-b border-l px-2 py-2 text-center text-xs text-[#8a6e74]">{coluna.titulo}</div>)}
+            {colunas.map((coluna) => {
+              const folgas = folgasDoDia(coluna.data).filter((item) => modo !== "dia" || !item.profissional || String(item.profissional) === coluna.id);
+              return (
+                <div key={coluna.id} className="border-b border-l px-2 py-2 text-center text-xs text-[#8a6e74]">
+                  {coluna.titulo}
+                  {folgas.map((item) => (
+                    <span key={item.id} className="mt-1 block truncate text-[10px] text-[#7a3044]" title={item.titulo}>Folga · {item.profissional_nome}</span>
+                  ))}
+                </div>
+              );
+            })}
             <div>
               {horas.map((hora) => <div key={hora} style={{ height: ALTURA_HORA }} className="pr-2 text-right text-xs text-[#8a6e74]">{dois(hora)}:00</div>)}
             </div>
@@ -361,6 +429,16 @@ export default function AgendaSalaoPage() {
                 }}
               >
                 {horas.map((hora) => <div key={hora} style={{ height: ALTURA_HORA }} className="border-b border-[#f0e4e6]" />)}
+                {modo === "dia" ? folgasDoDia(coluna.data).filter((item) => !item.profissional || String(item.profissional) === coluna.id).map((item) => {
+                  const inicioHora = item.horario_inicio ? Number(item.horario_inicio.slice(0, 2)) + Number(item.horario_inicio.slice(3, 5)) / 60 : HORA_INICIO;
+                  const fimHora = item.horario_fim ? Number(item.horario_fim.slice(0, 2)) + Number(item.horario_fim.slice(3, 5)) / 60 : HORA_FIM;
+                  const topo = (inicioHora - HORA_INICIO) * ALTURA_HORA;
+                  return (
+                    <div key={item.id} data-evento="1" className="absolute left-1 right-1 rounded-md bg-[#f3e6ea] px-1 py-0.5 text-[11px] text-[#7a3044]" style={{ top: Math.max(0, topo), height: Math.max(22, (fimHora - inicioHora) * ALTURA_HORA) }} title={item.titulo}>
+                      Folga · {item.titulo}
+                    </div>
+                  );
+                }) : null}
                 {eventos.filter((item) => item.status !== "CANCELLED").filter((item) => {
                   const inicio = new Date(item.inicio);
                   const mesmoDia = inicio.toDateString() === coluna.data.toDateString();
@@ -393,6 +471,50 @@ export default function AgendaSalaoPage() {
           </div>
         </div>
       )}
+      {folgaAberta ? (
+        <div className="fixed inset-0 z-40 grid place-items-center bg-black/40 p-4" role="dialog" aria-modal="true" aria-labelledby="folga-formulario" onClick={(evento) => { if (evento.target === evento.currentTarget) setFolgaAberta(false); }}>
+          <div className="max-h-[90vh] w-full max-w-2xl overflow-auto rounded-3xl bg-white p-5">
+            <h2 id="folga-formulario" className="text-lg font-semibold">Folgas e bloqueios</h2>
+            <p className="mt-1 text-sm text-[#8a6e74]">A secretaria registra a folga de qualquer profissional. Sem horário, o dia inteiro fica bloqueado.</p>
+            {erro ? <p className="mt-2 text-sm text-red-700">{erro}</p> : null}
+            <form className="mt-3 grid gap-2 sm:grid-cols-2" onSubmit={criarFolga}>
+              <label className="text-sm sm:col-span-2">Profissional
+                <select className="mt-1 w-full rounded-lg border px-2 py-2" value={folga.profissional} onChange={(evento) => setFolga({ ...folga, profissional: evento.target.value })} required>
+                  {profissionais.map((pessoa) => <option key={pessoa.id} value={pessoa.id}>{pessoa.nome}</option>)}
+                </select>
+              </label>
+              <label className="text-sm sm:col-span-2">Motivo
+                <input className="mt-1 w-full rounded-lg border px-2 py-2" value={folga.titulo} onChange={(evento) => setFolga({ ...folga, titulo: evento.target.value })} required />
+              </label>
+              <label className="text-sm">Começa
+                <input type="date" className="mt-1 w-full rounded-lg border px-2 py-2" value={folga.data_inicio} onChange={(evento) => setFolga({ ...folga, data_inicio: evento.target.value })} required />
+              </label>
+              <label className="text-sm">Termina
+                <input type="date" className="mt-1 w-full rounded-lg border px-2 py-2" value={folga.data_fim} onChange={(evento) => setFolga({ ...folga, data_fim: evento.target.value })} />
+              </label>
+              <label className="text-sm">Das
+                <input type="time" className="mt-1 w-full rounded-lg border px-2 py-2" value={folga.horario_inicio} onChange={(evento) => setFolga({ ...folga, horario_inicio: evento.target.value })} />
+              </label>
+              <label className="text-sm">Até
+                <input type="time" className="mt-1 w-full rounded-lg border px-2 py-2" value={folga.horario_fim} onChange={(evento) => setFolga({ ...folga, horario_fim: evento.target.value })} />
+              </label>
+              <div className="mt-1 flex justify-end gap-2 sm:col-span-2">
+                <button type="button" className="rounded-full border px-4 py-2 text-sm" onClick={() => setFolgaAberta(false)}>Fechar</button>
+                <button className="rounded-full bg-[#7a3044] px-4 py-2 text-sm text-white" type="submit">Registrar</button>
+              </div>
+            </form>
+            <ul className="mt-4">
+              {bloqueios.length === 0 ? <li className="text-sm text-[#8a6e74]">Nenhuma folga cadastrada.</li> : null}
+              {bloqueios.map((item) => (
+                <li key={item.id} className="flex flex-wrap items-center justify-between gap-2 border-t border-[#f0e4e6] py-2 text-sm">
+                  <span>{item.profissional_nome} · {item.titulo} · {item.data_inicio}{item.data_fim !== item.data_inicio ? ` a ${item.data_fim}` : ""}{item.horario_inicio ? ` · ${item.horario_inicio.slice(0, 5)}–${item.horario_fim?.slice(0, 5)}` : " · dia inteiro"}</span>
+                  <button type="button" className="text-[#8a6e74]" onClick={() => removerFolga(item.id)}>Remover</button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      ) : null}
       {form ? (
         <Formulario
           titulo={selecionado ? "Editar agendamento" : "Novo agendamento"}

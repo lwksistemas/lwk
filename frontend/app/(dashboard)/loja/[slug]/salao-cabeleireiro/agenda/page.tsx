@@ -307,15 +307,14 @@ export default function AgendaSalaoPage() {
   const horas = Array.from({ length: HORA_FIM - HORA_INICIO }, (_, indice) => HORA_INICIO + indice);
 
   return (
-    <div>
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+    <div className={modo === "mes" ? "flex h-[calc(100dvh-2rem)] flex-col sm:h-[calc(100dvh-2.5rem)]" : undefined}>
+      <div className="mb-3 flex shrink-0 flex-wrap items-center justify-between gap-2">
         <div>
           <h1 className="text-3xl font-semibold">Agenda</h1>
           <p className="text-sm text-[#8a6e74]">Dia por profissional, semana por dia e mês. O horário ocupado não aceita outro atendimento.</p>
         </div>
         <div className="flex gap-2">
           <button type="button" className="rounded-full border bg-white px-3 py-1.5 text-sm" onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate() - (modo === "mes" ? 30 : modo === "semana" ? 7 : 1)))}>Anterior</button>
-          <button type="button" className="rounded-full border bg-white px-3 py-1.5 text-sm" onClick={() => setCursor(new Date())}>Hoje</button>
           <button type="button" className="rounded-full border bg-white px-3 py-1.5 text-sm" onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate() + (modo === "mes" ? 30 : modo === "semana" ? 7 : 1)))}>Próxima</button>
           {(["dia", "semana", "mes"] as const).map((item) => (
             <button key={item} type="button" className={`rounded-full px-3 py-1.5 text-sm ${modo === item ? "bg-[#7a3044] text-white" : "bg-white"}`} onClick={() => setModo(item)}>
@@ -368,6 +367,8 @@ export default function AgendaSalaoPage() {
                   return modo === "dia" ? mesmoDia && String(item.profissional) === coluna.id : mesmoDia;
                 }).map((item) => {
                   const inicio = new Date(item.inicio);
+                  const fim = new Date(item.fim);
+                  const faixa = `${dois(inicio.getHours())}:${dois(inicio.getMinutes())}–${dois(fim.getHours())}:${dois(fim.getMinutes())}`;
                   const topo = ((inicio.getHours() + inicio.getMinutes() / 60) - HORA_INICIO) * ALTURA_HORA;
                   return (
                     <button
@@ -377,12 +378,13 @@ export default function AgendaSalaoPage() {
                       draggable
                       onDragStart={(evento) => evento.dataTransfer.setData("text/plain", String(item.id))}
                       onClick={(evento) => { evento.stopPropagation(); setForm(null); setConfirmarExclusao(false); setSelecionado(item); }}
-                      title={`${dois(inicio.getHours())}:${dois(inicio.getMinutes())} · ${item.profissional_nome} · ${item.servico_nome} · ${item.cliente_nome}`}
+                      title={`${faixa} · Profissional ${item.profissional_nome} · Cliente ${item.cliente_nome}`}
                       className="absolute left-1 right-1 overflow-hidden rounded-md px-1 py-0.5 text-left text-[11px] leading-tight text-white"
-                      style={{ top: Math.max(0, topo), height: Math.max(36, (item.duracao_minutos / 60) * ALTURA_HORA), background: corStatus(item.status) }}
+                      style={{ top: Math.max(0, topo), height: Math.max(48, (item.duracao_minutos / 60) * ALTURA_HORA), background: corStatus(item.status) }}
                     >
-                      <span className="block truncate">{dois(inicio.getHours())}:{dois(inicio.getMinutes())} {item.profissional_nome}</span>
-                      <span className="block truncate">{item.cliente_nome}</span>
+                      <span className="block truncate">{faixa}</span>
+                      <span className="block truncate">Profissional {item.profissional_nome}</span>
+                      <span className="block truncate">Cliente {item.cliente_nome}</span>
                     </button>
                   );
                 })}
@@ -513,15 +515,17 @@ function Mes({ cursor, eventos, aoAbrir }: { cursor: Date; eventos: AgendamentoS
   const primeiro = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
   const dias = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0).getDate();
   const offset = (primeiro.getDay() + 6) % 7;
-  const celulas = [...Array(offset).fill(null), ...Array.from({ length: dias }, (_, indice) => indice + 1)];
+  const celulas: Array<number | null> = [...Array(offset).fill(null), ...Array.from({ length: dias }, (_, indice) => indice + 1)];
+  while (celulas.length % 7 !== 0) celulas.push(null);
+  const linhas = celulas.length / 7;
   return (
-    <div className="grid grid-cols-7 gap-2">
+    <div className="grid min-h-0 flex-1 grid-cols-7 gap-2" style={{ gridTemplateRows: `repeat(${linhas}, minmax(0, 1fr))` }}>
       {celulas.map((dia, indice) => {
-        if (!dia) return <div key={`vazio-${indice}`} />;
+        if (!dia) return <div key={`vazio-${indice}`} className="rounded-xl border border-[#f0e4e6] bg-white" />;
         const data = new Date(cursor.getFullYear(), cursor.getMonth(), dia);
         const total = eventos.filter((item) => new Date(item.inicio).toDateString() === data.toDateString() && item.status !== "CANCELLED").length;
         return (
-          <button key={dia} type="button" className="min-h-20 rounded-xl border border-[#f0e4e6] bg-white p-2 text-left" onClick={() => aoAbrir(data)}>
+          <button key={dia} type="button" className="h-full min-h-0 rounded-xl border border-[#f0e4e6] bg-white p-2 text-left" onClick={() => aoAbrir(data)}>
             <span className="text-sm">{dia}</span>
             {total ? <span className="mt-2 block text-xs text-[#7a3044]">{total} horário{total > 1 ? "s" : ""}</span> : null}
           </button>

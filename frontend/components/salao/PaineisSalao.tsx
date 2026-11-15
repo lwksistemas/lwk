@@ -4,9 +4,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { CalendarPlus, Gift, Scissors, Users } from "lucide-react";
-import { SalaoAPI, type AgendamentoSalao, type PainelSalao, type ProfissionalSalao, type ResumoSalao } from "@/lib/salao-api";
-
-const CORES_PROFISSIONAL = ["#7c3aed", "#db2777", "#2563eb", "#ea580c", "#059669", "#be185d"];
+import { SalaoAPI, type AgendamentoSalao, type BloqueioSalao, type JornadaDia, type PainelSalao, type ProfissionalSalao, type ResumoSalao } from "@/lib/salao-api";
 
 export function PainelDoSalao({ painel }: { painel: PainelSalao }) {
   const params = useParams();
@@ -120,12 +118,16 @@ function PainelOperacao({ resumo, slug, cadastro }: { resumo: ResumoSalao; slug:
 function PainelSemana({ resumo, slug, cadastro }: { resumo: ResumoSalao; slug: string; cadastro: { profissionais: number; servicos: number } }) {
   const [profissionais, setProfissionais] = useState<ProfissionalSalao[]>([]);
   const [eventos, setEventos] = useState<AgendamentoSalao[]>([]);
+  const [jornadas, setJornadas] = useState<Record<number, JornadaDia[]>>({});
+  const [bloqueios, setBloqueios] = useState<BloqueioSalao[]>([]);
+  const [cursor, setCursor] = useState(() => inicioDaSemana(new Date()));
+  const [filtro, setFiltro] = useState<number | "todos">("todos");
   const semana = useMemo(() => {
-    const inicio = inicioDaSemana(new Date());
+    const inicio = inicioDaSemana(cursor);
     const fim = new Date(inicio);
     fim.setDate(fim.getDate() + 7);
     return { inicio, fim };
-  }, []);
+  }, [cursor]);
   const dias = Array.from({ length: 7 }, (_, indice) => {
     const data = new Date(semana.inicio);
     data.setDate(semana.inicio.getDate() + indice);
@@ -137,16 +139,24 @@ function PainelSemana({ resumo, slug, cadastro }: { resumo: ResumoSalao; slug: s
     Promise.all([
       SalaoAPI.profissionais(),
       SalaoAPI.agenda(paraApi(semana.inicio), paraApi(semana.fim)),
-    ]).then(([lista, agenda]) => {
+      SalaoAPI.bloqueios(),
+    ]).then(async ([lista, agenda, folgas]) => {
       setProfissionais(lista);
       setEventos(agenda.filter((item) => item.status !== "CANCELLED"));
+      setBloqueios(folgas);
+      const pares = await Promise.all(lista.map(async (pessoa) => [pessoa.id, await SalaoAPI.jornada(pessoa.id)] as const));
+      setJornadas(Object.fromEntries(pares));
     }).catch(() => undefined);
   }, [semana]);
 
-  const corDe = new Map(profissionais.map((item, indice) => [item.id, CORES_PROFISSIONAL[indice % CORES_PROFISSIONAL.length]]));
+  const visiveis = filtro === "todos" ? eventos : eventos.filter((item) => item.profissional === filtro);
+  const jornadaFiltro = filtro === "todos" ? Object.values(jornadas).flat() : jornadas[filtro];
+  const faixa = faixaHoras(Array.isArray(jornadaFiltro) ? jornadaFiltro : undefined);
+  const horas = Array.from({ length: Math.max(faixa.fim - faixa.inicio, 1) }, (_, indice) => faixa.inicio + indice);
   const emAtendimento = resumo.agenda_hoje.filter((item) => item.status === "IN_PROGRESS");
   const horaAgora = new Date().getHours();
   const saudacao = horaAgora < 12 ? "Bom dia" : horaAgora < 18 ? "Boa tarde" : "Boa noite";
+  const servicosVisiveis = [...new Map(visiveis.map((item) => [item.servico_nome, item.servico_nome])).values()];
 
   return (
     <div>
@@ -169,28 +179,52 @@ function PainelSemana({ resumo, slug, cadastro }: { resumo: ResumoSalao; slug: s
         <section className="min-w-0 overflow-auto rounded-3xl border border-[#ece7f5] bg-white p-4">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-sm font-medium">Agenda semanal</h2>
-            <span className="text-xs text-[#6d6480]">{semana.inicio.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })} – {new Date(semana.fim.getTime() - 86400000).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}</span>
+            <div className="flex flex-wrap items-center gap-2">
+              <button type="button" className="rounded-full border px-3 py-1 text-xs" onClick={() => setCursor(new Date(semana.inicio.getFullYear(), semana.inicio.getMonth(), semana.inicio.getDate() - 7))}>Anterior</button>
+              <button type="button" className="rounded-full border px-3 py-1 text-xs" onClick={() => setCursor(new Date())}>Hoje</button>
+              <button type="button" className="rounded-full border px-3 py-1 text-xs" onClick={() => setCursor(new Date(semana.inicio.getFullYear(), semana.inicio.getMonth(), semana.inicio.getDate() + 7))}>Próxima</button>
+              <span className="text-xs text-[#6d6480]">{semana.inicio.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })} – {new Date(semana.fim.getTime() - 86400000).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}</span>
+            </div>
           </div>
-          {eventos.length === 0 ? <Vazio texto="Nenhum agendamento nesta semana." href={`${base}/agenda`} acao="Novo agendamento" /> : null}
-          <div className="grid min-w-[640px]" style={{ gridTemplateColumns: "52px repeat(7, minmax(0, 1fr))" }}>
+          <label className="mb-3 flex items-center gap-2 text-sm text-[#6d6480]">
+            Profissional
+            <select className="rounded-lg border px-2 py-1" value={filtro} onChange={(evento) => setFiltro(evento.target.value === "todos" ? "todos" : Number(evento.target.value))}>
+              <option value="todos">Todos</option>
+              {profissionais.map((pessoa) => <option key={pessoa.id} value={pessoa.id}>{pessoa.nome}</option>)}
+            </select>
+          </label>
+          {visiveis.length === 0 ? <Vazio texto="Nenhum agendamento nesta semana." href={`${base}/agenda`} acao="Novo agendamento" /> : null}
+          <div className="grid min-w-[720px]" style={{ gridTemplateColumns: "52px repeat(7, minmax(0, 1fr))" }}>
             <span />
             {dias.map((dia) => (
               <span key={dia.toISOString()} className={`px-1 pb-2 text-center text-xs ${mesmoDia(dia, new Date()) ? "font-semibold text-[#4c1d78]" : "text-[#6d6480]"}`}>
                 {dia.toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit" })}
               </span>
             ))}
-            {Array.from({ length: 11 }, (_, indice) => indice + 9).map((hora) => (
+            {horas.map((hora) => (
               <div key={hora} className="contents">
                 <span className="py-2 text-xs text-[#6d6480]">{String(hora).padStart(2, "0")}:00</span>
                 {dias.map((dia) => {
-                  const lista = eventos.filter((item) => mesmoDia(new Date(item.inicio), dia) && new Date(item.inicio).getHours() === hora);
+                  const lista = visiveis.filter((item) => mesmoDia(new Date(item.inicio), dia) && new Date(item.inicio).getHours() === hora);
+                  const vaga = vagaDaHora(filtro, profissionais, jornadas, bloqueios, dia, hora);
+                  const ocupados = new Set(lista.map((item) => item.profissional));
+                  const podeCriar = vaga === "livre" && (filtro === "todos"
+                    ? profissionais.some((pessoa) => !ocupados.has(pessoa.id) && situacaoHora(jornadas[pessoa.id] || [], bloqueios, pessoa.id, dia, hora) === "livre")
+                    : lista.length === 0);
+                  const momento = new Date(dia);
+                  momento.setHours(hora, 0, 0, 0);
+                  const destino = `${base}/agenda?novo=${encodeURIComponent(paraApi(momento))}${filtro === "todos" ? "" : `&profissional=${filtro}`}`;
+                  const fundo = vaga === "livre" ? (mesmoDia(dia, new Date()) ? "bg-[#faf8ff]" : "") : "bg-[#f3f0f7]";
                   return (
-                    <div key={`${hora}-${dia.toDateString()}`} className={`min-h-10 border-t border-[#f3eef8] p-0.5 ${mesmoDia(dia, new Date()) ? "bg-[#faf8ff]" : ""}`}>
+                    <div key={`${hora}-${dia.toDateString()}`} className={`min-h-12 border-t border-[#f3eef8] p-0.5 ${fundo}`}>
                       {lista.map((item) => (
-                        <Link key={item.id} href={`${base}/agenda?horario=${item.id}`} className="mb-0.5 block truncate rounded px-1 py-0.5 text-[10px] leading-tight text-white" style={{ background: corDe.get(item.profissional) || "#7c3aed" }} title={`${item.cliente_nome} · ${item.servico_nome} · ${item.profissional_nome}`}>
-                          {item.cliente_nome}
+                        <Link key={item.id} href={`${base}/agenda?horario=${item.id}&dia=${dataLocal(new Date(item.inicio))}`} className="mb-0.5 block truncate rounded px-1 py-0.5 text-[10px] leading-tight text-white" style={{ background: corServico(item.servico_nome) }} title={`${new Date(item.inicio).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })} · ${item.cliente_nome} · ${item.servico_nome} · ${item.profissional_nome}`}>
+                          {new Date(item.inicio).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })} {item.cliente_nome}
+                          <span className="block opacity-80">{item.servico_nome}{filtro === "todos" ? ` · ${item.profissional_nome.split(" ")[0]}` : ""}</span>
                         </Link>
                       ))}
+                      {podeCriar ? <Link href={destino} className="block px-1 py-2 text-[10px] text-[#6d6480]" title="Novo agendamento">+</Link> : null}
+                      {lista.length === 0 && vaga !== "livre" ? <span className="block px-1 py-2 text-[10px] text-[#b3a8c4]">{vaga === "intervalo" ? "Intervalo" : vaga === "folga" ? "Folga" : "Não atende"}</span> : null}
                     </div>
                   );
                 })}
@@ -198,10 +232,10 @@ function PainelSemana({ resumo, slug, cadastro }: { resumo: ResumoSalao; slug: s
             ))}
           </div>
           <div className="mt-3 flex flex-wrap gap-3 text-xs text-[#6d6480]">
-            {profissionais.map((item) => (
-              <span key={item.id} className="inline-flex items-center gap-1">
-                <i className="h-2 w-2 rounded-full" style={{ background: corDe.get(item.id) }} />
-                {item.nome}
+            {servicosVisiveis.map((nome) => (
+              <span key={nome} className="inline-flex items-center gap-1">
+                <i className="h-2 w-2 rounded-full" style={{ background: corServico(nome) }} />
+                {nome}
               </span>
             ))}
           </div>
@@ -248,10 +282,10 @@ function PainelSemana({ resumo, slug, cadastro }: { resumo: ResumoSalao; slug: s
           {emAtendimento.length === 0 ? <p className="text-sm text-[#6d6480]">Ninguém em atendimento agora.</p> : null}
           <div className="flex flex-wrap gap-3">
             {emAtendimento.map((item) => (
-              <span key={item.id} className="text-center text-xs">
+              <Link key={item.id} href={`${base}/agenda?horario=${item.id}`} className="text-center text-xs" title={`${item.cliente} · ${item.servico}`}>
                 <Iniciais nome={item.profissional} cor="#4c1d78" />
                 <span className="mt-1 block max-w-16 truncate">{item.profissional.split(" ")[0]}</span>
-              </span>
+              </Link>
             ))}
           </div>
         </section>
@@ -407,4 +441,77 @@ function inicioDaSemana(data: Date) {
 
 function mesmoDia(esquerda: Date, direita: Date) {
   return esquerda.getFullYear() === direita.getFullYear() && esquerda.getMonth() === direita.getMonth() && esquerda.getDate() === direita.getDate();
+}
+
+function minutos(valor: string) {
+  const [hora, minuto] = valor.slice(0, 5).split(":").map(Number);
+  return hora * 60 + (minuto || 0);
+}
+
+function dataLocal(data: Date) {
+  return `${data.getFullYear()}-${dois(data.getMonth() + 1)}-${dois(data.getDate())}`;
+}
+
+function faixaHoras(dias?: JornadaDia[]) {
+  const ativos = (dias || []).filter((dia) => dia.ativo && dia.hora_entrada && dia.hora_saida);
+  if (!ativos.length) return { inicio: 9, fim: 19 };
+  const inicio = Math.min(...ativos.map((dia) => Math.floor(minutos(dia.hora_entrada) / 60)));
+  const fim = Math.max(...ativos.map((dia) => Math.ceil(minutos(dia.hora_saida) / 60)));
+  return { inicio: Math.max(0, inicio), fim: Math.min(24, Math.max(inicio + 1, fim)) };
+}
+
+function corServico(nome: string) {
+  let hash = 0;
+  for (const letra of nome) hash = (hash * 31 + letra.charCodeAt(0)) % 360;
+  return `hsl(${hash} 48% 36%)`;
+}
+
+function situacaoHora(
+  jornada: JornadaDia[],
+  bloqueios: BloqueioSalao[],
+  profissionalId: number,
+  dia: Date,
+  hora: number,
+): "livre" | "folga" | "intervalo" | "fechado" {
+  if (!jornada.length) return "livre";
+  const diaSemana = (dia.getDay() + 6) % 7;
+  const item = jornada.find((linha) => linha.dia_semana === diaSemana);
+  const inicio = hora * 60;
+  const fim = inicio + 60;
+  const data = dataLocal(dia);
+  const bloqueio = bloqueios.find((folga) => {
+    if (folga.profissional && folga.profissional !== profissionalId) return false;
+    const de = folga.data_inicio.slice(0, 10);
+    const ate = folga.data_fim.slice(0, 10);
+    if (data < de || data > ate) return false;
+    if (!folga.horario_inicio || !folga.horario_fim) return true;
+    return inicio < minutos(folga.horario_fim) && minutos(folga.horario_inicio) < fim;
+  });
+  if (bloqueio) return "folga";
+  if (!item || !item.ativo) return "fechado";
+  const entrada = minutos(item.hora_entrada);
+  const saida = minutos(item.hora_saida);
+  if (fim <= entrada || inicio >= saida) return "fechado";
+  if (item.intervalo_inicio && item.intervalo_fim && inicio < minutos(item.intervalo_fim) && minutos(item.intervalo_inicio) < fim) return "intervalo";
+  return "livre";
+}
+
+function vagaDaHora(
+  filtro: number | "todos",
+  profissionais: ProfissionalSalao[],
+  jornadas: Record<number, JornadaDia[]>,
+  bloqueios: BloqueioSalao[],
+  dia: Date,
+  hora: number,
+) {
+  if (filtro !== "todos") {
+    if (!jornadas[filtro]) return "livre" as const;
+    return situacaoHora(jornadas[filtro], bloqueios, filtro, dia, hora);
+  }
+  if (!profissionais.length || !Object.keys(jornadas).length) return "livre" as const;
+  const situacoes = profissionais.map((pessoa) => situacaoHora(jornadas[pessoa.id] || [], bloqueios, pessoa.id, dia, hora));
+  if (situacoes.some((item) => item === "livre")) return "livre" as const;
+  if (situacoes.some((item) => item === "intervalo")) return "intervalo" as const;
+  if (situacoes.some((item) => item === "folga")) return "folga" as const;
+  return "fechado" as const;
 }

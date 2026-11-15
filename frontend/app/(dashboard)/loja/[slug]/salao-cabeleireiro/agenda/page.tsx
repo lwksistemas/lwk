@@ -1,20 +1,13 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
+import Link from "next/link";
+import { useParams, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { SalaoAPI, type AgendamentoSalao, type ClienteSalao, type ProfissionalSalao, type ServicoSalao } from "@/lib/salao-api";
 
 const HORA_INICIO = 8;
 const HORA_FIM = 20;
 const ALTURA_HORA = 52;
-const STATUS = [
-  ["SCHEDULED", "Aguardando"],
-  ["CONFIRMED", "Confirmado"],
-  ["IN_PROGRESS", "Em atendimento"],
-  ["COMPLETED", "Concluído"],
-  ["NO_SHOW", "Faltou"],
-  ["CANCELLED", "Cancelado"],
-] as const;
 
 function dois(valor: number) {
   return String(valor).padStart(2, "0");
@@ -22,6 +15,13 @@ function dois(valor: number) {
 
 function paraApi(data: Date) {
   return `${data.getFullYear()}-${dois(data.getMonth() + 1)}-${dois(data.getDate())}T${dois(data.getHours())}:${dois(data.getMinutes())}:00`;
+}
+
+function deApi(valor: string) {
+  const [data, hora = "00:00"] = valor.split("T");
+  const [ano, mes, dia] = data.split("-").map(Number);
+  const [h, m] = hora.split(":").map(Number);
+  return new Date(ano, (mes || 1) - 1, dia || 1, h || 0, m || 0, 0, 0);
 }
 
 function inicioDaSemana(data: Date) {
@@ -40,8 +40,11 @@ function corStatus(status: string) {
 }
 
 export default function AgendaSalaoPage() {
+  const params = useParams();
+  const slug = params.slug as string;
   const searchParams = useSearchParams();
   const horarioAberto = useRef(false);
+  const novoPedido = useRef("");
   const [modo, setModo] = useState<"dia" | "semana" | "mes">("semana");
   const [cursor, setCursor] = useState(() => new Date());
   const [profissionais, setProfissionais] = useState<ProfissionalSalao[]>([]);
@@ -96,6 +99,14 @@ export default function AgendaSalaoPage() {
   useEffect(() => { carregar(); }, [carregar]);
 
   useEffect(() => {
+    const dia = searchParams.get("dia");
+    if (!dia) return;
+    const data = deApi(dia);
+    if (Number.isNaN(data.getTime())) return;
+    setCursor(data);
+  }, [searchParams]);
+
+  useEffect(() => {
     const id = searchParams.get("horario");
     if (!id || horarioAberto.current || eventos.length === 0) return;
     const item = eventos.find((evento) => String(evento.id) === id);
@@ -108,7 +119,6 @@ export default function AgendaSalaoPage() {
 
   function abrirNovo(data: Date, profissionalId = "") {
     const inicio = new Date(data);
-    if (inicio.getHours() < HORA_INICIO) inicio.setHours(HORA_INICIO, 0, 0, 0);
     setSelecionado(null);
     setForm({
       inicio: paraApi(inicio).slice(0, 16),
@@ -120,6 +130,22 @@ export default function AgendaSalaoPage() {
       observacoes: "",
     });
   }
+
+  useEffect(() => {
+    if (searchParams.get("horario")) return;
+    const novo = searchParams.get("novo");
+    if (!novo || servicos.length === 0) return;
+    const profissional = searchParams.get("profissional") || "";
+    if (profissional && profissionais.length === 0) return;
+    const chave = `${novo}|${profissional}`;
+    if (novoPedido.current === chave) return;
+    const data = deApi(novo);
+    if (Number.isNaN(data.getTime())) return;
+    novoPedido.current = chave;
+    setCursor(data);
+    setModo("dia");
+    abrirNovo(data, profissional);
+  }, [searchParams, servicos, profissionais]);
 
   async function salvar() {
     if (!form) return;
@@ -149,12 +175,25 @@ export default function AgendaSalaoPage() {
   async function mudarStatus(status: string) {
     if (!selecionado) return;
     try {
-      await SalaoAPI.atualizarAgendamento(selecionado.id, { status });
-      setSelecionado(null);
+      const atualizado = await SalaoAPI.atualizarAgendamento(selecionado.id, { status });
+      setSelecionado(atualizado);
       carregar();
     } catch (exc) {
       setErro(exc instanceof Error ? exc.message : "Não foi possível atualizar.");
     }
+  }
+
+  function ajustarServico() {
+    if (!selecionado) return;
+    setForm({
+      inicio: paraApi(new Date(selecionado.inicio)).slice(0, 16),
+      profissional: String(selecionado.profissional),
+      servico: String(selecionado.servico),
+      cliente: String(selecionado.cliente),
+      cliente_nome: "",
+      cliente_telefone: "",
+      observacoes: selecionado.observacoes,
+    });
   }
 
   async function soltar(eventoId: number, data: Date, profissionalId?: string) {
@@ -262,15 +301,19 @@ export default function AgendaSalaoPage() {
       {form ? (
         <Formulario form={form} setForm={setForm} clientes={clientes} profissionais={profissionais} servicos={servicos} aoSalvar={salvar} aoFechar={() => setForm(null)} />
       ) : null}
-      {selecionado ? (
+      {selecionado && !form ? (
         <div className="mt-3 rounded-2xl border border-[#f0e4e6] bg-white p-4">
           <p className="font-medium">{selecionado.cliente_nome} · {selecionado.servico_nome}</p>
-          <p className="text-sm text-[#8a6e74]">{selecionado.profissional_nome} · {selecionado.status_label} · {selecionado.preco}</p>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {STATUS.map(([codigo, nome]) => (
-              <button key={codigo} type="button" className="rounded-full border px-3 py-1 text-xs" onClick={() => mudarStatus(codigo)}>{nome}</button>
-            ))}
-            <button type="button" className="text-xs text-[#8a6e74]" onClick={() => setSelecionado(null)}>Fechar</button>
+          <p className="text-sm text-[#8a6e74]">{selecionado.profissional_nome} · {new Date(selecionado.inicio).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })} · {selecionado.status_label} · {selecionado.preco}</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {selecionado.status === "SCHEDULED" ? <button type="button" className="rounded-full bg-[#7a3044] px-3 py-1.5 text-sm text-white" onClick={() => mudarStatus("CONFIRMED")}>Confirmar</button> : null}
+            {selecionado.status === "SCHEDULED" || selecionado.status === "CONFIRMED" ? <button type="button" className="rounded-full bg-[#1f8f86] px-3 py-1.5 text-sm text-white" onClick={() => mudarStatus("IN_PROGRESS")}>Iniciar atendimento</button> : null}
+            {selecionado.status === "IN_PROGRESS" ? <button type="button" className="rounded-full bg-[#1f8a4c] px-3 py-1.5 text-sm text-white" onClick={() => mudarStatus("COMPLETED")}>Finalizar</button> : null}
+            {selecionado.status === "COMPLETED" ? <Link href={`/loja/${slug}/salao-cabeleireiro/financeiro`} className="rounded-full border px-3 py-1.5 text-sm">Ver no financeiro</Link> : null}
+            {selecionado.status !== "CANCELLED" && selecionado.status !== "COMPLETED" ? <button type="button" className="rounded-full border px-3 py-1.5 text-sm" onClick={ajustarServico}>Ajustar serviço</button> : null}
+            {selecionado.status !== "CANCELLED" && selecionado.status !== "COMPLETED" ? <button type="button" className="rounded-full border px-3 py-1.5 text-sm" onClick={() => mudarStatus("CANCELLED")}>Cancelar</button> : null}
+            {selecionado.status !== "NO_SHOW" && selecionado.status !== "COMPLETED" && selecionado.status !== "CANCELLED" ? <button type="button" className="rounded-full border px-3 py-1.5 text-sm" onClick={() => mudarStatus("NO_SHOW")}>Faltou</button> : null}
+            <button type="button" className="text-sm text-[#8a6e74]" onClick={() => setSelecionado(null)}>Fechar</button>
           </div>
         </div>
       ) : null}

@@ -5,8 +5,9 @@ import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { CalendarPlus, Gift, Scissors, Users } from "lucide-react";
 import { SalaoAPI, type AgendamentoSalao, type BloqueioSalao, type JornadaDia, type PainelSalao, type ProfissionalSalao, type ResumoSalao } from "@/lib/salao-api";
+import { agendaDemonstracao, bloqueiosDemonstracao, jornadasDemonstracao, profissionaisDemonstracao, resumoDemonstracao } from "@/components/salao/demonstracao-salao";
 
-export function PainelDoSalao({ painel }: { painel: PainelSalao }) {
+export function PainelDoSalao({ painel, demonstracao = false }: { painel: PainelSalao; demonstracao?: boolean }) {
   const params = useParams();
   const slug = params.slug as string;
   const [resumo, setResumo] = useState<ResumoSalao | null>(null);
@@ -15,6 +16,13 @@ export function PainelDoSalao({ painel }: { painel: PainelSalao }) {
   const [erro, setErro] = useState("");
 
   useEffect(() => {
+    if (demonstracao) {
+      setResumo(resumoDemonstracao());
+      setProfissionais(profissionaisDemonstracao().length);
+      setServicos(6);
+      setErro("");
+      return;
+    }
     Promise.all([SalaoAPI.resumo(), SalaoAPI.profissionais(), SalaoAPI.servicos()])
       .then(([dados, listaProfissionais, listaServicos]) => {
         setResumo(dados);
@@ -22,15 +30,30 @@ export function PainelDoSalao({ painel }: { painel: PainelSalao }) {
         setServicos(listaServicos.length);
       })
       .catch((exc: Error) => setErro(exc.message));
-  }, []);
+  }, [demonstracao]);
 
   if (erro) return <p className="text-sm text-red-700">{erro}</p>;
   if (!resumo) return <p className="text-sm text-[#8a6e74]">Carregando o painel...</p>;
 
   const cadastro = { profissionais, servicos };
-  if (painel === "gestao") return <PainelGestao resumo={resumo} slug={slug} cadastro={cadastro} />;
-  if (painel === "semana") return <PainelSemana resumo={resumo} slug={slug} cadastro={cadastro} />;
-  return <PainelOperacao resumo={resumo} slug={slug} cadastro={cadastro} />;
+  const miolo = painel === "gestao"
+    ? <PainelGestao resumo={resumo} slug={slug} cadastro={cadastro} />
+    : painel === "semana"
+      ? <PainelSemana resumo={resumo} slug={slug} cadastro={cadastro} demonstracao={demonstracao} />
+      : <PainelOperacao resumo={resumo} slug={slug} cadastro={cadastro} />;
+  if (!demonstracao) return miolo;
+  return (
+    <div
+      onClickCapture={(evento) => {
+        const link = (evento.target as HTMLElement).closest("a");
+        if (!link) return;
+        evento.preventDefault();
+        evento.stopPropagation();
+      }}
+    >
+      {miolo}
+    </div>
+  );
 }
 
 function AvisosCadastro({ slug, cadastro }: { slug: string; cadastro: { profissionais: number; servicos: number } }) {
@@ -115,7 +138,7 @@ function PainelOperacao({ resumo, slug, cadastro }: { resumo: ResumoSalao; slug:
   );
 }
 
-function PainelSemana({ resumo, slug, cadastro }: { resumo: ResumoSalao; slug: string; cadastro: { profissionais: number; servicos: number } }) {
+function PainelSemana({ resumo, slug, cadastro, demonstracao = false }: { resumo: ResumoSalao; slug: string; cadastro: { profissionais: number; servicos: number }; demonstracao?: boolean }) {
   const [profissionais, setProfissionais] = useState<ProfissionalSalao[]>([]);
   const [eventos, setEventos] = useState<AgendamentoSalao[]>([]);
   const [jornadas, setJornadas] = useState<Record<number, JornadaDia[]>>({});
@@ -136,6 +159,13 @@ function PainelSemana({ resumo, slug, cadastro }: { resumo: ResumoSalao; slug: s
   const base = `/loja/${slug}/salao-cabeleireiro`;
 
   useEffect(() => {
+    if (demonstracao) {
+      setProfissionais(profissionaisDemonstracao());
+      setEventos(agendaDemonstracao().filter((item) => item.status !== "CANCELLED"));
+      setBloqueios(bloqueiosDemonstracao());
+      setJornadas(jornadasDemonstracao());
+      return;
+    }
     Promise.all([
       SalaoAPI.profissionais(),
       SalaoAPI.agenda(paraApi(semana.inicio), paraApi(semana.fim)),
@@ -147,7 +177,7 @@ function PainelSemana({ resumo, slug, cadastro }: { resumo: ResumoSalao; slug: s
       const pares = await Promise.all(lista.map(async (pessoa) => [pessoa.id, await SalaoAPI.jornada(pessoa.id)] as const));
       setJornadas(Object.fromEntries(pares));
     }).catch(() => undefined);
-  }, [semana]);
+  }, [demonstracao, semana]);
 
   const visiveis = filtro === "todos" ? eventos : eventos.filter((item) => item.profissional === filtro);
   const jornadaFiltro = filtro === "todos" ? Object.values(jornadas).flat() : jornadas[filtro];

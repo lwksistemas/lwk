@@ -53,8 +53,8 @@ export default function ConfiguracoesSalaoPage() {
       <h1 className="mb-1 text-2xl font-semibold sm:text-3xl">Configurações</h1>
       <p className="mb-5 max-w-2xl text-sm text-[#8a6e74]">
         {podeTrocar
-          ? "Veja o layout com os dados deste salão antes de ativar. A troca pede confirmação e só o administrador grava."
-          : "O layout em uso foi escolhido pelo administrador e fica fixo neste salão. A visualização não troca o modelo."}
+          ? "A prévia mostra clientes, horários, serviços e recebimentos de demonstração. Nada disso entra no salão. A troca pede confirmação e só o administrador grava."
+          : "O layout em uso foi escolhido pelo administrador e fica fixo neste salão. A visualização usa cadastros de demonstração e não troca o modelo."}
       </p>
       {erro ? <p className="mb-3 text-sm text-red-700">{erro}</p> : null}
       {aviso ? <p className="mb-3 text-sm text-[#1f8a4c]">{aviso}</p> : null}
@@ -62,7 +62,7 @@ export default function ConfiguracoesSalaoPage() {
         <section className="mb-5 rounded-3xl border border-[#f0e4e6] bg-white p-4">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-[#8a6e74]">
-              Prévia de {nomePrevia}. Os números são os deste salão.
+              Prévia de {nomePrevia}. Os clientes, horários e valores são de demonstração e não ficam gravados.
               {previa === painel ? " Este é o layout em uso." : " Ainda não substitui o modelo em uso."}
             </p>
             <div className="flex flex-wrap gap-2">
@@ -74,7 +74,7 @@ export default function ConfiguracoesSalaoPage() {
               <button type="button" className="rounded-full border px-4 py-2 text-sm" onClick={() => setPrevia(null)}>Fechar prévia</button>
             </div>
           </div>
-          <PainelDoSalao painel={previa} />
+          <PainelDoSalao painel={previa} demonstracao />
         </section>
       ) : null}
       <div className="grid gap-4 xl:grid-cols-3">

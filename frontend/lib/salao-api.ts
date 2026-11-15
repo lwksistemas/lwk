@@ -31,9 +31,31 @@ export type ProfissionalSalao = {
 export type ServicoSalao = {
   id: number;
   nome: string;
+  descricao?: string | null;
   categoria: string;
   duracao_minutos: number;
   preco: string;
+};
+
+export type JornadaDia = {
+  dia_semana: number;
+  ativo: boolean;
+  hora_entrada: string;
+  hora_saida: string;
+  intervalo_inicio: string;
+  intervalo_fim: string;
+};
+
+export type BloqueioSalao = {
+  id: number;
+  titulo: string;
+  tipo: string;
+  data_inicio: string;
+  data_fim: string;
+  horario_inicio: string | null;
+  horario_fim: string | null;
+  profissional: number | null;
+  profissional_nome: string;
 };
 
 export type AgendamentoSalao = {
@@ -103,8 +125,14 @@ export const SalaoAPI = {
       method: id ? "PATCH" : "POST",
       body: JSON.stringify(corpo),
     }),
+  jornada: (profissionalId: number) => salaoFetch<JornadaDia[]>(`/profissionais/${profissionalId}/jornada/`),
+  salvarJornada: (profissionalId: number, dias: JornadaDia[]) =>
+    salaoFetch<JornadaDia[]>(`/profissionais/${profissionalId}/jornada/`, { method: "PUT", body: JSON.stringify(dias) }),
+  bloqueios: () => salaoFetch<BloqueioSalao[]>("/bloqueios/"),
   bloquear: (corpo: Record<string, unknown>) =>
     salaoFetch("/bloqueios/", { method: "POST", body: JSON.stringify(corpo) }),
+  removerBloqueio: (id: number) => salaoFetch(`/bloqueios/${id}/`, { method: "DELETE" }),
+  arquivar: (caminho: string) => salaoFetch(caminho, { method: "DELETE" }),
 };
 
 export type ResumoSalao = {

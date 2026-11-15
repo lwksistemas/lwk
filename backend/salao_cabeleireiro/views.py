@@ -318,6 +318,89 @@ class AgendamentoDetailView(GetObjectMixin, APIView):
         return Response(AgendamentoSerializer(agendamento).data)
 
 
+def _hora(valor, obrigatorio=False):
+    texto = (str(valor or "")).strip()
+    if not texto:
+        if obrigatorio:
+            raise ValueError("Informe o horário.")
+        return None
+    try:
+        return datetime.strptime(texto[:5], "%H:%M").time()
+    except ValueError as exc:
+        raise ValueError("Use o horário no formato HH:MM.") from exc
+
+
+def _validar_dia_jornada(dia):
+    ativo = bool(dia.get("ativo"))
+    entrada = _hora(dia.get("hora_entrada"), obrigatorio=ativo) or time(9, 0)
+    saida = _hora(dia.get("hora_saida"), obrigatorio=ativo) or time(19, 0)
+    intervalo_inicio = _hora(dia.get("intervalo_inicio"))
+    intervalo_fim = _hora(dia.get("intervalo_fim"))
+    if ativo and entrada >= saida:
+        raise ValueError("A saída precisa ser depois da entrada.")
+    if bool(intervalo_inicio) != bool(intervalo_fim):
+        raise ValueError("Informe o começo e o fim do intervalo.")
+    if intervalo_inicio and intervalo_fim and not (entrada <= intervalo_inicio < intervalo_fim <= saida):
+        raise ValueError("O intervalo precisa ficar dentro da jornada.")
+    return {
+        "dia_semana": int(dia.get("dia_semana")),
+        "ativo": ativo,
+        "hora_entrada": entrada,
+        "hora_saida": saida,
+        "intervalo_inicio": intervalo_inicio,
+        "intervalo_fim": intervalo_fim,
+    }
+
+
+def _jornada_resposta(profissional):
+    gravados = {item.dia_semana: item for item in profissional.horarios.all()}
+    dias = []
+    for dia in range(7):
+        item = gravados.get(dia)
+        dias.append({
+            "dia_semana": dia,
+            "ativo": bool(item and item.ativo),
+            "hora_entrada": (item.hora_entrada if item else time(9, 0)).strftime("%H:%M"),
+            "hora_saida": (item.hora_saida if item else time(19, 0)).strftime("%H:%M"),
+            "intervalo_inicio": item.intervalo_inicio.strftime("%H:%M") if item and item.intervalo_inicio else "",
+            "intervalo_fim": item.intervalo_fim.strftime("%H:%M") if item and item.intervalo_fim else "",
+        })
+    return dias
+
+
+class JornadaProfissionalView(GetObjectMixin, APIView):
+    permission_classes = [IsAuthenticated, IsSalaoMembro]
+    model_class = Profissional
+    not_found_message = "Profissional não encontrado."
+
+    def get(self, request, pk):
+        profissional, erro = self.object_or_404(pk)
+        if erro:
+            return erro
+        return Response(_jornada_resposta(profissional))
+
+    def put(self, request, pk):
+        profissional, erro = self.object_or_404(pk)
+        if erro:
+            return erro
+        bruto = request.data if isinstance(request.data, list) else request.data.get("dias")
+        if not isinstance(bruto, list) or len(bruto) != 7:
+            return _erro("Informe os sete dias da jornada.")
+        try:
+            dias = [_validar_dia_jornada(item) for item in bruto]
+        except (TypeError, ValueError) as exc:
+            return _erro(str(exc))
+        if {item["dia_semana"] for item in dias} != set(range(7)):
+            return _erro("Informe cada dia da semana uma vez.")
+        for item in dias:
+            HorarioTrabalho.objects.update_or_create(
+                profissional=profissional,
+                dia_semana=item["dia_semana"],
+                defaults=item,
+            )
+        return Response(_jornada_resposta(profissional))
+
+
 class BloqueioListCreateView(APIView):
     permission_classes = [IsAuthenticated, IsSalaoMembro]
 
@@ -351,14 +434,39 @@ class BloqueioListCreateView(APIView):
         profissional = None
         if request.data.get("profissional"):
             profissional = Profissional.objects.filter(pk=request.data.get("profissional"), is_active=True).first()
+        try:
+            horario_inicio = _hora(request.data.get("horario_inicio"))
+            horario_fim = _hora(request.data.get("horario_fim"))
+        except ValueError as exc:
+            return _erro(str(exc))
+        if bool(horario_inicio) != bool(horario_fim) or (horario_inicio and horario_inicio >= horario_fim):
+            return _erro("Informe o começo e o fim do horário, com o fim depois do começo.")
+        if data_fim < data_inicio:
+            return _erro("A data final precisa ser igual ou posterior à inicial.")
         bloqueio = Bloqueio.objects.create(
             titulo=titulo,
             tipo=request.data.get("tipo") or "folga",
             data_inicio=data_inicio,
             data_fim=data_fim,
+            horario_inicio=horario_inicio,
+            horario_fim=horario_fim,
             profissional=profissional,
         )
         return Response({"id": bloqueio.id}, status=status.HTTP_201_CREATED)
+
+
+class BloqueioDetailView(GetObjectMixin, APIView):
+    permission_classes = [IsAuthenticated, IsSalaoMembro]
+    model_class = Bloqueio
+    not_found_message = "Folga não encontrada."
+
+    def delete(self, request, pk):
+        bloqueio, erro = self.object_or_404(pk)
+        if erro:
+            return erro
+        bloqueio.is_active = False
+        bloqueio.save(update_fields=["is_active"])
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 def _dinheiro(valor) -> str:

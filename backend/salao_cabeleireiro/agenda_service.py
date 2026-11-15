@@ -35,8 +35,22 @@ def _bloqueio_ocupa(bloqueio: Bloqueio, inicio, fim) -> bool:
     return intervalos_conflitam(inicio, fim, b_ini, b_fim)
 
 
+def avaliar_jornada(entrada, saida, intervalo_inicio, intervalo_fim, inicio, fim) -> str | None:
+    """Recusa atendimento fora do expediente ou em cima do intervalo."""
+    if inicio >= fim:
+        return "O horário de saída precisa ser depois da entrada."
+    if inicio < entrada or fim > saida:
+        return "Este horário está fora da jornada do profissional."
+    if intervalo_inicio and intervalo_fim and inicio < intervalo_fim and intervalo_inicio < fim:
+        return "Este horário cai no intervalo do profissional."
+    return None
+
+
 def conflito_horario(profissional_id: int, inicio, fim, ignorar_id=None) -> str | None:
-    """Devolve a mensagem se o profissional já tem horário ou bloqueio nesse intervalo."""
+    """Devolve a mensagem se o profissional já tem horário, folga ou bloqueio nesse intervalo."""
+    mensagem_jornada = _fora_da_jornada(profissional_id, inicio, fim)
+    if mensagem_jornada:
+        return mensagem_jornada
     qs = Agendamento.objects.filter(
         profissional_id=profissional_id,
         status__in=STATUS_OCUPA_HORARIO,
@@ -57,6 +71,29 @@ def conflito_horario(profissional_id: int, inicio, fim, ignorar_id=None) -> str 
         if _bloqueio_ocupa(bloqueio, inicio, fim):
             return "Este horário está bloqueado na agenda."
     return None
+
+
+def _fora_da_jornada(profissional_id: int, inicio, fim) -> str | None:
+    from .models import HorarioTrabalho
+
+    local_inicio = timezone.localtime(inicio)
+    local_fim = timezone.localtime(fim)
+    if local_inicio.date() != local_fim.date():
+        return "O atendimento precisa caber no mesmo dia."
+    horarios = list(HorarioTrabalho.objects.filter(profissional_id=profissional_id))
+    if not horarios:
+        return None
+    do_dia = next((item for item in horarios if item.dia_semana == local_inicio.weekday() and item.ativo), None)
+    if do_dia is None:
+        return "Este profissional não atende neste dia."
+    return avaliar_jornada(
+        do_dia.hora_entrada,
+        do_dia.hora_saida,
+        do_dia.intervalo_inicio,
+        do_dia.intervalo_fim,
+        local_inicio.time().replace(microsecond=0),
+        local_fim.time().replace(microsecond=0),
+    )
 
 
 def models_profissional(profissional_id: int):

@@ -60,7 +60,7 @@ export function SalaoShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className={`min-h-screen ${oculto ? "grid grid-cols-[4.25rem_minmax(0,1fr)]" : "grid grid-cols-1 md:grid-cols-[240px_minmax(0,1fr)]"}`} style={{ background: fundo, color: tema.tinta }}>
-      <aside className={`flex flex-col text-white md:min-h-screen ${oculto ? "items-center px-2 py-3" : "p-4"}`} style={{ background: barra }}>
+      <aside className={`sticky top-0 flex h-screen flex-col overflow-y-auto text-white ${oculto ? "items-center px-2 py-3" : "p-4"}`} style={{ background: barra }}>
         <div className={`mb-3 flex items-center gap-2 ${oculto ? "justify-center" : "justify-between"}`}>
           {oculto ? null : <p className="px-2 text-2xl font-semibold">Salão</p>}
           <button type="button" onClick={alternarMenu} className="grid h-8 w-8 place-items-center rounded-lg bg-white/15" title={oculto ? "Mostrar menu" : "Ocultar menu"} aria-label={oculto ? "Mostrar menu" : "Ocultar menu"}>

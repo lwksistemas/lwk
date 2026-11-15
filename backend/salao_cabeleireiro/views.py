@@ -433,6 +433,16 @@ class ResumoView(APIView):
                 })
         aniversariantes.sort(key=lambda item: item["dia"])
 
+        serie_mes = []
+        for deslocamento in range((fim_mes - inicio_mes).days):
+            dia = inicio_mes + timedelta(days=deslocamento)
+            itens_dia = [
+                item for item in concluidos_mes
+                if timezone.localtime(item.inicio).date() == dia.date()
+            ]
+            valor_dia = sum((item.servico.preco for item in itens_dia), Decimal("0"))
+            serie_mes.append({"dia": dia.day, "valor": float(valor_dia)})
+
         loja, prof = contexto_salao(request)
         config = _config()
         return Response({
@@ -452,6 +462,7 @@ class ResumoView(APIView):
                 "clientes_ativos": ativos,
             },
             "semana": semana,
+            "serie_mes": serie_mes,
             "servicos": [
                 {**item, "receita": _dinheiro(item["receita"])}
                 for item in servicos

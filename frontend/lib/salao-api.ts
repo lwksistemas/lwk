@@ -113,6 +113,7 @@ export type ResumoSalao = {
   hoje: { agendamentos: number; em_andamento: number; concluidos: number; faturamento: string; ocupacao: number };
   mes: { receita: string; novos_clientes: number; ticket: string; clientes_ativos: number };
   semana: { data: string; rotulo: string; total: number }[];
+  serie_mes: { dia: number; valor: number }[];
   servicos: { nome: string; quantidade: number; receita: string }[];
   aniversariantes: { nome: string; dia: string }[];
   agenda_hoje: { id: number; hora: string; cliente: string; servico: string; profissional: string; status: string; status_label: string }[];

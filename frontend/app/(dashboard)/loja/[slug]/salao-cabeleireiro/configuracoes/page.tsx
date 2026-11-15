@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ChevronRight } from "lucide-react";
 import { PainelDoSalao } from "@/components/salao/PaineisSalao";
 import { SalaoAPI, type ComunicacaoSalao, type PainelSalao } from "@/lib/salao-api";
@@ -35,6 +35,8 @@ export default function ConfiguracoesSalaoPage() {
   const [confirmar, setConfirmar] = useState<PainelSalao | null>(null);
   const [erro, setErro] = useState("");
   const [aviso, setAviso] = useState("");
+  const [layoutAberto, setLayoutAberto] = useState(false);
+  const layoutRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     SalaoAPI.config()
@@ -44,6 +46,10 @@ export default function ConfiguracoesSalaoPage() {
       })
       .catch((exc: Error) => setErro(exc.message));
   }, []);
+
+  useEffect(() => {
+    if (layoutAberto) layoutRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [layoutAberto]);
 
   async function escolher(proximo: PainelSalao) {
     if (!podeTrocar || proximo === painel) return;
@@ -70,22 +76,38 @@ export default function ConfiguracoesSalaoPage() {
       <p className="mb-4 max-w-2xl text-sm text-[#8a6e74]">Assinatura, login, aparência, recibo, nota, cupom e backup deste salão.</p>
       <ul className="mb-8 divide-y divide-[#f0e4e6] overflow-hidden rounded-3xl border border-[#f0e4e6] bg-white">
         {LISTA.map((item) => {
+          const conteudo = (
+            <>
+              <span className="min-w-0 text-left">
+                <span className="block font-medium">{item.titulo}</span>
+                <span className="mt-0.5 block text-sm text-[#8a6e74]">{item.descricao}</span>
+                <span className="mt-1 block text-xs text-[#8a6e74]">{item.itens.join(" · ")}</span>
+              </span>
+              <ChevronRight size={18} className={`mt-1 shrink-0 text-[#8a6e74] ${item.href === "#layout" && layoutAberto ? "rotate-90" : ""}`} />
+            </>
+          );
+          if (item.href === "#layout") {
+            return (
+              <li key={item.titulo}>
+                <button type="button" className="flex w-full items-start justify-between gap-3 px-4 py-3 hover:bg-[#fbf6f4]" aria-expanded={layoutAberto} onClick={() => setLayoutAberto((aberto) => !aberto)}>
+                  {conteudo}
+                </button>
+              </li>
+            );
+          }
           const href = item.href.startsWith("#") ? item.href : item.href === "assinatura" ? `/loja/${slug}/assinatura` : `${base}/${item.href}`;
           return (
             <li key={item.titulo}>
               <Link href={href} className="flex items-start justify-between gap-3 px-4 py-3 hover:bg-[#fbf6f4]">
-                <span className="min-w-0">
-                  <span className="block font-medium">{item.titulo}</span>
-                  <span className="mt-0.5 block text-sm text-[#8a6e74]">{item.descricao}</span>
-                  <span className="mt-1 block text-xs text-[#8a6e74]">{item.itens.join(" · ")}</span>
-                </span>
-                <ChevronRight size={18} className="mt-1 shrink-0 text-[#8a6e74]" />
+                {conteudo}
               </Link>
             </li>
           );
         })}
       </ul>
-      <h2 id="layout" className="mb-1 text-xl font-semibold">Layout do dashboard</h2>
+      {layoutAberto ? (
+      <div id="layout" ref={layoutRef}>
+      <h2 className="mb-1 text-xl font-semibold">Layout do dashboard</h2>
       <p className="mb-5 max-w-2xl text-sm text-[#8a6e74]">
         {podeTrocar
           ? "A prévia mostra clientes, horários, serviços e recebimentos de demonstração. Nada disso entra no salão. A troca pede confirmação e só o administrador grava."
@@ -140,6 +162,8 @@ export default function ConfiguracoesSalaoPage() {
           );
         })}
       </div>
+      </div>
+      ) : null}
       <div id="mensagens">
         <MensagensWhatsapp />
       </div>

@@ -60,6 +60,7 @@ export default function AgendaSalaoPage() {
   const [confirmaWhatsapp, setConfirmaWhatsapp] = useState(false);
   const [jornadas, setJornadas] = useState<Record<number, JornadaDia[]>>({});
   const [aviso, setAviso] = useState("");
+  const [confirmarExclusao, setConfirmarExclusao] = useState(false);
 
   const periodo = useMemo(() => {
     if (modo === "dia") {
@@ -148,6 +149,7 @@ export default function AgendaSalaoPage() {
   function abrirNovo(data: Date, profissionalId = "") {
     const inicio = new Date(data);
     setSelecionado(null);
+    setConfirmarExclusao(false);
     setForm({
       inicio: paraApi(inicio).slice(0, 16),
       profissional: profissionalId || String(profissionais[0]?.id || ""),
@@ -241,6 +243,22 @@ export default function AgendaSalaoPage() {
       carregar();
     } catch (exc) {
       setErro(exc instanceof Error ? exc.message : "Não foi possível receber.");
+    }
+  }
+
+  async function excluir() {
+    if (!selecionado) return;
+    setErro("");
+    setAviso("");
+    try {
+      const atualizado = await SalaoAPI.excluirAgendamento(selecionado.id);
+      setAviso(atualizado.aviso || "Agendamento excluído.");
+      setSelecionado(null);
+      setForm(null);
+      setConfirmarExclusao(false);
+      carregar();
+    } catch (exc) {
+      setErro(exc instanceof Error ? exc.message : "Não foi possível excluir.");
     }
   }
 
@@ -358,12 +376,13 @@ export default function AgendaSalaoPage() {
                       data-evento="1"
                       draggable
                       onDragStart={(evento) => evento.dataTransfer.setData("text/plain", String(item.id))}
-                      onClick={(evento) => { evento.stopPropagation(); setForm(null); setSelecionado(item); }}
-                      className="absolute left-1 right-1 overflow-hidden rounded-md px-1 text-left text-[11px] text-white"
-                      style={{ top: Math.max(0, topo), height: Math.max(22, (item.duracao_minutos / 60) * ALTURA_HORA), background: corStatus(item.status) }}
+                      onClick={(evento) => { evento.stopPropagation(); setForm(null); setConfirmarExclusao(false); setSelecionado(item); }}
+                      title={`${dois(inicio.getHours())}:${dois(inicio.getMinutes())} · ${item.profissional_nome} · ${item.servico_nome} · ${item.cliente_nome}`}
+                      className="absolute left-1 right-1 overflow-hidden rounded-md px-1 py-0.5 text-left text-[11px] leading-tight text-white"
+                      style={{ top: Math.max(0, topo), height: Math.max(36, (item.duracao_minutos / 60) * ALTURA_HORA), background: corStatus(item.status) }}
                     >
-                      {dois(inicio.getHours())}:{dois(inicio.getMinutes())} {item.cliente_nome}
-                      <span className="block opacity-80">{item.servico_nome}</span>
+                      <span className="block truncate">{dois(inicio.getHours())}:{dois(inicio.getMinutes())} {item.profissional_nome}</span>
+                      <span className="block truncate">{item.servico_nome}</span>
                     </button>
                   );
                 })}
@@ -373,12 +392,25 @@ export default function AgendaSalaoPage() {
         </div>
       )}
       {form ? (
-        <Formulario form={form} setForm={setForm} clientes={clientes} profissionais={profissionais} servicos={servicos} aoSalvar={salvar} aoFechar={() => setForm(null)} />
+        <Formulario
+          titulo={selecionado ? "Editar agendamento" : "Novo agendamento"}
+          form={form}
+          setForm={setForm}
+          clientes={clientes}
+          profissionais={profissionais}
+          servicos={servicos}
+          erro={erro}
+          aoSalvar={salvar}
+          aoFechar={() => { setForm(null); setErro(""); if (!selecionado) setConfirmarExclusao(false); }}
+        />
       ) : null}
       {selecionado && !form ? (
-        <div className="mt-3 rounded-2xl border border-[#f0e4e6] bg-white p-4">
-          <p className="font-medium">{selecionado.cliente_nome} · {selecionado.servico_nome}</p>
-          <p className="text-sm text-[#8a6e74]">{selecionado.profissional_nome} · {new Date(selecionado.inicio).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })} · {selecionado.status_label} · {selecionado.preco}</p>
+        <div className="fixed inset-0 z-40 grid place-items-center bg-black/40 p-4" role="dialog" aria-modal="true" aria-labelledby="agenda-detalhe" onClick={(evento) => { if (evento.target === evento.currentTarget) { setSelecionado(null); setConfirmarExclusao(false); } }}>
+          <div className="max-h-[90vh] w-full max-w-lg overflow-auto rounded-3xl bg-white p-5">
+          <p id="agenda-detalhe" className="font-medium">{selecionado.cliente_nome}</p>
+          <p className="text-sm text-[#8a6e74]">{selecionado.profissional_nome} · {selecionado.servico_nome}</p>
+          <p className="text-sm text-[#8a6e74]">{new Date(selecionado.inicio).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })} · {selecionado.status_label} · {selecionado.preco}</p>
+          {erro ? <p className="mt-2 text-sm text-red-700">{erro}</p> : null}
           <div className="mt-3 flex flex-wrap gap-2">
             {selecionado.status === "SCHEDULED" ? <button type="button" className="rounded-full bg-[#7a3044] px-3 py-1.5 text-sm text-white" onClick={() => mudarStatus("CONFIRMED")}>Confirmar</button> : null}
             {confirmaWhatsapp && (selecionado.status === "SCHEDULED" || selecionado.status === "CONFIRMED") ? <button type="button" className="rounded-full border px-3 py-1.5 text-sm" onClick={enviarConfirmacao}>Enviar confirmação</button> : null}
@@ -403,10 +435,21 @@ export default function AgendaSalaoPage() {
                 <button type="button" className="rounded-full border px-3 py-1.5 text-sm" onClick={desfazerRecebimento}>Desfazer recebimento</button>
               </>
             ) : null}
-            {selecionado.status !== "CANCELLED" && selecionado.status !== "COMPLETED" ? <button type="button" className="rounded-full border px-3 py-1.5 text-sm" onClick={ajustarServico}>Ajustar serviço</button> : null}
-            {selecionado.status !== "CANCELLED" && selecionado.status !== "COMPLETED" ? <button type="button" className="rounded-full border px-3 py-1.5 text-sm" onClick={() => mudarStatus("CANCELLED")}>Cancelar</button> : null}
+            {!selecionado.recebido && selecionado.status !== "CANCELLED" ? <button type="button" className="rounded-full border px-3 py-1.5 text-sm" onClick={ajustarServico}>Editar</button> : null}
             {selecionado.status !== "NO_SHOW" && selecionado.status !== "COMPLETED" && selecionado.status !== "CANCELLED" ? <button type="button" className="rounded-full border px-3 py-1.5 text-sm" onClick={() => mudarStatus("NO_SHOW")}>Faltou</button> : null}
-            <button type="button" className="text-sm text-[#8a6e74]" onClick={() => setSelecionado(null)}>Fechar</button>
+            {!selecionado.recebido && selecionado.status !== "CANCELLED" ? (
+              confirmarExclusao ? (
+                <span className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm text-[#8a6e74]">Excluir este agendamento?</span>
+                  <button type="button" className="rounded-full bg-red-700 px-3 py-1.5 text-sm text-white" onClick={excluir}>Excluir</button>
+                  <button type="button" className="text-sm text-[#8a6e74]" onClick={() => setConfirmarExclusao(false)}>Voltar</button>
+                </span>
+              ) : (
+                <button type="button" className="rounded-full border border-red-200 px-3 py-1.5 text-sm text-red-700" onClick={() => setConfirmarExclusao(true)}>Excluir</button>
+              )
+            ) : null}
+            <button type="button" className="text-sm text-[#8a6e74]" onClick={() => { setSelecionado(null); setConfirmarExclusao(false); }}>Fechar</button>
+          </div>
           </div>
         </div>
       ) : null}
@@ -415,18 +458,24 @@ export default function AgendaSalaoPage() {
 }
 
 function Formulario({
-  form, setForm, clientes, profissionais, servicos, aoSalvar, aoFechar,
+  titulo, form, setForm, clientes, profissionais, servicos, erro, aoSalvar, aoFechar,
 }: {
+  titulo: string;
   form: Record<string, string>;
   setForm: (valor: Record<string, string>) => void;
   clientes: ClienteSalao[];
   profissionais: ProfissionalSalao[];
   servicos: ServicoSalao[];
+  erro: string;
   aoSalvar: () => void;
   aoFechar: () => void;
 }) {
   return (
-    <form className="mt-3 grid gap-2 rounded-2xl border border-[#f0e4e6] bg-white p-4 md:grid-cols-3" onSubmit={(evento) => { evento.preventDefault(); aoSalvar(); }}>
+    <div className="fixed inset-0 z-40 grid place-items-center bg-black/40 p-4" role="dialog" aria-modal="true" aria-labelledby="agenda-formulario" onClick={(evento) => { if (evento.target === evento.currentTarget) aoFechar(); }}>
+    <form className="max-h-[90vh] w-full max-w-lg overflow-auto rounded-3xl bg-white p-5" onSubmit={(evento) => { evento.preventDefault(); aoSalvar(); }}>
+      <h2 id="agenda-formulario" className="mb-3 text-lg font-semibold">{titulo}</h2>
+      {erro ? <p className="mb-2 text-sm text-red-700">{erro}</p> : null}
+      <div className="grid gap-2">
       <label className="text-sm">Cliente já cadastrado
         <select className="mt-1 w-full rounded-lg border px-2 py-2" value={form.cliente} onChange={(evento) => setForm({ ...form, cliente: evento.target.value })}>
           <option value="">Novo cliente</option>
@@ -450,11 +499,13 @@ function Formulario({
         </select>
       </label>
       <label className="text-sm">Data e hora<input type="datetime-local" className="mt-1 w-full rounded-lg border px-2 py-2" value={form.inicio} onChange={(evento) => setForm({ ...form, inicio: evento.target.value })} /></label>
-      <div className="flex items-end gap-2">
+      <div className="mt-2 flex items-center justify-end gap-2">
+        <button type="button" className="rounded-full border px-4 py-2 text-sm" onClick={aoFechar}>Cancelar</button>
         <button type="submit" className="rounded-full bg-[#7a3044] px-4 py-2 text-sm text-white">Salvar</button>
-        <button type="button" className="text-sm text-[#8a6e74]" onClick={aoFechar}>Cancelar</button>
+      </div>
       </div>
     </form>
+    </div>
   );
 }
 

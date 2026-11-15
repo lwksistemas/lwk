@@ -50,14 +50,15 @@ export function SalaoShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen" style={{ display: "grid", gridTemplateColumns: oculto ? "1fr" : "240px 1fr", background: tema.fundo, color: tema.tinta }}>
-      {oculto ? (
-        <button type="button" onClick={alternarMenu} className="fixed left-3 top-3 z-20 rounded-full bg-white px-3 py-1.5 text-sm shadow">
-          Mostrar menu
-        </button>
-      ) : (
-        <aside className="flex min-h-screen flex-col p-4 text-white" style={{ background: tema.barra }}>
-          <p className="px-2 pb-4 text-2xl font-semibold">Salão</p>
+    <div className={`min-h-screen ${oculto ? "grid grid-cols-1" : "grid grid-cols-1 md:grid-cols-[240px_minmax(0,1fr)]"}`} style={{ background: tema.fundo, color: tema.tinta }}>
+      {oculto ? null : (
+        <aside className="flex flex-col p-4 text-white md:min-h-screen" style={{ background: tema.barra }}>
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <p className="px-2 text-2xl font-semibold">Salão</p>
+            <button type="button" onClick={alternarMenu} className="rounded-full bg-white/15 px-3 py-1 text-sm md:hidden">
+              Ocultar
+            </button>
+          </div>
           <nav className="flex flex-1 flex-col gap-1">
             {ITENS.map(([caminho, nome]) => {
               const href = `${base}${caminho}`;
@@ -69,12 +70,21 @@ export function SalaoShell({ children }: { children: React.ReactNode }) {
               );
             })}
           </nav>
-          <button type="button" onClick={alternarMenu} className="mt-4 rounded-lg px-3 py-2 text-left text-sm text-white/80 hover:bg-white/10">
+          <button type="button" onClick={alternarMenu} className="mt-4 hidden rounded-lg px-3 py-2 text-left text-sm text-white/80 hover:bg-white/10 md:block">
             Ocultar menu
           </button>
         </aside>
       )}
-      <div className="min-w-0 p-5">{children}</div>
+      <div className="min-w-0 p-4 sm:p-5">
+        {oculto ? (
+          <div className="mb-4">
+            <button type="button" onClick={alternarMenu} className="rounded-full border border-black/10 bg-white px-3 py-1.5 text-sm">
+              Mostrar menu
+            </button>
+          </div>
+        ) : null}
+        {children}
+      </div>
     </div>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { PainelDoSalao } from "@/components/salao/PaineisSalao";
 import { SalaoAPI, type PainelSalao } from "@/lib/salao-api";
 
 const OPCOES: { id: PainelSalao; nome: string; texto: string }[] = [
@@ -12,6 +13,8 @@ const OPCOES: { id: PainelSalao; nome: string; texto: string }[] = [
 export default function ConfiguracoesSalaoPage() {
   const [painel, setPainel] = useState<PainelSalao>("operacao");
   const [podeTrocar, setPodeTrocar] = useState(false);
+  const [previa, setPrevia] = useState<PainelSalao | null>(null);
+  const [confirmar, setConfirmar] = useState<PainelSalao | null>(null);
   const [erro, setErro] = useState("");
   const [aviso, setAviso] = useState("");
 
@@ -31,6 +34,8 @@ export default function ConfiguracoesSalaoPage() {
     try {
       await SalaoAPI.salvarPainel(proximo);
       setPainel(proximo);
+      setConfirmar(null);
+      setPrevia(null);
       window.dispatchEvent(new CustomEvent("salao-painel", { detail: proximo }));
       setAviso("Este layout ficou gravado no salão.");
     } catch (exc) {
@@ -38,37 +43,78 @@ export default function ConfiguracoesSalaoPage() {
     }
   }
 
+  const nomeConfirmar = OPCOES.find((opcao) => opcao.id === confirmar)?.nome;
+  const nomePrevia = OPCOES.find((opcao) => opcao.id === previa)?.nome;
+
   return (
     <div>
-      <h1 className="mb-1 text-3xl font-semibold">Configurações</h1>
+      <h1 className="mb-1 text-2xl font-semibold sm:text-3xl">Configurações</h1>
       <p className="mb-5 max-w-2xl text-sm text-[#8a6e74]">
         {podeTrocar
-          ? "Escolha o layout do dashboard. A opção fica fixa neste salão e só o administrador troca."
-          : "O layout abaixo foi escolhido pelo administrador e fica fixo neste salão."}
+          ? "Veja o layout com os dados deste salão antes de ativar. A troca pede confirmação e só o administrador grava."
+          : "O layout em uso foi escolhido pelo administrador e fica fixo neste salão. A visualização não troca o modelo."}
       </p>
       {erro ? <p className="mb-3 text-sm text-red-700">{erro}</p> : null}
       {aviso ? <p className="mb-3 text-sm text-[#1f8a4c]">{aviso}</p> : null}
+      {previa ? (
+        <section className="mb-5 rounded-3xl border border-[#f0e4e6] bg-white p-4">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-[#8a6e74]">
+              Prévia de {nomePrevia}. Os números são os deste salão.
+              {previa === painel ? " Este é o layout em uso." : " Ainda não substitui o modelo em uso."}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {podeTrocar && previa !== painel ? (
+                <button type="button" className="rounded-full bg-[#7a3044] px-4 py-2 text-sm text-white" onClick={() => setConfirmar(previa)}>
+                  Usar este layout
+                </button>
+              ) : null}
+              <button type="button" className="rounded-full border px-4 py-2 text-sm" onClick={() => setPrevia(null)}>Fechar prévia</button>
+            </div>
+          </div>
+          <PainelDoSalao painel={previa} />
+        </section>
+      ) : null}
       <div className="grid gap-4 xl:grid-cols-3">
         {OPCOES.map((opcao) => {
           const ativo = painel === opcao.id;
           return (
-            <button
+            <article
               key={opcao.id}
-              type="button"
-              disabled={!podeTrocar}
-              onClick={() => escolher(opcao.id)}
-              className={`rounded-3xl border bg-white p-3 text-left shadow-sm transition disabled:cursor-default ${ativo ? "border-[#7a3044] ring-2 ring-[#7a3044]/30" : "border-[#f0e4e6] hover:border-[#d7a3ae]"}`}
+              className={`rounded-3xl border bg-white p-3 text-left shadow-sm ${ativo ? "border-[#7a3044] ring-2 ring-[#7a3044]/40" : "border-[#f0e4e6]"}`}
             >
               <Miniatura id={opcao.id} />
               <span className="mt-3 flex items-center justify-between gap-2">
                 <span className="font-medium">{opcao.nome}</span>
-                {ativo ? <span className="rounded-full bg-[#f6ecee] px-2 py-0.5 text-xs text-[#7a3044]">Em uso</span> : null}
+                {ativo ? <span className="rounded-full bg-[#7a3044] px-2 py-0.5 text-xs text-white">Em uso</span> : null}
               </span>
               <span className="mt-1 block text-sm text-[#8a6e74]">{opcao.texto}</span>
-            </button>
+              <span className="mt-3 flex flex-wrap gap-2">
+                <button type="button" className="rounded-full border px-3 py-1.5 text-sm" onClick={() => setPrevia(opcao.id)}>
+                  Visualizar dashboard
+                </button>
+                {podeTrocar && !ativo ? (
+                  <button type="button" className="rounded-full bg-[#7a3044] px-3 py-1.5 text-sm text-white" onClick={() => setConfirmar(opcao.id)}>
+                    Usar este layout
+                  </button>
+                ) : null}
+              </span>
+            </article>
           );
         })}
       </div>
+      {confirmar ? (
+        <div className="fixed inset-0 z-30 grid place-items-center bg-black/40 p-4" role="dialog" aria-modal="true" aria-labelledby="confirmar-layout">
+          <div className="w-full max-w-md rounded-3xl bg-white p-5">
+            <h2 id="confirmar-layout" className="text-lg font-semibold">Trocar o dashboard deste salão?</h2>
+            <p className="mt-2 text-sm text-[#8a6e74]">A equipe passa a ver {nomeConfirmar}. A escolha fica gravada nesta loja.</p>
+            <div className="mt-4 flex justify-end gap-2">
+              <button type="button" className="rounded-full border px-4 py-2 text-sm" onClick={() => setConfirmar(null)}>Cancelar</button>
+              <button type="button" className="rounded-full bg-[#7a3044] px-4 py-2 text-sm text-white" onClick={() => escolher(confirmar)}>Confirmar</button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { SalaoAPI, type AgendamentoSalao, type ClienteSalao, type ProfissionalSalao, type ServicoSalao } from "@/lib/salao-api";
 
 const HORA_INICIO = 8;
@@ -39,6 +40,8 @@ function corStatus(status: string) {
 }
 
 export default function AgendaSalaoPage() {
+  const searchParams = useSearchParams();
+  const horarioAberto = useRef(false);
   const [modo, setModo] = useState<"dia" | "semana" | "mes">("semana");
   const [cursor, setCursor] = useState(() => new Date());
   const [profissionais, setProfissionais] = useState<ProfissionalSalao[]>([]);
@@ -91,6 +94,17 @@ export default function AgendaSalaoPage() {
   }, [intervalo.inicio, intervalo.fim]);
 
   useEffect(() => { carregar(); }, [carregar]);
+
+  useEffect(() => {
+    const id = searchParams.get("horario");
+    if (!id || horarioAberto.current || eventos.length === 0) return;
+    const item = eventos.find((evento) => String(evento.id) === id);
+    if (!item) return;
+    horarioAberto.current = true;
+    setSelecionado(item);
+    setModo("dia");
+    setCursor(new Date(item.inicio));
+  }, [searchParams, eventos]);
 
   function abrirNovo(data: Date, profissionalId = "") {
     const inicio = new Date(data);

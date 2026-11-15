@@ -73,6 +73,34 @@ export type AgendamentoSalao = {
   servico_nome: string;
   preco: string;
   observacoes: string;
+  recebido?: {
+    id: number;
+    valor: string;
+    desconto: string;
+    forma: string;
+    forma_label: string;
+    comissao_valor: string;
+  } | null;
+};
+
+export type CaixaSalao = {
+  total: string;
+  quantidade: number;
+  por_forma: { forma: string; nome: string; total: string }[];
+  comissoes: { nome: string; quantidade: number; recebido: string; comissao: string }[];
+  recebimentos: {
+    id: number;
+    quando: string;
+    cliente: string;
+    servico: string;
+    profissional: string;
+    forma: string;
+    forma_label: string;
+    desconto: string;
+    valor: string;
+    comissao: string;
+    agendamento: number;
+  }[];
 };
 
 async function salaoFetch<T>(path: string, options: RequestInit = {}, retried = false): Promise<T> {
@@ -112,6 +140,11 @@ export const SalaoAPI = {
     salaoFetch<AgendamentoSalao>("/agenda/", { method: "POST", body: JSON.stringify(corpo) }),
   atualizarAgendamento: (id: number, corpo: Record<string, unknown>) =>
     salaoFetch<AgendamentoSalao>(`/agendamentos/${id}/`, { method: "PATCH", body: JSON.stringify(corpo) }),
+  receber: (id: number, corpo: { desconto: string; forma: string }) =>
+    salaoFetch<AgendamentoSalao>(`/agendamentos/${id}/receber/`, { method: "POST", body: JSON.stringify(corpo) }),
+  estornarRecebimento: (id: number) => salaoFetch(`/recebimentos/${id}/`, { method: "DELETE" }),
+  caixa: (start: string, end: string) =>
+    salaoFetch<CaixaSalao>(`/caixa/?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`),
   clientes: () => salaoFetch<ClienteSalao[]>("/clientes/"),
   salvarCliente: (corpo: Record<string, unknown>, id?: number) =>
     salaoFetch<ClienteSalao>(id ? `/clientes/${id}/` : "/clientes/", {
@@ -148,6 +181,7 @@ export type ResumoSalao = {
   semana: { data: string; rotulo: string; total: number }[];
   serie_mes: { dia: number; valor: number }[];
   servicos: { nome: string; quantidade: number; receita: string }[];
+  comissoes?: { nome: string; quantidade: number; comissao: string }[];
   aniversariantes: { nome: string; dia: string }[];
   agenda_hoje: { id: number; hora: string; cliente: string; servico: string; profissional: string; status: string; status_label: string }[];
 };

@@ -54,6 +54,8 @@ export default function AgendaSalaoPage() {
   const [erro, setErro] = useState("");
   const [form, setForm] = useState<Record<string, string> | null>(null);
   const [selecionado, setSelecionado] = useState<AgendamentoSalao | null>(null);
+  const [desconto, setDesconto] = useState("");
+  const [formaPagamento, setFormaPagamento] = useState("pix");
 
   const periodo = useMemo(() => {
     if (modo === "dia") {
@@ -191,6 +193,34 @@ export default function AgendaSalaoPage() {
     }
   }
 
+  async function receber() {
+    if (!selecionado) return;
+    setErro("");
+    try {
+      const atualizado = await SalaoAPI.receber(selecionado.id, {
+        desconto: desconto.replace(",", ".") || "0",
+        forma: formaPagamento,
+      });
+      setSelecionado(atualizado);
+      setDesconto("");
+      carregar();
+    } catch (exc) {
+      setErro(exc instanceof Error ? exc.message : "Não foi possível receber.");
+    }
+  }
+
+  async function desfazerRecebimento() {
+    if (!selecionado?.recebido) return;
+    setErro("");
+    try {
+      await SalaoAPI.estornarRecebimento(selecionado.recebido.id);
+      setSelecionado({ ...selecionado, recebido: null });
+      carregar();
+    } catch (exc) {
+      setErro(exc instanceof Error ? exc.message : "Não foi possível desfazer o recebimento.");
+    }
+  }
+
   function ajustarServico() {
     if (!selecionado) return;
     setForm({
@@ -317,7 +347,25 @@ export default function AgendaSalaoPage() {
             {selecionado.status === "SCHEDULED" ? <button type="button" className="rounded-full bg-[#7a3044] px-3 py-1.5 text-sm text-white" onClick={() => mudarStatus("CONFIRMED")}>Confirmar</button> : null}
             {selecionado.status === "SCHEDULED" || selecionado.status === "CONFIRMED" ? <button type="button" className="rounded-full bg-[#1f8f86] px-3 py-1.5 text-sm text-white" onClick={() => mudarStatus("IN_PROGRESS")}>Iniciar atendimento</button> : null}
             {selecionado.status === "IN_PROGRESS" ? <button type="button" className="rounded-full bg-[#1f8a4c] px-3 py-1.5 text-sm text-white" onClick={() => mudarStatus("COMPLETED")}>Finalizar</button> : null}
-            {selecionado.status === "COMPLETED" ? <Link href={`/loja/${slug}/salao-cabeleireiro/financeiro`} className="rounded-full border px-3 py-1.5 text-sm">Ver no financeiro</Link> : null}
+            {selecionado.status === "COMPLETED" && !selecionado.recebido ? (
+              <span className="flex flex-wrap items-center gap-2">
+                <input className="w-28 rounded-lg border px-2 py-1.5 text-sm" inputMode="decimal" placeholder="Desconto R$" value={desconto} onChange={(evento) => setDesconto(evento.target.value)} />
+                <select className="rounded-lg border px-2 py-1.5 text-sm" value={formaPagamento} onChange={(evento) => setFormaPagamento(evento.target.value)}>
+                  <option value="dinheiro">Dinheiro</option>
+                  <option value="pix">Pix</option>
+                  <option value="debito">Débito</option>
+                  <option value="credito">Crédito</option>
+                </select>
+                <button type="button" className="rounded-full bg-[#7a3044] px-3 py-1.5 text-sm text-white" onClick={receber}>Receber</button>
+              </span>
+            ) : null}
+            {selecionado.recebido ? (
+              <>
+                <span className="rounded-full bg-[#e8f6ee] px-3 py-1.5 text-sm text-[#1f8a4c]">Recebido R$ {selecionado.recebido.valor} · {selecionado.recebido.forma_label}</span>
+                <Link href={`/loja/${slug}/salao-cabeleireiro/financeiro`} className="rounded-full border px-3 py-1.5 text-sm">Ver no caixa</Link>
+                <button type="button" className="rounded-full border px-3 py-1.5 text-sm" onClick={desfazerRecebimento}>Desfazer recebimento</button>
+              </>
+            ) : null}
             {selecionado.status !== "CANCELLED" && selecionado.status !== "COMPLETED" ? <button type="button" className="rounded-full border px-3 py-1.5 text-sm" onClick={ajustarServico}>Ajustar serviço</button> : null}
             {selecionado.status !== "CANCELLED" && selecionado.status !== "COMPLETED" ? <button type="button" className="rounded-full border px-3 py-1.5 text-sm" onClick={() => mudarStatus("CANCELLED")}>Cancelar</button> : null}
             {selecionado.status !== "NO_SHOW" && selecionado.status !== "COMPLETED" && selecionado.status !== "CANCELLED" ? <button type="button" className="rounded-full border px-3 py-1.5 text-sm" onClick={() => mudarStatus("NO_SHOW")}>Faltou</button> : null}

@@ -77,6 +77,7 @@ class AgendamentoSerializer(serializers.ModelSerializer):
     preco = serializers.DecimalField(source="servico.preco", max_digits=10, decimal_places=2, read_only=True)
     fim = serializers.DateTimeField(read_only=True)
     status_label = serializers.CharField(source="get_status_display", read_only=True)
+    recebido = serializers.SerializerMethodField()
 
     class Meta:
         model = Agendamento
@@ -95,7 +96,21 @@ class AgendamentoSerializer(serializers.ModelSerializer):
             "servico_nome",
             "preco",
             "observacoes",
+            "recebido",
         ]
+
+    def get_recebido(self, obj):
+        item = next((recebimento for recebimento in obj.recebimentos.all() if recebimento.is_active), None)
+        if item is None:
+            return None
+        return {
+            "id": item.id,
+            "valor": f"{item.valor:.2f}",
+            "desconto": f"{item.desconto:.2f}",
+            "forma": item.forma,
+            "forma_label": item.get_forma_display(),
+            "comissao_valor": f"{item.comissao_valor:.2f}",
+        }
 
 
 def painel_valido(valor: str) -> bool:

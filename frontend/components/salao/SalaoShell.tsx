@@ -11,7 +11,7 @@ const ITENS = [
   ["/clientes", "Clientes"],
   ["/servicos", "Serviços"],
   ["/profissionais", "Profissionais"],
-  ["/financeiro", "Financeiro"],
+  ["/financeiro", "Caixa"],
   ["/configuracoes", "Configurações"],
 ] as const;
 

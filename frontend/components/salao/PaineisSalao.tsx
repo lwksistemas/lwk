@@ -58,7 +58,7 @@ function PainelOperacao({ resumo, slug, cadastro }: { resumo: ResumoSalao; slug:
       <AvisosCadastro slug={slug} cadastro={cadastro} />
       <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <Cartao titulo="Agendamentos de hoje" valor={resumo.hoje.agendamentos} cor="#7A3044" />
-        <Cartao titulo="Faturamento do dia" valor={resumo.hoje.faturamento} cor="#a16207" />
+        <Cartao titulo="Recebido hoje" valor={resumo.hoje.faturamento} cor="#a16207" />
         <Cartao titulo="Clientes ativos" valor={resumo.mes.clientes_ativos} cor="#7A3044" />
         <Cartao titulo="Taxa de ocupação" valor={`${resumo.hoje.ocupacao}%`} cor="#9a3412" />
       </div>
@@ -173,7 +173,7 @@ function PainelSemana({ resumo, slug, cadastro }: { resumo: ResumoSalao; slug: s
         <Cartao titulo="Em atendimento" valor={resumo.hoje.em_andamento} cor="#7c3aed" />
         <Cartao titulo="Concluídos" valor={resumo.hoje.concluidos} cor="#059669" />
         <Cartao titulo="Taxa de ocupação" valor={`${resumo.hoje.ocupacao}%`} cor="#6d28d9" />
-        <Cartao titulo="Faturamento do dia" valor={resumo.hoje.faturamento} cor="#4c1d78" />
+        <Cartao titulo="Recebido hoje" valor={resumo.hoje.faturamento} cor="#4c1d78" />
       </div>
       <div className="grid gap-3 xl:grid-cols-[minmax(0,1.5fr)_minmax(16rem,0.7fr)]">
         <section className="min-w-0 overflow-auto rounded-3xl border border-[#ece7f5] bg-white p-4">
@@ -269,7 +269,7 @@ function PainelSemana({ resumo, slug, cadastro }: { resumo: ResumoSalao; slug: s
         </section>
         <section className="rounded-3xl border border-[#ece7f5] bg-white p-4">
           <h2 className="mb-2 text-sm font-medium">Serviços do mês</h2>
-          {resumo.servicos.length === 0 ? <p className="text-sm text-[#6d6480]">Nenhum atendimento concluído no período.</p> : null}
+          {resumo.servicos.length === 0 ? <p className="text-sm text-[#6d6480]">Nenhum recebimento no período.</p> : null}
           {resumo.servicos.map((item) => (
             <div key={item.nome} className="mb-2 text-sm">
               <div className="flex justify-between gap-2"><span className="truncate">{item.nome}</span><span>{item.quantidade}</span></div>
@@ -308,7 +308,7 @@ function PainelGestao({ resumo, slug, cadastro }: { resumo: ResumoSalao; slug: s
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <div className="min-w-0">
           <h1 className="text-2xl font-semibold sm:text-3xl">{saudacao}, equipe</h1>
-          <p className="text-sm text-[#607064]">Receita dos atendimentos concluídos em {mes}.</p>
+          <p className="text-sm text-[#607064]">Recebido no caixa em {mes}. Atendimento concluído sem recebimento não entra aqui.</p>
         </div>
         <Link href={`${base}/clientes`} className="inline-flex items-center gap-1 rounded-full bg-[#3d5244] px-4 py-2 text-sm text-white">
           <Users size={15} /> Novo cliente
@@ -316,7 +316,7 @@ function PainelGestao({ resumo, slug, cadastro }: { resumo: ResumoSalao; slug: s
       </div>
       <AvisosCadastro slug={slug} cadastro={cadastro} />
       <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Cartao titulo="Receita do mês" valor={resumo.mes.receita} cor="#3d5244" />
+        <Cartao titulo="Recebido no mês" valor={resumo.mes.receita} cor="#3d5244" />
         <Cartao titulo="Novos clientes" valor={resumo.mes.novos_clientes} cor="#3d5244" />
         <Cartao titulo="Ticket médio" valor={resumo.mes.ticket} cor="#3d5244" />
         <Cartao titulo="Clientes ativos" valor={resumo.mes.clientes_ativos} cor="#3d5244" />
@@ -324,10 +324,10 @@ function PainelGestao({ resumo, slug, cadastro }: { resumo: ResumoSalao; slug: s
       <div className="grid gap-3 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,0.8fr)]">
         <section className="min-w-0 rounded-3xl border border-[#e4eadf] bg-white p-4">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-sm font-medium">Faturamento do período</h2>
+            <h2 className="text-sm font-medium">Recebimentos do período</h2>
             <span className="text-sm text-[#3d5244]">{resumo.mes.receita}</span>
           </div>
-          {semReceita ? <Vazio texto="Nenhum atendimento concluído no período." href={`${base}/agenda`} acao="Abrir a agenda" /> : null}
+          {semReceita ? <Vazio texto="Nenhum recebimento no período." href={`${base}/agenda`} acao="Abrir a agenda" /> : null}
           <div className="mt-3 flex h-40 items-end gap-px overflow-x-auto">
             {serie.map((dia) => (
               <i
@@ -341,7 +341,7 @@ function PainelGestao({ resumo, slug, cadastro }: { resumo: ResumoSalao; slug: s
         </section>
         <section className="min-w-0 rounded-3xl border border-[#e4eadf] bg-white p-4">
           <h2 className="mb-2 flex items-center gap-2 text-sm font-medium"><Scissors size={16} /> Serviços mais vendidos</h2>
-          {resumo.servicos.length === 0 ? <p className="text-sm text-[#607064]">Nenhum atendimento concluído no período.</p> : null}
+          {resumo.servicos.length === 0 ? <p className="text-sm text-[#607064]">Nenhum recebimento no período.</p> : null}
           {resumo.servicos.map((item, indice) => (
             <div key={item.nome} className="grid grid-cols-[20px_minmax(0,1fr)_auto] gap-2 border-t border-[#eef3ea] py-2 text-sm">
               <span className="text-[#8aaa78]">{indice + 1}</span>
@@ -351,6 +351,18 @@ function PainelGestao({ resumo, slug, cadastro }: { resumo: ResumoSalao; slug: s
           ))}
         </section>
       </div>
+      <section className="mt-3 rounded-3xl border border-[#e4eadf] bg-white p-4">
+        <h2 className="mb-2 text-sm font-medium">Comissões do mês</h2>
+        {(resumo.comissoes || []).length === 0 ? (
+          <Vazio texto="A comissão entra quando o atendimento é recebido no caixa." href={`${base}/agenda`} acao="Abrir a agenda" />
+        ) : null}
+        {(resumo.comissoes || []).map((item) => (
+          <div key={item.nome} className="flex items-center justify-between gap-2 border-t border-[#eef3ea] py-2 text-sm">
+            <span className="truncate">{item.nome}<small className="block text-[#607064]">{item.quantidade}</small></span>
+            <span>{item.comissao}</span>
+          </div>
+        ))}
+      </section>
       <section className="mt-3 rounded-3xl border border-[#e4eadf] bg-white p-4">
         <h2 className="mb-2 flex items-center gap-2 text-sm font-medium"><Gift size={16} /> Aniversariantes do mês</h2>
         {resumo.aniversariantes.length === 0 ? (

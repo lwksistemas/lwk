@@ -1,5 +1,6 @@
 """Agenda do salão. Reusa os modelos abstratos da agenda e troca o vocabulário da clínica."""
 from datetime import timedelta
+from decimal import Decimal
 
 from django.db import models
 
@@ -30,6 +31,13 @@ STATUS_AGENDAMENTO = (
 )
 
 STATUS_OCUPA_HORARIO = ("SCHEDULED", "CONFIRMED", "IN_PROGRESS", "COMPLETED")
+
+FORMAS_PAGAMENTO = (
+    ("dinheiro", "Dinheiro"),
+    ("pix", "Pix"),
+    ("debito", "Débito"),
+    ("credito", "Crédito"),
+)
 
 
 class SalaoConfig(models.Model):
@@ -121,6 +129,44 @@ class Agendamento(models.Model):
     @property
     def fim(self):
         return self.inicio + timedelta(minutes=int(self.duracao_minutos or 0))
+
+    def save(self, *args, **kwargs):
+        from tenants.middleware import get_current_loja_id
+
+        if not self.loja_id:
+            atual = get_current_loja_id()
+            if atual:
+                self.loja_id = atual
+        super().save(*args, **kwargs)
+
+
+class Recebimento(models.Model):
+    """Dinheiro que entrou no caixa. O preço do serviço, sozinho, não é receita."""
+
+    loja_id = models.IntegerField(db_index=True)
+    agendamento = models.ForeignKey(Agendamento, on_delete=models.PROTECT, related_name="recebimentos")
+    profissional = models.ForeignKey(Profissional, on_delete=models.PROTECT, related_name="recebimentos")
+    valor_servico = models.DecimalField(max_digits=10, decimal_places=2)
+    desconto = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("0"))
+    valor = models.DecimalField(max_digits=10, decimal_places=2)
+    forma = models.CharField(max_length=20, choices=FORMAS_PAGAMENTO)
+    comissao_percentual = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal("0"))
+    comissao_valor = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("0"))
+    observacao = models.CharField(max_length=200, blank=True, default="")
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    objects = LojaIsolationManager()
+
+    class Meta:
+        verbose_name = "Recebimento"
+        ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["agendamento"],
+                condition=models.Q(is_active=True),
+                name="salao_um_recebimento_ativo",
+            ),
+        ]
 
     def save(self, *args, **kwargs):
         from tenants.middleware import get_current_loja_id

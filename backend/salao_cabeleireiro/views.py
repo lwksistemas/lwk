@@ -10,8 +10,9 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .agenda_service import conflito_horario, interpretar_inicio
+from .caixa_service import FORMAS, calcular_recebimento, quantia
 from .catalogo import garantir_catalogo_inicial
-from .models import PAINEIS, STATUS_AGENDAMENTO, STATUS_OCUPA_HORARIO, Agendamento, Bloqueio, Cliente, HorarioTrabalho, Profissional, SalaoConfig, Servico
+from .models import PAINEIS, STATUS_AGENDAMENTO, STATUS_OCUPA_HORARIO, Agendamento, Bloqueio, Cliente, HorarioTrabalho, Profissional, Recebimento, SalaoConfig, Servico
 from .permissions import IsSalaoAdmin, IsSalaoMembro, contexto_salao, usuario_e_admin
 from .serializers import AgendamentoSerializer, ClienteSerializer, ProfissionalSerializer, ServicoSerializer, painel_valido
 
@@ -210,7 +211,7 @@ class AgendaView(APIView):
     def get(self, request):
         inicio = request.query_params.get("start")
         fim = request.query_params.get("end")
-        qs = Agendamento.objects.select_related("cliente", "profissional", "servico")
+        qs = Agendamento.objects.select_related("cliente", "profissional", "servico").prefetch_related("recebimentos")
         try:
             if inicio:
                 qs = qs.filter(inicio__gte=interpretar_inicio(inicio))
@@ -263,7 +264,7 @@ class AgendamentoDetailView(GetObjectMixin, APIView):
 
     def get_object(self, pk):
         try:
-            return Agendamento.objects.select_related("cliente", "profissional", "servico").get(pk=pk)
+            return Agendamento.objects.select_related("cliente", "profissional", "servico").prefetch_related("recebimentos").get(pk=pk)
         except Agendamento.DoesNotExist:
             return None
 
@@ -271,6 +272,10 @@ class AgendamentoDetailView(GetObjectMixin, APIView):
         agendamento = self.get_object(pk)
         if agendamento is None:
             return _erro(self.not_found_message, status.HTTP_404_NOT_FOUND)
+        if agendamento.recebimentos.filter(is_active=True).exists() and any(
+            chave in request.data for chave in ("status", "inicio", "profissional", "servico", "duracao_minutos")
+        ):
+            return _erro("Desfaça o recebimento antes de alterar este atendimento.")
         status_novo = request.data.get("status")
         if status_novo:
             if status_novo not in {codigo for codigo, _ in STATUS_AGENDAMENTO}:
@@ -313,6 +318,8 @@ class AgendamentoDetailView(GetObjectMixin, APIView):
         agendamento = self.get_object(pk)
         if agendamento is None:
             return _erro(self.not_found_message, status.HTTP_404_NOT_FOUND)
+        if agendamento.recebimentos.filter(is_active=True).exists():
+            return _erro("Desfaça o recebimento antes de cancelar este atendimento.")
         agendamento.status = "CANCELLED"
         agendamento.save(update_fields=["status", "updated_at"])
         return Response(AgendamentoSerializer(agendamento).data)
@@ -496,27 +503,38 @@ class ResumoView(APIView):
             .select_related("cliente", "servico", "profissional")
             .order_by("inicio")
         )
-        do_mes = list(
-            Agendamento.objects.filter(inicio__gte=inicio_mes, inicio__lt=fim_mes)
-            .exclude(status__in=["CANCELLED", "NO_SHOW"])
-            .select_related("servico", "cliente")
+        recebidos_mes = list(
+            Recebimento.objects.filter(is_active=True, created_at__gte=inicio_mes, created_at__lt=fim_mes)
+            .select_related("agendamento__servico", "profissional")
         )
-        concluidos_mes = [item for item in do_mes if item.status == "COMPLETED"]
-        receita = sum((item.servico.preco for item in concluidos_mes), Decimal("0"))
+        recebidos_dia = [
+            item for item in recebidos_mes
+            if inicio_dia <= timezone.localtime(item.created_at) < fim_dia
+        ]
+        receita = sum((item.valor for item in recebidos_mes), Decimal("0"))
+        faturamento_dia = sum((item.valor for item in recebidos_dia), Decimal("0"))
         novos = Cliente.objects.filter(created_at__gte=inicio_mes, created_at__lt=fim_mes, is_active=True).count()
-        ticket = (receita / len(concluidos_mes)) if concluidos_mes else Decimal("0")
+        ticket = (receita / len(recebidos_mes)) if recebidos_mes else Decimal("0")
         ativos = Cliente.objects.filter(is_active=True).count()
         minutos = sum(item.duracao_minutos for item in do_dia if item.status in STATUS_OCUPA_HORARIO)
         profissionais = max(Profissional.objects.filter(is_active=True).count(), 1)
         ocupacao = min(100, round(minutos / (profissionais * 10 * 60) * 100))
 
         por_servico = {}
-        for item in do_mes:
-            chave = item.servico.nome
+        por_profissional = {}
+        for item in recebidos_mes:
+            chave = item.agendamento.servico.nome
             atual = por_servico.setdefault(chave, {"nome": chave, "quantidade": 0, "receita": Decimal("0")})
             atual["quantidade"] += 1
-            if item.status == "COMPLETED":
-                atual["receita"] += item.servico.preco
+            atual["receita"] += item.valor
+            comissao = por_profissional.setdefault(item.profissional_id, {
+                "nome": item.profissional.nome,
+                "quantidade": 0,
+                "comissao": Decimal("0"),
+            })
+            comissao["quantidade"] += 1
+            comissao["comissao"] += item.comissao_valor
+        comissoes = sorted(por_profissional.values(), key=lambda item: item["comissao"], reverse=True)
         servicos = sorted(por_servico.values(), key=lambda item: item["receita"], reverse=True)[:5]
 
         semana = []
@@ -545,10 +563,10 @@ class ResumoView(APIView):
         for deslocamento in range((fim_mes - inicio_mes).days):
             dia = inicio_mes + timedelta(days=deslocamento)
             itens_dia = [
-                item for item in concluidos_mes
-                if timezone.localtime(item.inicio).date() == dia.date()
+                item for item in recebidos_mes
+                if timezone.localtime(item.created_at).date() == dia.date()
             ]
-            valor_dia = sum((item.servico.preco for item in itens_dia), Decimal("0"))
+            valor_dia = sum((item.valor for item in itens_dia), Decimal("0"))
             serie_mes.append({"dia": dia.day, "valor": float(valor_dia)})
 
         loja, prof = contexto_salao(request)
@@ -560,7 +578,7 @@ class ResumoView(APIView):
                 "agendamentos": len([item for item in do_dia if item.status != "NO_SHOW"]),
                 "em_andamento": len([item for item in do_dia if item.status == "IN_PROGRESS"]),
                 "concluidos": len([item for item in do_dia if item.status == "COMPLETED"]),
-                "faturamento": _dinheiro(sum((item.servico.preco for item in do_dia if item.status == "COMPLETED"), Decimal("0"))),
+                "faturamento": _dinheiro(faturamento_dia),
                 "ocupacao": ocupacao,
             },
             "mes": {
@@ -575,6 +593,10 @@ class ResumoView(APIView):
                 {**item, "receita": _dinheiro(item["receita"])}
                 for item in servicos
             ],
+            "comissoes": [
+                {**item, "comissao": _dinheiro(item["comissao"])}
+                for item in comissoes
+            ],
             "aniversariantes": aniversariantes[:8],
             "agenda_hoje": [
                 {
@@ -587,5 +609,131 @@ class ResumoView(APIView):
                     "status_label": item.get_status_display(),
                 }
                 for item in do_dia
+            ],
+        })
+
+
+def _agendamento_completo(pk):
+    return (
+        Agendamento.objects.select_related("cliente", "profissional", "servico")
+        .prefetch_related("recebimentos")
+        .filter(pk=pk)
+        .first()
+    )
+
+
+class ReceberAgendamentoView(APIView):
+    permission_classes = [IsAuthenticated, IsSalaoMembro]
+
+    def post(self, request, pk):
+        agendamento = _agendamento_completo(pk)
+        if agendamento is None:
+            return _erro("Agendamento não encontrado.", status.HTTP_404_NOT_FOUND)
+        if agendamento.status != "COMPLETED":
+            return _erro("Conclua o atendimento antes de receber.")
+        if any(item.is_active for item in agendamento.recebimentos.all()):
+            return _erro("Este atendimento já foi recebido.")
+        forma = (request.data.get("forma") or "").strip()
+        if forma not in FORMAS:
+            return _erro("Escolha dinheiro, Pix, débito ou crédito.")
+        try:
+            desconto = quantia(request.data.get("desconto") or 0)
+            valor, comissao = calcular_recebimento(
+                agendamento.servico.preco,
+                desconto,
+                agendamento.profissional.comissao_percentual,
+            )
+        except ValueError as exc:
+            return _erro(str(exc))
+        Recebimento.objects.create(
+            agendamento=agendamento,
+            profissional=agendamento.profissional,
+            valor_servico=agendamento.servico.preco,
+            desconto=desconto,
+            valor=valor,
+            forma=forma,
+            comissao_percentual=agendamento.profissional.comissao_percentual,
+            comissao_valor=comissao,
+            observacao=(request.data.get("observacao") or "")[:200],
+        )
+        return Response(AgendamentoSerializer(_agendamento_completo(pk)).data, status=status.HTTP_201_CREATED)
+
+
+class RecebimentoDetailView(GetObjectMixin, APIView):
+    permission_classes = [IsAuthenticated, IsSalaoMembro]
+    model_class = Recebimento
+    not_found_message = "Recebimento não encontrado."
+
+    def delete(self, request, pk):
+        recebimento, erro = self.object_or_404(pk)
+        if erro:
+            return erro
+        if not recebimento.is_active:
+            return _erro(self.not_found_message, status.HTTP_404_NOT_FOUND)
+        recebimento.is_active = False
+        recebimento.save(update_fields=["is_active"])
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class CaixaView(APIView):
+    permission_classes = [IsAuthenticated, IsSalaoMembro]
+
+    def get(self, request):
+        inicio_txt = request.query_params.get("start")
+        fim_txt = request.query_params.get("end")
+        if inicio_txt and fim_txt:
+            try:
+                inicio = interpretar_inicio(inicio_txt)
+                fim = interpretar_inicio(fim_txt)
+            except ValueError as exc:
+                return _erro(str(exc))
+        else:
+            agora = timezone.localtime()
+            inicio = agora.replace(hour=0, minute=0, second=0, microsecond=0)
+            fim = inicio + timedelta(days=1)
+        itens = list(
+            Recebimento.objects.filter(is_active=True, created_at__gte=inicio, created_at__lt=fim)
+            .select_related("agendamento__cliente", "agendamento__servico", "profissional")
+            .order_by("-created_at")[:300]
+        )
+        total = Decimal("0")
+        por_forma = {}
+        por_profissional = {}
+        for item in itens:
+            total += item.valor
+            forma = por_forma.setdefault(item.forma, {"forma": item.forma, "nome": item.get_forma_display(), "total": Decimal("0")})
+            forma["total"] += item.valor
+            comissao = por_profissional.setdefault(item.profissional_id, {
+                "nome": item.profissional.nome,
+                "quantidade": 0,
+                "recebido": Decimal("0"),
+                "comissao": Decimal("0"),
+            })
+            comissao["quantidade"] += 1
+            comissao["recebido"] += item.valor
+            comissao["comissao"] += item.comissao_valor
+        return Response({
+            "total": _dinheiro(total),
+            "quantidade": len(itens),
+            "por_forma": [{**item, "total": _dinheiro(item["total"])} for item in por_forma.values()],
+            "comissoes": [
+                {**item, "recebido": _dinheiro(item["recebido"]), "comissao": _dinheiro(item["comissao"])}
+                for item in sorted(por_profissional.values(), key=lambda atual: atual["comissao"], reverse=True)
+            ],
+            "recebimentos": [
+                {
+                    "id": item.id,
+                    "quando": timezone.localtime(item.created_at).strftime("%d/%m %H:%M"),
+                    "cliente": item.agendamento.cliente.nome,
+                    "servico": item.agendamento.servico.nome,
+                    "profissional": item.profissional.nome,
+                    "forma": item.forma,
+                    "forma_label": item.get_forma_display(),
+                    "desconto": _dinheiro(item.desconto),
+                    "valor": _dinheiro(item.valor),
+                    "comissao": _dinheiro(item.comissao_valor),
+                    "agendamento": item.agendamento_id,
+                }
+                for item in itens
             ],
         })

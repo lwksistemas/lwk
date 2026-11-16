@@ -124,6 +124,10 @@ export type ResumoSessaoSalao = {
   suprimentos: string;
   sangrias: string;
   esperado: string;
+  por_forma?: { forma: string; nome: string; total: string }[];
+  estornos?: string;
+  total?: string;
+  movimentos?: { tipo: string; valor: string; motivo: string; operador: string; quando: string }[];
   fechada_em: string;
   operador_fechamento: string;
   dinheiro_contado: string;

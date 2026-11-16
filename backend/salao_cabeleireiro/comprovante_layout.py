@@ -21,6 +21,8 @@ def _cep(valor: str) -> str:
 
 def _telefone(valor: str) -> str:
     digitos = re.sub(r"\D", "", valor or "")
+    if digitos.startswith("55") and len(digitos) in {12, 13}:
+        digitos = digitos[2:]
     if len(digitos) == 11:
         return f"({digitos[:2]}) {digitos[2:7]}-{digitos[7:]}"
     if len(digitos) == 10:
@@ -150,11 +152,7 @@ def _com_cancelamento(venda, dados: dict) -> dict:
 
 
 def operador_visivel(dados: dict) -> str:
-    nome = (dados.get("operador") or "").strip()
-    salao = ((dados.get("salao") or {}).get("nome") or "").strip()
-    if not nome or nome.casefold() == salao.casefold():
-        return ""
-    return nome
+    return (dados.get("operador") or "").strip()
 
 
 def rotulo_total(dados: dict) -> str:
@@ -224,7 +222,7 @@ def html_comprovante(dados: dict) -> str:
         logo_html = f'<img src="{html.escape(logo, quote=True)}" alt="" style="height:56px;width:auto;object-fit:contain" />'
     contato = []
     if salao.get("telefone"):
-        contato.append(html.escape(salao["telefone"]))
+        contato.append(html.escape(_telefone(salao["telefone"])))
     if salao.get("email"):
         contato.append(html.escape(salao["email"]))
     endereco = html.escape(salao.get("endereco") or "")
@@ -294,7 +292,7 @@ body{{margin:0;background:#f6f1f2;font-family:Georgia,serif;color:#2a1c20}}
 {f"<div>{endereco}</div>" if endereco else ""}
 {f"<div>{' | '.join(contato)}</div>" if contato else ""}
 </div>
-<div style="margin-top:12px;background:{cor};color:#fff;text-align:center;padding:8px 6px;font-family:sans-serif;font-weight:700;letter-spacing:.04em">COMPROVANTE DE PAGAMENTO<br>(NÃO FISCAL)</div>
+<div style="margin-top:12px;background:{cor};color:#fff;text-align:center;padding:8px 6px;font-family:sans-serif;font-weight:700;letter-spacing:.04em">{"PRÉVIA — NÃO É COMPROVANTE DE PAGAMENTO" if not dados.get("numero") else "COMPROVANTE DE PAGAMENTO<br>(NÃO FISCAL)"}</div>
 {aviso}
 <div style="display:flex;justify-content:space-between;gap:8px;margin-top:10px;font-family:sans-serif;font-size:12px"><span>Nº {numero_txt}</span><span>{html.escape(dados.get("quando") or "")}</span></div>
 <div style="margin-top:8px;border:1px solid #f0e4e7;border-radius:8px;padding:8px;font-family:sans-serif;font-size:13px">Cliente: <strong>{html.escape(dados.get("cliente") or "Consumidor")}</strong>{f'<div style="margin-top:4px;font-size:12px;color:#5c3d45">Operador: {html.escape(operador_visivel(dados))}</div>' if operador_visivel(dados) else ""}</div>
@@ -322,10 +320,10 @@ def pdf_comprovante(dados: dict) -> bytes:
         linhas.append(("sub", salao["subtitulo"]))
     if salao.get("endereco"):
         linhas.append(("miudo", salao["endereco"]))
-    contato = " | ".join(item for item in (salao.get("telefone"), salao.get("email")) if item)
+    contato = " | ".join(item for item in (_telefone(salao.get("telefone") or ""), salao.get("email")) if item)
     if contato:
         linhas.append(("miudo", contato))
-    linhas.append(("faixa", "COMPROVANTE DE PAGAMENTO (NÃO FISCAL)"))
+    linhas.append(("faixa", "PRÉVIA — NÃO É COMPROVANTE DE PAGAMENTO" if not dados.get("numero") else "COMPROVANTE DE PAGAMENTO (NÃO FISCAL)"))
     if dados.get("cancelado"):
         linhas.append(("alerta", "CANCELADO"))
         detalhe = texto_cancelamento(dados)

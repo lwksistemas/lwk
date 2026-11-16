@@ -289,20 +289,30 @@ class CaixaFechamentoTest(unittest.TestCase):
         self.assertIsNone(precisa_abrir_caixa("recepcionista", True))
         self.assertIsNone(precisa_abrir_caixa("autonomo", False))
 
-    def test_operador_nao_repete_o_nome_do_salao(self):
-        from salao_cabeleireiro.sessao_service import nome_do_operador
+    def test_operador_e_o_nome_da_pessoa(self):
+        from salao_cabeleireiro.comprovante_layout import _telefone
+        from salao_cabeleireiro.sessao_service import exige_justificativa, nome_do_operador, somar_por_forma
 
-        class Usuario:
+        class Recepcionista:
             def get_full_name(self):
-                return "Salão Teste"
+                return "Camila Souza"
 
             def get_username(self):
-                return "salao-teste"
+                return "camila"
 
         class Loja:
             nome = "Salão Teste"
 
-        self.assertEqual(nome_do_operador(Usuario(), Loja()), "salao-teste")
+        self.assertEqual(nome_do_operador(Recepcionista(), Loja()), "Camila Souza")
+        formas = somar_por_forma([
+            {"forma": "dinheiro", "valor": "40.00"},
+            {"forma": "pix", "valor": "50.00"},
+        ])
+        self.assertEqual(formas["dinheiro"], Decimal("40.00"))
+        self.assertEqual(formas["pix"], Decimal("50.00"))
+        self.assertEqual(exige_justificativa("-5.00", ""), "Informe a justificativa da diferença.")
+        self.assertIsNone(exige_justificativa("0", ""))
+        self.assertEqual(_telefone("5516999621823"), "(16) 99962-1823")
 
     def test_recibo_cancelado_mostra_o_valor_original(self):
         from salao_cabeleireiro.comprovante_layout import html_comprovante, rotulo_total

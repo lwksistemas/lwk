@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Banknote, Check, CreditCard, Download, Layers, Mail, MessageCircle, Minus, Plus, Printer, QrCode, Scissors, ShoppingBag, Trash2, UserRound, X } from "lucide-react";
 import { ComprovanteSalaoCard } from "@/components/salao/ComprovanteSalao";
-import { SalaoAPI, type AgendamentoSalao, type CabecalhoRecibo, type ClienteSalao, type ComprovanteSalao, type FormaPagamentoSalao, type LocalRecebimentoSalao, type PapelSalao, type ProdutoSalao, type SessaoCaixaSalao, type VendaSalao } from "@/lib/salao-api";
+import { SalaoAPI, type AgendamentoSalao, type CabecalhoRecibo, type ClienteSalao, type ComprovanteSalao, type FormaPagamentoSalao, type LocalRecebimentoSalao, type PapelSalao, type ProdutoSalao, type ResumoSessaoSalao, type SessaoCaixaSalao, type VendaSalao } from "@/lib/salao-api";
 
 type ItemCarrinho = { produto: number; nome: string; preco: string; saldo: number; quantidade: number };
 type Linha = { id: string; forma: string; valor: string };
@@ -24,8 +24,15 @@ function iconeDaForma(codigo: string) {
 }
 
 function lerReais(texto: string) {
-  const numero = Number(String(texto).replace(",", "."));
+  const limpo = String(texto ?? "").trim().replace(/[R$\s]/g, "");
+  if (!limpo) return 0;
+  const normal = limpo.includes(",") ? limpo.replace(/\./g, "").replace(",", ".") : limpo;
+  const numero = Number(normal);
   return Number.isFinite(numero) ? Math.round(numero * 100) / 100 : 0;
+}
+
+function textoReais(valor: number) {
+  return valor.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 function reais(valor: number) {
@@ -51,6 +58,67 @@ function telefoneLegivel(valor: string) {
 
 function iniciais(nome: string) {
   return nome.split(" ").filter(Boolean).slice(0, 2).map((parte) => parte[0]?.toUpperCase()).join("");
+}
+
+function valorDaForma(resumo: ResumoSessaoSalao, codigo: string) {
+  const item = resumo.por_forma?.find((forma) => forma.forma === codigo);
+  if (item) return lerReais(item.total);
+  return codigo === "dinheiro" ? lerReais(resumo.dinheiro) : 0;
+}
+
+function FechamentoCaixa({ resumo, contado, justificativa, onContado, onJustificativa, onConfirmar }: {
+  resumo: ResumoSessaoSalao;
+  contado: string;
+  justificativa: string;
+  onContado: (valor: string) => void;
+  onJustificativa: (valor: string) => void;
+  onConfirmar: () => void;
+}) {
+  const esperado = lerReais(resumo.esperado);
+  const diferenca = Math.round((lerReais(contado) - esperado) * 100) / 100;
+  return (
+    <div className="space-y-3">
+      <p className="font-medium">Resumo financeiro</p>
+      <ul className="space-y-1 text-[#5c3d45]">
+        <li>Saldo inicial {reais(lerReais(resumo.saldo_inicial))}</li>
+        <li>Recebimentos em dinheiro {reais(valorDaForma(resumo, "dinheiro"))}</li>
+        <li>Recebimentos por Pix {reais(valorDaForma(resumo, "pix"))}</li>
+        <li>Recebimentos por débito {reais(valorDaForma(resumo, "debito"))}</li>
+        <li>Recebimentos por crédito {reais(valorDaForma(resumo, "credito"))}</li>
+        <li>Sangrias realizadas {reais(lerReais(resumo.sangrias))}</li>
+        <li>Suprimentos realizados {reais(lerReais(resumo.suprimentos))}</li>
+        <li>Devoluções e estornos {reais(lerReais(resumo.estornos || "0"))}</li>
+        <li>Total recebido no período {reais(lerReais(resumo.total || "0"))}</li>
+      </ul>
+      <p className="font-medium">Conferência do dinheiro</p>
+      <p className="text-[#8a6e74]">Pix e cartões não entram no dinheiro da gaveta.</p>
+      <p>Valor esperado na gaveta {reais(esperado)}</p>
+      <label className="block">Valor contado pelo operador
+        <input value={contado} onChange={(evento) => onContado(evento.target.value)} placeholder="0,00" className="mt-1 w-full rounded-xl border border-[#eadfe2] px-3 py-2" />
+      </label>
+      <p>Diferença encontrada {reais(diferenca)}</p>
+      {Math.abs(diferenca) > 0.009 ? (
+        <input value={justificativa} onChange={(evento) => onJustificativa(evento.target.value)} placeholder="Justificativa da diferença" className="w-full rounded-xl border border-[#eadfe2] px-3 py-2" />
+      ) : null}
+      <p>Operador {resumo.operador_fechamento || resumo.operador}</p>
+      <button type="button" className="rounded-xl bg-[#7a3044] px-3 py-2 text-white" onClick={onConfirmar}>Confirmar fechamento</button>
+    </div>
+  );
+}
+
+function MovimentosCaixa({ aberta, historico }: { aberta: ResumoSessaoSalao | null; historico: ResumoSessaoSalao[] }) {
+  const lista = aberta?.movimentos || [];
+  return (
+    <div className="mt-4 space-y-2 text-[#5c3d45]">
+      <p className="font-medium text-[#2a1c20]">Movimentações</p>
+      {lista.length === 0 ? <p>Nenhuma sangria ou suprimento nesta sessão.</p> : lista.map((item) => (
+        <p key={`${item.quando}-${item.tipo}-${item.valor}`}>{item.quando} · {item.tipo} · {reais(lerReais(item.valor))} · {item.motivo} · {item.operador}</p>
+      ))}
+      {historico.map((item) => (
+        <p key={item.id}>Fechado {item.fechada_em} · {item.operador_fechamento || item.operador} · contado {reais(lerReais(item.dinheiro_contado || "0"))} · diferença {reais(lerReais(item.diferenca || "0"))}{item.observacao ? ` · ${item.observacao}` : ""}</p>
+      ))}
+    </div>
+  );
 }
 
 type DocumentosRecibo = { comprovante: boolean; nfse: boolean; nfce: boolean };
@@ -170,6 +238,8 @@ export default function CaixaPdvPage() {
   const [valorCaixa, setValorCaixa] = useState("");
   const [motivoCaixa, setMotivoCaixa] = useState("");
   const [painelCaixa, setPainelCaixa] = useState(false);
+  const [acaoCaixa, setAcaoCaixa] = useState<"menu" | "sangria" | "suprimento" | "fechar" | "movimentos">("menu");
+  const [justificativa, setJustificativa] = useState("");
   const [busca, setBusca] = useState("");
   const [fila, setFila] = useState<AgendamentoSalao[]>([]);
   const [clientes, setClientes] = useState<ClienteSalao[]>([]);
@@ -271,7 +341,7 @@ export default function CaixaPdvPage() {
 
   useEffect(() => {
     if (formaRapida === "multiplas") return;
-    setLinhas([{ id: "1", forma: formaRapida, valor: total > 0 ? total.toFixed(2) : "" }]);
+    setLinhas([{ id: "1", forma: formaRapida, valor: total > 0 ? textoReais(total) : "" }]);
   }, [total, formaRapida]);
 
   useEffect(() => {
@@ -289,7 +359,7 @@ export default function CaixaPdvPage() {
       const primeira = catalogo[0]?.codigo || "dinheiro";
       const segunda = catalogo.find((item) => item.codigo !== primeira)?.codigo || primeira;
       setLinhas([
-        { id: "1", forma: primeira, valor: total > 0 ? total.toFixed(2) : "" },
+        { id: "1", forma: primeira, valor: total > 0 ? textoReais(total) : "" },
         { id: "2", forma: segunda, valor: "" },
       ]);
     }
@@ -564,40 +634,28 @@ export default function CaixaPdvPage() {
           <p className="text-sm text-[#8a6e74]">Recebimento de atendimentos e venda de produtos</p>
         </div>
         <div className="flex flex-wrap items-center gap-2 text-sm">
-          {sessao?.exige_abertura && sessao.aberta ? (
-            <button type="button" onClick={() => setPainelCaixa((aberto) => !aberto)} className="rounded-full bg-[#e7f6ee] px-3 py-1 font-medium text-[#1f8a4c]">Caixa aberto</button>
-          ) : (
-            <span className="rounded-full bg-[#e7f6ee] px-3 py-1 font-medium text-[#1f8a4c]">{sessao?.exige_abertura ? "Caixa fechado" : abertura ? "Caixa aberto" : "Caixa sem sessão"}</span>
-          )}
-          <span className="rounded-full bg-white px-3 py-1 text-[#5c3d45]">{sessao?.exige_abertura ? (sessao.aberta ? `Abertura: ${sessao.aberta.aberta_em}` : "Abra o caixa para receber") : `Abertura: ${abertura || "na primeira venda"}`}</span>
+          {!sessao?.exige_abertura ? (
+            <>
+              <span className="rounded-full bg-[#e7f6ee] px-3 py-1 font-medium text-[#1f8a4c]">{abertura ? "Caixa aberto" : "Caixa sem sessão"}</span>
+              <span className="rounded-full bg-white px-3 py-1 text-[#5c3d45]">Abertura: {abertura || "na primeira venda"}</span>
+            </>
+          ) : null}
           <span className="ml-1 flex items-center gap-2 rounded-full bg-white px-2 py-1 pr-3">
             <span className="grid h-8 w-8 place-items-center rounded-full bg-[#7a3044] text-xs font-semibold text-white">{iniciais(operador || "Caixa")}</span>
-            <span className="font-medium">{operador || "Caixa"}</span>
+            <span className="leading-tight"><span className="block text-[10px] text-[#8a6e74]">Operador</span><span className="font-medium">{operador || "Caixa"}</span></span>
           </span>
         </div>
       </header>
 
-      {sessao?.exige_abertura && !sessao.aberta ? (
-        <section className="rounded-3xl bg-white p-4 text-sm">
-          <div className="flex flex-wrap items-center gap-2">
-            <input value={saldoInicial} onChange={(evento) => setSaldoInicial(evento.target.value)} placeholder="Saldo inicial" className="w-40 rounded-xl border border-[#eadfe2] px-3 py-2" />
-            <button type="button" className="rounded-xl bg-[#7a3044] px-3 py-2 text-white" onClick={() => void SalaoAPI.abrirCaixa(saldoInicial || "0").then(() => { setPainelCaixa(false); return SalaoAPI.sessaoCaixa(); }).then(setSessao).catch((exc: Error) => setErro(exc.message))}>Abrir caixa</button>
+      {sessao?.exige_abertura ? (
+        <section className="flex flex-wrap items-center justify-between gap-3 rounded-3xl bg-white px-4 py-3 text-sm">
+          <div className="flex flex-wrap gap-x-4 gap-y-1 text-[#5c3d45]">
+            <span>Situação: <strong className="text-[#1f8a4c]">{sessao.aberta ? "Caixa aberto" : "Caixa fechado"}</strong></span>
+            <span>Saldo inicial {sessao.aberta ? reais(lerReais(sessao.aberta.saldo_inicial)) : "—"}</span>
+            <span>Dinheiro recebido {sessao.aberta ? reais(lerReais(sessao.aberta.dinheiro)) : "—"}</span>
+            <span>Esperado na gaveta {sessao.aberta ? reais(lerReais(sessao.aberta.esperado)) : "—"}</span>
           </div>
-        </section>
-      ) : null}
-      {sessao?.exige_abertura && sessao.aberta && painelCaixa ? (
-        <section className="rounded-3xl bg-white p-4 text-sm">
-          <p>Saldo inicial {reais(lerReais(sessao.aberta.saldo_inicial))} · Dinheiro {reais(lerReais(sessao.aberta.dinheiro))} · Suprimentos {reais(lerReais(sessao.aberta.suprimentos))} · Sangrias {reais(lerReais(sessao.aberta.sangrias))} · Esperado na gaveta {reais(lerReais(sessao.aberta.esperado))}</p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <input value={valorCaixa} onChange={(evento) => setValorCaixa(evento.target.value)} placeholder="Valor" className="w-28 rounded-xl border border-[#eadfe2] px-3 py-2" />
-            <input value={motivoCaixa} onChange={(evento) => setMotivoCaixa(evento.target.value)} placeholder="Motivo" className="min-w-40 flex-1 rounded-xl border border-[#eadfe2] px-3 py-2" />
-            <button type="button" className="rounded-xl bg-[#f6eef0] px-3 py-2" onClick={() => void SalaoAPI.movimentoCaixa("sangria", valorCaixa, motivoCaixa).then((aberta) => { setSessao({ ...sessao, aberta }); setValorCaixa(""); setMotivoCaixa(""); }).catch((exc: Error) => setErro(exc.message))}>Sangria</button>
-            <button type="button" className="rounded-xl bg-[#f6eef0] px-3 py-2" onClick={() => void SalaoAPI.movimentoCaixa("suprimento", valorCaixa, motivoCaixa).then((aberta) => { setSessao({ ...sessao, aberta }); setValorCaixa(""); setMotivoCaixa(""); }).catch((exc: Error) => setErro(exc.message))}>Suprimento</button>
-          </div>
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <input value={contado} onChange={(evento) => setContado(evento.target.value)} placeholder="Dinheiro contado" className="w-40 rounded-xl border border-[#eadfe2] px-3 py-2" />
-            <button type="button" className="rounded-xl bg-[#7a3044] px-3 py-2 text-white" onClick={() => void SalaoAPI.fecharCaixa(contado, "").then(() => { setPainelCaixa(false); return SalaoAPI.sessaoCaixa(); }).then(setSessao).catch((exc: Error) => setErro(exc.message))}>Fechar caixa</button>
-          </div>
+          <button type="button" className="rounded-xl bg-[#7a3044] px-3 py-2 text-white" onClick={() => { setAcaoCaixa("menu"); setPainelCaixa(true); }}>Gerenciar caixa</button>
         </section>
       ) : null}
 
@@ -763,7 +821,7 @@ export default function CaixaPdvPage() {
             ) : (
               <div className="mt-3 grid grid-cols-2 gap-3">
                 <label className="text-sm">Valor recebido (R$)
-                  <input value={entregue === "" ? (total > 0 ? total.toFixed(2) : "") : entregue} onChange={(evento) => setEntregue(evento.target.value)} className="mt-1 w-full rounded-xl border border-[#eadfe2] px-3 py-2" />
+                  <input value={entregue === "" ? (total > 0 ? textoReais(total) : "") : entregue} onChange={(evento) => setEntregue(evento.target.value)} className="mt-1 w-full rounded-xl border border-[#eadfe2] px-3 py-2" />
                 </label>
                 <div className="text-sm">Troco
                   <p className="mt-1 rounded-xl bg-[#e7f6ee] px-3 py-2 font-semibold text-[#1f8a4c]">{reais(troco)}</p>
@@ -790,6 +848,7 @@ export default function CaixaPdvPage() {
               <ComprovanteSalaoCard dados={oficial || {
                 quando: hoje.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }),
                 cliente: atual?.cliente_nome || "—",
+                operador,
                 valor: total.toFixed(2),
                 desconto: valorDesconto.toFixed(2),
                 servicos: selecionados.map((item) => ({ nome: item.servico_nome, profissional: item.profissional_nome, total: item.preco })),
@@ -799,7 +858,6 @@ export default function CaixaPdvPage() {
               }} />
               {oficial?.numero ? (
                 <div className="mt-3 flex flex-wrap gap-3 text-xs">
-                  {oficial.operador && oficial.operador.trim().toLocaleLowerCase() !== (cabecalho?.nome || "").trim().toLocaleLowerCase() ? <span className="text-[#8a6e74]">Operador: {oficial.operador}</span> : null}
                   <button type="button" className="text-[#7a3044]" onClick={() => void imprimirNumero(oficial.numero as number)}>Reimprimir</button>
                   <button type="button" className="text-[#7a3044]" onClick={() => void SalaoAPI.baixarRecibo(oficial.numero as number).catch((exc: Error) => setErro(exc.message))}>Baixar PDF</button>
                   <button type="button" className="text-[#7a3044]" onClick={() => void SalaoAPI.enviarRecibo(oficial.numero as number, "email").then((resposta) => { setAvisoEntrega(resposta.message); setAvisoOk(true); }).catch((exc: Error) => { setAvisoEntrega(exc.message); setAvisoOk(false); })}>E-mail</button>
@@ -811,6 +869,49 @@ export default function CaixaPdvPage() {
           </div>
         </section>
       </div>
+      {painelCaixa && sessao?.exige_abertura ? (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 p-4">
+          <div className="max-h-[90vh] w-full max-w-lg overflow-auto rounded-3xl bg-white p-5 text-sm">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <h2 className="text-lg font-semibold">Gerenciar caixa</h2>
+              <button type="button" onClick={() => setPainelCaixa(false)} aria-label="Fechar janela" className="rounded-lg p-2 hover:bg-[#f6eef0]"><X size={18} /></button>
+            </div>
+            {acaoCaixa !== "menu" ? <button type="button" className="mb-3 text-[#7a3044]" onClick={() => setAcaoCaixa("menu")}>Voltar</button> : null}
+            {!sessao.aberta && acaoCaixa === "menu" ? (
+              <div className="space-y-3">
+                <p>O caixa está fechado. Informe o saldo inicial para abrir.</p>
+                <input value={saldoInicial} onChange={(evento) => setSaldoInicial(evento.target.value)} placeholder="Saldo inicial" className="w-full rounded-xl border border-[#eadfe2] px-3 py-2" />
+                <button type="button" className="rounded-xl bg-[#7a3044] px-3 py-2 text-white" onClick={() => void SalaoAPI.abrirCaixa(saldoInicial || "0").then(() => { setPainelCaixa(false); return SalaoAPI.sessaoCaixa(); }).then(setSessao).catch((exc: Error) => setErro(exc.message))}>Abrir caixa</button>
+                <button type="button" className="rounded-xl bg-[#f6eef0] px-3 py-2" onClick={() => setAcaoCaixa("movimentos")}>Consultar movimentações</button>
+              </div>
+            ) : null}
+            {sessao.aberta && acaoCaixa === "menu" ? (
+              <div className="grid gap-2">
+                <button type="button" className="rounded-xl bg-[#f6eef0] px-3 py-2 text-left" onClick={() => setAcaoCaixa("sangria")}>Registrar sangria</button>
+                <button type="button" className="rounded-xl bg-[#f6eef0] px-3 py-2 text-left" onClick={() => setAcaoCaixa("suprimento")}>Registrar suprimento</button>
+                <button type="button" className="rounded-xl bg-[#f6eef0] px-3 py-2 text-left" onClick={() => setAcaoCaixa("fechar")}>Conferir dinheiro</button>
+                <button type="button" className="rounded-xl bg-[#f6eef0] px-3 py-2 text-left" onClick={() => setAcaoCaixa("fechar")}>Fechar caixa</button>
+                <button type="button" className="rounded-xl bg-[#f6eef0] px-3 py-2 text-left" onClick={() => setAcaoCaixa("movimentos")}>Consultar movimentações</button>
+              </div>
+            ) : null}
+            {sessao.aberta && (acaoCaixa === "sangria" || acaoCaixa === "suprimento") ? (
+              <div className="space-y-3">
+                <p>{acaoCaixa === "sangria" ? "Registrar sangria" : "Registrar suprimento"}</p>
+                <input value={valorCaixa} onChange={(evento) => setValorCaixa(evento.target.value)} placeholder="Valor" className="w-full rounded-xl border border-[#eadfe2] px-3 py-2" />
+                <input value={motivoCaixa} onChange={(evento) => setMotivoCaixa(evento.target.value)} placeholder="Motivo" className="w-full rounded-xl border border-[#eadfe2] px-3 py-2" />
+                <button type="button" className="rounded-xl bg-[#7a3044] px-3 py-2 text-white" onClick={() => void SalaoAPI.movimentoCaixa(acaoCaixa, valorCaixa, motivoCaixa).then((aberta) => { setSessao({ ...sessao, aberta }); setValorCaixa(""); setMotivoCaixa(""); setAcaoCaixa("menu"); }).catch((exc: Error) => setErro(exc.message))}>Confirmar</button>
+              </div>
+            ) : null}
+            {sessao.aberta && acaoCaixa === "fechar" ? (
+              <FechamentoCaixa resumo={sessao.aberta} contado={contado} justificativa={justificativa} onContado={setContado} onJustificativa={setJustificativa} onConfirmar={() => void SalaoAPI.fecharCaixa(contado, justificativa).then(() => { setPainelCaixa(false); setContado(""); setJustificativa(""); return SalaoAPI.sessaoCaixa(); }).then(setSessao).catch((exc: Error) => setErro(exc.message))} />
+            ) : null}
+            {acaoCaixa === "movimentos" ? (
+              <MovimentosCaixa aberta={sessao.aberta} historico={sessao.historico} />
+            ) : null}
+            {erro ? <p className="mt-3 text-red-700">{erro}</p> : null}
+          </div>
+        </div>
+      ) : null}
       {sucesso ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-2xl rounded-2xl bg-white shadow-xl">

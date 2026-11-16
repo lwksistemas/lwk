@@ -2,6 +2,14 @@
 
 import type { ComprovanteSalao } from "@/lib/salao-api";
 
+function telefoneLegivel(valor?: string) {
+  const digitos = String(valor || "").replace(/\D/g, "");
+  const local = digitos.startsWith("55") && (digitos.length === 12 || digitos.length === 13) ? digitos.slice(2) : digitos;
+  if (local.length === 11) return `(${local.slice(0, 2)}) ${local.slice(2, 7)}-${local.slice(7)}`;
+  if (local.length === 10) return `(${local.slice(0, 2)}) ${local.slice(2, 6)}-${local.slice(6)}`;
+  return valor || "";
+}
+
 function reais(valor: string | number | undefined) {
   const numero = Number(String(valor ?? "0").replace(",", "."));
   const quantia = Number.isFinite(numero) ? numero : 0;
@@ -14,7 +22,9 @@ export function ComprovanteSalaoCard({ dados }: { dados: ComprovanteSalao }) {
   const servicos = dados.servicos || [];
   const produtos = dados.produtos || [];
   const formas = dados.formas || [];
-  const numero = dados.numero ? String(dados.numero).padStart(6, "0") : "Prévia";
+  const numero = dados.numero ? String(dados.numero).padStart(6, "0") : "";
+  const previa = !dados.numero;
+  const telefone = telefoneLegivel(salao?.telefone);
   return (
     <article className="folha mx-auto bg-white px-3.5 py-4 text-[#2a1c20]" style={{ width: "72mm", maxWidth: "100%", fontFamily: "Georgia, serif" }}>
       <div className="flex items-center justify-center gap-2.5">
@@ -26,10 +36,10 @@ export function ComprovanteSalaoCard({ dados }: { dados: ComprovanteSalao }) {
       </div>
       <div className="mt-2.5 text-center font-sans text-[11px] text-[#5c3d45]">
         {salao?.endereco ? <div>{salao.endereco}</div> : null}
-        {(salao?.telefone || salao?.email) ? <div>{[salao.telefone, salao.email].filter(Boolean).join(" | ")}</div> : null}
+        {(telefone || salao?.email) ? <div>{[telefone, salao?.email].filter(Boolean).join(" | ")}</div> : null}
       </div>
       <div className="mt-3 px-1.5 py-2 text-center font-sans text-xs font-bold tracking-wide text-white" style={{ background: cor }}>
-        COMPROVANTE DE PAGAMENTO<br />(NÃO FISCAL)
+        {previa ? "PRÉVIA — NÃO É COMPROVANTE DE PAGAMENTO" : <>COMPROVANTE DE PAGAMENTO<br />(NÃO FISCAL)</>}
       </div>
       {dados.cancelado ? (
         <div className="mt-2 text-center font-sans text-[#9f1239]">
@@ -38,12 +48,12 @@ export function ComprovanteSalaoCard({ dados }: { dados: ComprovanteSalao }) {
         </div>
       ) : null}
       <div className="mt-2.5 flex justify-between gap-2 font-sans text-xs">
-        <span>Nº {numero}</span>
+        <span>{numero ? `Nº ${numero}` : "Sem número"}</span>
         <span>{dados.quando}</span>
       </div>
       <div className="mt-2 rounded-lg border border-[#f0e4e7] px-2 py-2 font-sans text-[13px]">
         Cliente: <strong>{dados.cliente || "Consumidor"}</strong>
-        {dados.operador && dados.operador.trim().toLocaleLowerCase() !== (salao?.nome || "").trim().toLocaleLowerCase() ? <div className="mt-1 text-xs text-[#5c3d45]">Operador: {dados.operador}</div> : null}
+        {dados.operador ? <div className="mt-1 text-xs text-[#5c3d45]">Operador: {dados.operador}</div> : null}
       </div>
       <table className="mt-2 w-full border-collapse font-sans text-[13px]">
         <tbody>

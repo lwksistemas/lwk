@@ -8,10 +8,9 @@ from .estoque_service import gravar
 
 
 def nome_do_operador(user, loja) -> str:
-    """O salão fica no cabeçalho. O operador é a pessoa que entrou, não o nome da loja."""
+    """O salão fica no cabeçalho. O operador é o nome da pessoa que entrou."""
     completo = (user.get_full_name() or "").strip()
-    loja_nome = (getattr(loja, "nome", "") or "").strip()
-    if completo and completo.casefold() != loja_nome.casefold():
+    if completo:
         return completo[:160]
     return (user.get_username() or "Caixa")[:160]
 
@@ -28,6 +27,25 @@ def saldo_esperado(saldo_inicial, dinheiro, suprimentos, sangrias) -> Decimal:
 
 def diferenca_caixa(contado, esperado) -> Decimal:
     return quantia(contado) - quantia(esperado)
+
+
+def exige_justificativa(diferenca, texto: str) -> str | None:
+    if quantia(diferenca) != 0 and len((texto or "").strip()) < 3:
+        return "Informe a justificativa da diferença."
+    return None
+
+
+def somar_por_forma(partes) -> dict:
+    """Pix e cartão ficam no resumo. Só o dinheiro entra na gaveta."""
+    totais = {}
+    for parte in partes or []:
+        if not isinstance(parte, dict):
+            continue
+        codigo = (parte.get("forma") or "").strip()
+        if not codigo:
+            continue
+        totais[codigo] = totais.get(codigo, Decimal("0")) + quantia(parte.get("valor"))
+    return totais
 
 
 def texto_estorno(venda) -> str:
@@ -63,12 +81,30 @@ def aplicar_cancelamento(venda, operador: str, motivo: str) -> None:
     ])
 
 
+def _vendas_da_sessao(sessao):
+    ativas = []
+    canceladas = []
+    for venda in sessao.vendas.all():
+        if venda.is_active:
+            ativas.append(venda)
+        else:
+            canceladas.append(venda)
+    return ativas, canceladas
+
+
+def _partes_da_venda(venda) -> list:
+    if venda.partes:
+        return venda.partes
+    if venda.forma:
+        return [{"forma": venda.forma, "valor": venda.valor}]
+    return []
+
+
 def _dinheiro_recebido(sessao) -> Decimal:
+    ativas, _canceladas = _vendas_da_sessao(sessao)
     total = Decimal("0")
-    for venda in sessao.vendas.filter(is_active=True):
-        for parte in venda.partes or []:
-            if isinstance(parte, dict) and parte.get("forma") == "dinheiro":
-                total += quantia(parte.get("valor"))
+    for venda in ativas:
+        total += somar_por_forma(_partes_da_venda(venda)).get("dinheiro", Decimal("0"))
     return total
 
 
@@ -83,10 +119,45 @@ def _movimentos(sessao) -> tuple[Decimal, Decimal]:
     return suprimentos, sangrias
 
 
+def _resumo_formas(sessao) -> tuple[list, Decimal, Decimal]:
+    from .formas_service import rotulos_conhecidos
+
+    nomes = rotulos_conhecidos()
+    ativas, canceladas = _vendas_da_sessao(sessao)
+    totais = {}
+    recebido = Decimal("0")
+    for venda in ativas:
+        recebido += quantia(venda.valor)
+        for codigo, valor in somar_por_forma(_partes_da_venda(venda)).items():
+            totais[codigo] = totais.get(codigo, Decimal("0")) + valor
+    estornos = sum((quantia(venda.valor) for venda in canceladas), Decimal("0"))
+    ordem = ["dinheiro", "pix", "debito", "credito"]
+    codigos = [codigo for codigo in ordem if codigo in totais] + [codigo for codigo in totais if codigo not in ordem]
+    por_forma = [
+        {"forma": codigo, "nome": nomes.get(codigo, codigo), "total": f"{totais[codigo]:.2f}"}
+        for codigo in codigos
+    ]
+    return por_forma, recebido, estornos
+
+
+def _lista_movimentos(sessao) -> list:
+    return [
+        {
+            "tipo": item.tipo,
+            "valor": f"{quantia(item.valor):.2f}",
+            "motivo": item.motivo,
+            "operador": item.operador_nome,
+            "quando": timezone.localtime(item.created_at).strftime("%d/%m/%Y %H:%M"),
+        }
+        for item in sessao.movimentos.all().order_by("-created_at")
+    ]
+
+
 def resumo_sessao(sessao) -> dict:
     dinheiro = _dinheiro_recebido(sessao)
     suprimentos, sangrias = _movimentos(sessao)
     esperado = saldo_esperado(sessao.saldo_inicial, dinheiro, suprimentos, sangrias)
+    por_forma, recebido, estornos = _resumo_formas(sessao)
     return {
         "id": sessao.id,
         "operador": sessao.operador_nome,
@@ -96,6 +167,10 @@ def resumo_sessao(sessao) -> dict:
         "suprimentos": f"{suprimentos:.2f}",
         "sangrias": f"{sangrias:.2f}",
         "esperado": f"{esperado:.2f}",
+        "por_forma": por_forma,
+        "estornos": f"{estornos:.2f}",
+        "total": f"{recebido:.2f}",
+        "movimentos": _lista_movimentos(sessao),
         "fechada_em": timezone.localtime(sessao.fechada_em).strftime("%d/%m/%Y %H:%M") if sessao.fechada_em else "",
         "operador_fechamento": sessao.operador_fechamento,
         "dinheiro_contado": "" if sessao.dinheiro_contado is None else f"{quantia(sessao.dinheiro_contado):.2f}",
@@ -160,12 +235,16 @@ def fechar_caixa(operador: str, dinheiro_contado, observacao: str = "") -> dict:
     if contado < 0:
         raise ValueError("O dinheiro contado não pode ser negativo.")
     atual = resumo_sessao(sessao)
+    texto = (observacao or "").strip()
+    aviso = exige_justificativa(diferenca_caixa(contado, atual["esperado"]), texto)
+    if aviso:
+        raise ValueError(aviso)
     sessao.is_active = False
     sessao.fechada_em = timezone.now()
     sessao.operador_fechamento = (operador or "")[:160]
     sessao.dinheiro_contado = contado
     sessao.diferenca = diferenca_caixa(contado, atual["esperado"])
-    sessao.observacao = (observacao or "")[:200]
+    sessao.observacao = texto[:200]
     sessao.save(update_fields=[
         "is_active",
         "fechada_em",

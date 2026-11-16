@@ -10,7 +10,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .agenda_service import conflito_horario, interpretar_inicio
-from .caixa_service import calcular_recebimento, interpretar_formas, motivo_bloqueio_recebimento, quantia, rotulo_formas
+from .caixa_service import comissao_do_atendimento, gravar_comissoes, interpretar_formas, motivo_bloqueio_recebimento, quantia, rotulo_formas
 from .comunicacao_service import avisar_mudanca, enviar_evento, regras_de, validar_regras, whatsapp_pronto
 from .catalogo import garantir_catalogo_inicial
 from .models import FORMAS_PAGAMENTO, PAINEIS, STATUS_AGENDAMENTO, STATUS_OCUPA_HORARIO, Agendamento, Bloqueio, Cliente, HorarioTrabalho, Profissional, Recebimento, SalaoConfig, Servico, Venda
@@ -148,13 +148,17 @@ class ProfissionalListCreateView(APIView):
     permission_classes = [IsAuthenticated, IsSalaoMembro]
 
     def get(self, request):
-        qs = Profissional.objects.filter(is_active=True).order_by("nome")
+        qs = Profissional.objects.filter(is_active=True).prefetch_related("comissoes__servico").order_by("nome")
         return Response(ProfissionalSerializer(qs, many=True).data)
 
     def post(self, request):
         serializer = ProfissionalSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         profissional = serializer.save()
+        try:
+            gravar_comissoes(profissional, request.data.get("comissoes"))
+        except ValueError as exc:
+            return _erro(str(exc))
         for dia in range(6):
             HorarioTrabalho.objects.create(
                 profissional=profissional,
@@ -177,6 +181,10 @@ class ProfissionalDetailView(GetObjectMixin, APIView):
         serializer = ProfissionalSerializer(profissional, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
+        try:
+            gravar_comissoes(profissional, request.data.get("comissoes") if "comissoes" in request.data else None)
+        except ValueError as exc:
+            return _erro(str(exc))
         return Response(ProfissionalSerializer(profissional).data)
 
     def delete(self, request, pk):
@@ -705,10 +713,11 @@ class ReceberAgendamentoView(APIView):
             return _erro(motivo, status.HTTP_403_FORBIDDEN)
         try:
             desconto = quantia(request.data.get("desconto") or 0)
-            valor, comissao = calcular_recebimento(
+            valor, comissao, percentual = comissao_do_atendimento(
+                agendamento.profissional,
+                agendamento.servico_id,
                 agendamento.servico.preco,
                 desconto,
-                agendamento.profissional.comissao_percentual,
             )
             partes = interpretar_formas(request.data, valor)
         except ValueError as exc:
@@ -721,7 +730,7 @@ class ReceberAgendamentoView(APIView):
             valor=valor,
             forma=partes[0]["forma"] if partes else "dinheiro",
             partes=partes,
-            comissao_percentual=agendamento.profissional.comissao_percentual,
+            comissao_percentual=percentual,
             comissao_valor=comissao,
             observacao=(request.data.get("observacao") or "")[:200],
         )

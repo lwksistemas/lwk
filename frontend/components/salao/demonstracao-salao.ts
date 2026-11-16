@@ -18,9 +18,9 @@ const SERVICOS = [
 
 export function profissionaisDemonstracao(): ProfissionalSalao[] {
   return [
-    { id: 1, nome: "Marina Costa", telefone: "", especialidade: "Coloração", comissao_percentual: "40.00" },
-    { id: 2, nome: "Paulo Henrique", telefone: "", especialidade: "Corte", comissao_percentual: "35.00" },
-    { id: 3, nome: "Lúcia Ferreira", telefone: "", especialidade: "Manicure", comissao_percentual: "30.00" },
+    { id: 1, nome: "Marina Costa", telefone: "", especialidade: "Coloração", comissao_tipo: "percentual", comissao_percentual: "40.00", comissao_fixa: "0.00", comissoes: [] },
+    { id: 2, nome: "Paulo Henrique", telefone: "", especialidade: "Corte", comissao_tipo: "percentual", comissao_percentual: "35.00", comissao_fixa: "0.00", comissoes: [] },
+    { id: 3, nome: "Lúcia Ferreira", telefone: "", especialidade: "Manicure", comissao_tipo: "percentual", comissao_percentual: "30.00", comissao_fixa: "0.00", comissoes: [] },
   ];
 }
 

@@ -54,6 +54,16 @@ class CaixaSalaoTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             calcular_recebimento(Decimal("70.00"), Decimal("80.00"), Decimal("10.00"))
 
+    def test_valor_fixo_nao_passa_do_recebido(self):
+        valor, comissao = calcular_recebimento(Decimal("40.00"), Decimal("30.00"), 0, tipo="fixo", fixo="15")
+        self.assertEqual(valor, Decimal("10.00"))
+        self.assertEqual(comissao, Decimal("10.00"))
+
+    def test_valor_fixo_abaixo_do_recebido(self):
+        valor, comissao = calcular_recebimento(Decimal("40.00"), Decimal("0"), 0, tipo="fixo", fixo="15")
+        self.assertEqual(valor, Decimal("40.00"))
+        self.assertEqual(comissao, Decimal("15.00"))
+
     def test_sem_desconto_arredonda_a_comissao(self):
         valor, comissao = calcular_recebimento("70,00", "0", "33.33")
         self.assertEqual(valor, Decimal("70.00"))

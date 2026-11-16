@@ -25,9 +25,51 @@ class ClienteSerializer(serializers.ModelSerializer):
 
 
 class ProfissionalSerializer(serializers.ModelSerializer):
+    comissoes = serializers.SerializerMethodField()
+
     class Meta:
         model = Profissional
-        fields = ["id", "nome", "telefone", "email", "especialidade", "comissao_percentual", "is_active"]
+        fields = [
+            "id",
+            "nome",
+            "telefone",
+            "email",
+            "especialidade",
+            "comissao_tipo",
+            "comissao_percentual",
+            "comissao_fixa",
+            "comissoes",
+            "is_active",
+        ]
+
+    def get_comissoes(self, profissional):
+        return [
+            {
+                "servico": item.servico_id,
+                "nome": item.servico.nome,
+                "tipo": item.tipo,
+                "valor": f"{item.valor:.2f}",
+            }
+            for item in profissional.comissoes.select_related("servico").all()
+        ]
+
+    def validate_comissao_tipo(self, valor):
+        tipo = (valor or "percentual").strip()
+        if tipo not in {"percentual", "fixo"}:
+            raise serializers.ValidationError("Escolha porcentagem ou valor fixo.")
+        return tipo
+
+    def validate_comissao_percentual(self, valor):
+        percentual = Decimal(str(valor or 0))
+        if percentual < 0 or percentual > 100:
+            raise serializers.ValidationError("A porcentagem fica entre 0 e 100.")
+        return percentual
+
+    def validate_comissao_fixa(self, valor):
+        fixa = Decimal(str(valor or 0))
+        if fixa < 0:
+            raise serializers.ValidationError("O valor fixo não pode ser negativo.")
+        return fixa
 
     def validate_nome(self, valor):
         nome = (valor or "").strip()

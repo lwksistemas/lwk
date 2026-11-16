@@ -72,12 +72,22 @@ export type ClienteSalao = {
   data_nascimento?: string | null;
 };
 
+export type ComissaoProcedimentoSalao = {
+  servico: number;
+  nome: string;
+  tipo: "percentual" | "fixo";
+  valor: string;
+};
+
 export type ProfissionalSalao = {
   id: number;
   nome: string;
   telefone: string;
   especialidade: string;
+  comissao_tipo: "percentual" | "fixo";
   comissao_percentual: string;
+  comissao_fixa: string;
+  comissoes: ComissaoProcedimentoSalao[];
 };
 
 export type ServicoSalao = {

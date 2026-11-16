@@ -76,6 +76,9 @@ class Cliente(ClienteBase):
 
 
 class Profissional(ProfissionalBase):
+    comissao_tipo = models.CharField(max_length=12, default="percentual")
+    comissao_fixa = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("0"))
+
     class Meta:
         verbose_name = "Profissional"
         ordering = ["nome"]
@@ -85,6 +88,21 @@ class Servico(ServicoBase):
     class Meta:
         verbose_name = "Serviço"
         ordering = ["categoria", "nome"]
+
+
+class ComissaoProcedimento(models.Model):
+    """Comissão deste profissional neste serviço. Sem registro, vale a comissão padrão dele."""
+
+    profissional = models.ForeignKey(Profissional, on_delete=models.CASCADE, related_name="comissoes")
+    servico = models.ForeignKey(Servico, on_delete=models.CASCADE, related_name="comissoes")
+    tipo = models.CharField(max_length=12, default="percentual")
+    valor = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("0"))
+
+    class Meta:
+        verbose_name = "Comissão do procedimento"
+        constraints = [
+            models.UniqueConstraint(fields=["profissional", "servico"], name="salao_comissao_profissional_servico"),
+        ]
 
 
 class HorarioTrabalho(HorarioTrabalhoProfissionalBase):

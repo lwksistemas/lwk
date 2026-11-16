@@ -1,15 +1,19 @@
 "use client";
 
 import { useEffect, useState, type Dispatch, type FormEvent, type SetStateAction } from "react";
-import { SalaoAPI, type BloqueioSalao, type JornadaDia, type ProfissionalSalao } from "@/lib/salao-api";
+import { SalaoAPI, type BloqueioSalao, type JornadaDia, type ProfissionalSalao, type ServicoSalao } from "@/lib/salao-api";
 
 const DIAS = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"];
 const CAMPO = "w-full rounded-lg border px-2 py-2";
-const VAZIO = { nome: "", telefone: "", especialidade: "Cabeleireiro", comissao_percentual: "0" };
+const VAZIO = { nome: "", telefone: "", especialidade: "Cabeleireiro", comissao_tipo: "percentual", comissao_percentual: "0", comissao_fixa: "0" };
+
+type Regra = { servico: number; nome: string; tipo: "percentual" | "fixo"; valor: string };
 const FOLGA_VAZIA = { titulo: "", data_inicio: "", data_fim: "", horario_inicio: "", horario_fim: "" };
 
 export default function ProfissionaisSalaoPage() {
   const [lista, setLista] = useState<ProfissionalSalao[]>([]);
+  const [servicos, setServicos] = useState<ServicoSalao[]>([]);
+  const [regras, setRegras] = useState<Regra[]>([]);
   const [bloqueios, setBloqueios] = useState<BloqueioSalao[]>([]);
   const [escolhido, setEscolhido] = useState<number | null>(null);
   const [form, setForm] = useState(VAZIO);
@@ -20,10 +24,11 @@ export default function ProfissionaisSalaoPage() {
   const [aviso, setAviso] = useState("");
 
   function carregar() {
-    Promise.all([SalaoAPI.profissionais(), SalaoAPI.bloqueios()])
-      .then(([pessoas, folgas]) => {
+    Promise.all([SalaoAPI.profissionais(), SalaoAPI.bloqueios(), SalaoAPI.servicos()])
+      .then(([pessoas, folgas, procedimentos]) => {
         setLista(pessoas);
         setBloqueios(folgas);
+        setServicos(procedimentos);
       })
       .catch((exc: Error) => setErro(exc.message));
   }
@@ -37,8 +42,11 @@ export default function ProfissionaisSalaoPage() {
       nome: item.nome,
       telefone: item.telefone,
       especialidade: item.especialidade,
+      comissao_tipo: item.comissao_tipo || "percentual",
       comissao_percentual: String(item.comissao_percentual),
+      comissao_fixa: String(item.comissao_fixa || "0"),
     });
+    setRegras(montarRegras(servicos, item.comissoes, item.comissao_tipo || "percentual"));
     setJornada([]);
     setAberto(true);
     setJornada(await SalaoAPI.jornada(item.id));
@@ -47,6 +55,7 @@ export default function ProfissionaisSalaoPage() {
   function novo() {
     setEscolhido(null);
     setForm(VAZIO);
+    setRegras(montarRegras(servicos, []));
     setJornada([]);
     setFolga(FOLGA_VAZIA);
     setErro("");
@@ -58,6 +67,7 @@ export default function ProfissionaisSalaoPage() {
     setAberto(false);
     setEscolhido(null);
     setForm(VAZIO);
+    setRegras([]);
     setJornada([]);
     setFolga(FOLGA_VAZIA);
     setErro("");
@@ -69,7 +79,16 @@ export default function ProfissionaisSalaoPage() {
     setErro("");
     setAviso("");
     try {
-      const corpo = { ...form, comissao_percentual: form.comissao_percentual.replace(",", ".") };
+      const corpo = {
+        ...form,
+        comissao_percentual: form.comissao_percentual.replace(",", "."),
+        comissao_fixa: form.comissao_fixa.replace(",", "."),
+        comissoes: regras.filter((regra) => regra.valor.trim() !== "").map((regra) => ({
+          servico: regra.servico,
+          tipo: regra.tipo,
+          valor: regra.valor.replace(",", "."),
+        })),
+      };
       const salvo = await SalaoAPI.salvarProfissional(corpo, escolhido ?? undefined);
       if (jornada.length === 7) await SalaoAPI.salvarJornada(salvo.id, jornada);
       setEscolhido(salvo.id);
@@ -133,7 +152,7 @@ export default function ProfissionaisSalaoPage() {
             <button type="button" className="flex h-full w-full items-start justify-between gap-3 rounded-3xl border border-[#f0e4e6] bg-white px-4 py-3 text-left hover:bg-[#fbf6f4]" onClick={() => abrir(item)}>
               <span>
                 <span className="block font-medium">{item.nome}</span>
-                <span className="mt-0.5 block text-sm text-[#8a6e74]">{item.especialidade} · {item.comissao_percentual}%</span>
+                <span className="mt-0.5 block text-sm text-[#8a6e74]">{item.especialidade} · {rotuloComissao(item)}</span>
               </span>
               <span className="shrink-0 text-sm text-[#8a6e74]">{item.telefone}</span>
             </button>
@@ -157,9 +176,35 @@ export default function ProfissionaisSalaoPage() {
                 <label className="text-sm">Função
                   <input className={`mt-1 ${CAMPO}`} value={form.especialidade} onChange={(evento) => setForm({ ...form, especialidade: evento.target.value })} />
                 </label>
-                <label className="text-sm">Comissão %
-                  <input className={`mt-1 ${CAMPO}`} value={form.comissao_percentual} onChange={(evento) => setForm({ ...form, comissao_percentual: evento.target.value })} />
+                <label className="text-sm">Comissão padrão
+                  <select className={`mt-1 ${CAMPO}`} value={form.comissao_tipo} onChange={(evento) => {
+                    const tipo = evento.target.value === "fixo" ? "fixo" : "percentual";
+                    setForm({ ...form, comissao_tipo: tipo });
+                    setRegras((atual) => atual.map((regra) => regra.valor.trim() ? regra : { ...regra, tipo }));
+                  }}>
+                    <option value="percentual">Porcentagem</option>
+                    <option value="fixo">Valor fixo</option>
+                  </select>
                 </label>
+                <label className="text-sm">{form.comissao_tipo === "fixo" ? "Valor fixo (R$)" : "Porcentagem"}
+                  <input className={`mt-1 ${CAMPO}`} value={form.comissao_tipo === "fixo" ? form.comissao_fixa : form.comissao_percentual} onChange={(evento) => setForm(form.comissao_tipo === "fixo" ? { ...form, comissao_fixa: evento.target.value } : { ...form, comissao_percentual: evento.target.value })} />
+                </label>
+              </div>
+              <div className="mt-4">
+                <h3 className="text-sm font-medium">Comissão por procedimento</h3>
+                <p className="mt-1 text-xs text-[#8a6e74]">Em branco, o procedimento usa a comissão padrão. Exemplo: Barba em valor fixo e Corte masculino em porcentagem.</p>
+                <div className="mt-2 space-y-2">
+                  {regras.map((regra, indice) => (
+                    <div key={regra.servico} className="grid grid-cols-[1fr_9rem_7rem] items-center gap-2 text-sm">
+                      <span>{regra.nome}</span>
+                      <select className={CAMPO} value={regra.tipo} onChange={(evento) => alterarRegra(setRegras, indice, { tipo: evento.target.value as Regra["tipo"] })}>
+                        <option value="percentual">Porcentagem</option>
+                        <option value="fixo">Valor fixo</option>
+                      </select>
+                      <input className={CAMPO} value={regra.valor} placeholder={form.comissao_tipo === "fixo" ? form.comissao_fixa : form.comissao_percentual} onChange={(evento) => alterarRegra(setRegras, indice, { valor: evento.target.value })} />
+                    </div>
+                  ))}
+                </div>
               </div>
               {escolhido && jornada.length === 7 ? (
                 <div className="mt-4 overflow-auto">
@@ -218,6 +263,22 @@ export default function ProfissionaisSalaoPage() {
       ) : null}
     </div>
   );
+}
+
+function montarRegras(procedimentos: ServicoSalao[], gravadas: ProfissionalSalao["comissoes"] = [], tipoPadrao: Regra["tipo"] = "percentual") {
+  return procedimentos.map((servico) => {
+    const atual = gravadas.find((item) => item.servico === servico.id);
+    return { servico: servico.id, nome: servico.nome, tipo: atual?.tipo || tipoPadrao, valor: atual ? atual.valor : "" };
+  });
+}
+
+function rotuloComissao(item: ProfissionalSalao) {
+  const padrao = item.comissao_tipo === "fixo" ? `R$ ${item.comissao_fixa}` : `${item.comissao_percentual}%`;
+  return item.comissoes?.length ? `${padrao} · por procedimento` : padrao;
+}
+
+function alterarRegra(setRegras: Dispatch<SetStateAction<Regra[]>>, indice: number, parcial: Partial<Regra>) {
+  setRegras((atual) => atual.map((regra, posicao) => posicao === indice ? { ...regra, ...parcial } : regra));
 }
 
 function alterarDia(setJornada: Dispatch<SetStateAction<JornadaDia[]>>, indice: number, parcial: Partial<JornadaDia>) {

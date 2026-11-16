@@ -69,14 +69,71 @@ def rotulo_formas(partes, forma_unica: str) -> str:
     return " e ".join(ROTULOS.get(item.get("forma"), item.get("forma", "")) for item in partes)
 
 
-def calcular_recebimento(preco, desconto, percentual) -> tuple[Decimal, Decimal]:
+def calcular_recebimento(preco, desconto, percentual, *, tipo="percentual", fixo=Decimal("0")) -> tuple[Decimal, Decimal]:
     preco = quantia(preco)
     desconto = quantia(desconto)
     percentual = quantia(percentual)
+    fixo = quantia(fixo)
     if desconto < 0 or desconto > preco:
         raise ValueError("O desconto não pode passar do valor do serviço.")
-    if percentual < 0:
+    if percentual < 0 or fixo < 0:
         raise ValueError("A comissão do profissional não pode ser negativa.")
+    if tipo == "percentual" and percentual > 100:
+        raise ValueError("A porcentagem da comissão não pode passar de 100.")
     valor = (preco - desconto).quantize(CENTAVO, rounding=ROUND_HALF_UP)
+    if tipo == "fixo":
+        return valor, min(fixo, valor)
     comissao = (valor * percentual / Decimal("100")).quantize(CENTAVO, rounding=ROUND_HALF_UP)
     return valor, comissao
+
+
+def regra_da_comissao(profissional, servico_id):
+    """O procedimento escolhido pelo administrador vale mais que a comissão padrão."""
+    from .models import ComissaoProcedimento
+
+    regra = ComissaoProcedimento.objects.filter(profissional=profissional, servico_id=servico_id).first()
+    if regra is not None:
+        return regra.tipo, regra.valor
+    tipo = getattr(profissional, "comissao_tipo", "") or "percentual"
+    if tipo == "fixo":
+        return "fixo", profissional.comissao_fixa
+    return "percentual", profissional.comissao_percentual
+
+
+def gravar_comissoes(profissional, itens) -> None:
+    """Grava só o procedimento que o administrador definiu. Lista vazia apaga as regras."""
+    from .models import ComissaoProcedimento, Servico
+
+    if itens is None:
+        return
+    if not isinstance(itens, list):
+        raise ValueError("Informe a comissão de cada procedimento.")
+    mantidos = []
+    for item in itens:
+        if not isinstance(item, dict):
+            continue
+        tipo = (item.get("tipo") or "percentual").strip()
+        if tipo not in {"percentual", "fixo"}:
+            raise ValueError("Escolha porcentagem ou valor fixo em cada procedimento.")
+        valor = quantia(item.get("valor") or 0)
+        if valor < 0 or (tipo == "percentual" and valor > 100):
+            raise ValueError("A porcentagem fica entre 0 e 100. O valor fixo não pode ser negativo.")
+        servico = Servico.objects.filter(pk=item.get("servico"), is_active=True).first()
+        if servico is None:
+            continue
+        regra, _criada = ComissaoProcedimento.objects.update_or_create(
+            profissional=profissional,
+            servico=servico,
+            defaults={"tipo": tipo, "valor": valor},
+        )
+        mantidos.append(regra.id)
+    ComissaoProcedimento.objects.filter(profissional=profissional).exclude(id__in=mantidos).delete()
+
+
+def comissao_do_atendimento(profissional, servico_id, preco, desconto) -> tuple[Decimal, Decimal, Decimal]:
+    tipo, base = regra_da_comissao(profissional, servico_id)
+    if tipo == "fixo":
+        valor, comissao = calcular_recebimento(preco, desconto, 0, tipo="fixo", fixo=base)
+        return valor, comissao, Decimal("0")
+    valor, comissao = calcular_recebimento(preco, desconto, base)
+    return valor, comissao, quantia(base)

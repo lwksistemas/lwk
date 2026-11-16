@@ -26,7 +26,7 @@ def gravar(modelo, **kwargs):
         return modelo.objects.using(banco).create(**kwargs)
     return modelo.objects.create(**kwargs)
 
-from .caixa_service import calcular_recebimento, interpretar_formas, motivo_bloqueio_recebimento, quantia, rotulo_formas
+from .caixa_service import comissao_do_atendimento, interpretar_formas, motivo_bloqueio_recebimento, quantia, rotulo_formas
 from .models import MovimentoEstoque, Produto, Recebimento, Venda, VendaItem
 
 
@@ -114,10 +114,11 @@ def registrar_venda(dados, agendamento, papel: str, local: str, origem: str) -> 
                 raise ValueError(f"{produto.nome} tem {produto.saldo} no estoque.")
         desconto = quantia(dados.get("desconto") or 0) if agendamento is not None else Decimal("0")
         if agendamento is not None:
-            valor_servico, comissao = calcular_recebimento(
+            valor_servico, comissao, percentual = comissao_do_atendimento(
+                agendamento.profissional,
+                agendamento.servico_id,
                 agendamento.servico.preco,
                 desconto,
-                agendamento.profissional.comissao_percentual,
             )
         else:
             valor_servico, comissao = Decimal("0"), Decimal("0")
@@ -139,7 +140,7 @@ def registrar_venda(dados, agendamento, papel: str, local: str, origem: str) -> 
                 valor=valor_servico,
                 forma=partes_servico[0]["forma"] if partes_servico else (partes[0]["forma"] if partes else "dinheiro"),
                 partes=partes_servico,
-                comissao_percentual=agendamento.profissional.comissao_percentual,
+                comissao_percentual=percentual,
                 comissao_valor=comissao,
                 observacao=(dados.get("observacao") or "")[:200],
             )

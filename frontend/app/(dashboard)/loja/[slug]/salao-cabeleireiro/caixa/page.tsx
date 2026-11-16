@@ -169,6 +169,7 @@ export default function CaixaPdvPage() {
   const [contado, setContado] = useState("");
   const [valorCaixa, setValorCaixa] = useState("");
   const [motivoCaixa, setMotivoCaixa] = useState("");
+  const [painelCaixa, setPainelCaixa] = useState(false);
   const [busca, setBusca] = useState("");
   const [fila, setFila] = useState<AgendamentoSalao[]>([]);
   const [clientes, setClientes] = useState<ClienteSalao[]>([]);
@@ -563,7 +564,11 @@ export default function CaixaPdvPage() {
           <p className="text-sm text-[#8a6e74]">Recebimento de atendimentos e venda de produtos</p>
         </div>
         <div className="flex flex-wrap items-center gap-2 text-sm">
-          <span className="rounded-full bg-[#e7f6ee] px-3 py-1 font-medium text-[#1f8a4c]">{sessao?.exige_abertura ? (sessao.aberta ? "Caixa aberto" : "Caixa fechado") : abertura ? "Caixa aberto" : "Caixa sem sessão"}</span>
+          {sessao?.exige_abertura && sessao.aberta ? (
+            <button type="button" onClick={() => setPainelCaixa((aberto) => !aberto)} className="rounded-full bg-[#e7f6ee] px-3 py-1 font-medium text-[#1f8a4c]">Caixa aberto</button>
+          ) : (
+            <span className="rounded-full bg-[#e7f6ee] px-3 py-1 font-medium text-[#1f8a4c]">{sessao?.exige_abertura ? "Caixa fechado" : abertura ? "Caixa aberto" : "Caixa sem sessão"}</span>
+          )}
           <span className="rounded-full bg-white px-3 py-1 text-[#5c3d45]">{sessao?.exige_abertura ? (sessao.aberta ? `Abertura: ${sessao.aberta.aberta_em}` : "Abra o caixa para receber") : `Abertura: ${abertura || "na primeira venda"}`}</span>
           <span className="ml-1 flex items-center gap-2 rounded-full bg-white px-2 py-1 pr-3">
             <span className="grid h-8 w-8 place-items-center rounded-full bg-[#7a3044] text-xs font-semibold text-white">{iniciais(operador || "Caixa")}</span>
@@ -572,35 +577,27 @@ export default function CaixaPdvPage() {
         </div>
       </header>
 
-      {sessao?.exige_abertura ? (
+      {sessao?.exige_abertura && !sessao.aberta ? (
         <section className="rounded-3xl bg-white p-4 text-sm">
-          {sessao.aberta ? (
-            <div className="space-y-3">
-              <p>Saldo inicial {reais(lerReais(sessao.aberta.saldo_inicial))} · Dinheiro {reais(lerReais(sessao.aberta.dinheiro))} · Suprimentos {reais(lerReais(sessao.aberta.suprimentos))} · Sangrias {reais(lerReais(sessao.aberta.sangrias))} · Esperado na gaveta {reais(lerReais(sessao.aberta.esperado))}</p>
-              <div className="flex flex-wrap gap-2">
-                <input value={valorCaixa} onChange={(evento) => setValorCaixa(evento.target.value)} placeholder="Valor" className="w-28 rounded-xl border border-[#eadfe2] px-3 py-2" />
-                <input value={motivoCaixa} onChange={(evento) => setMotivoCaixa(evento.target.value)} placeholder="Motivo" className="min-w-40 flex-1 rounded-xl border border-[#eadfe2] px-3 py-2" />
-                <button type="button" className="rounded-xl bg-[#f6eef0] px-3 py-2" onClick={() => void SalaoAPI.movimentoCaixa("sangria", valorCaixa, motivoCaixa).then((aberta) => { setSessao({ ...sessao, aberta }); setValorCaixa(""); setMotivoCaixa(""); }).catch((exc: Error) => setErro(exc.message))}>Sangria</button>
-                <button type="button" className="rounded-xl bg-[#f6eef0] px-3 py-2" onClick={() => void SalaoAPI.movimentoCaixa("suprimento", valorCaixa, motivoCaixa).then((aberta) => { setSessao({ ...sessao, aberta }); setValorCaixa(""); setMotivoCaixa(""); }).catch((exc: Error) => setErro(exc.message))}>Suprimento</button>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <input value={contado} onChange={(evento) => setContado(evento.target.value)} placeholder="Dinheiro contado" className="w-40 rounded-xl border border-[#eadfe2] px-3 py-2" />
-                <button type="button" className="rounded-xl bg-[#7a3044] px-3 py-2 text-white" onClick={() => void SalaoAPI.fecharCaixa(contado, "").then(() => SalaoAPI.sessaoCaixa().then(setSessao)).catch((exc: Error) => setErro(exc.message))}>Fechar caixa</button>
-              </div>
-            </div>
-          ) : (
-            <div className="flex flex-wrap items-center gap-2">
-              <input value={saldoInicial} onChange={(evento) => setSaldoInicial(evento.target.value)} placeholder="Saldo inicial" className="w-40 rounded-xl border border-[#eadfe2] px-3 py-2" />
-              <button type="button" className="rounded-xl bg-[#7a3044] px-3 py-2 text-white" onClick={() => void SalaoAPI.abrirCaixa(saldoInicial || "0").then(() => SalaoAPI.sessaoCaixa().then(setSessao)).catch((exc: Error) => setErro(exc.message))}>Abrir caixa</button>
-            </div>
-          )}
-          {sessao.historico.length > 0 ? (
-            <ul className="mt-3 space-y-1 text-xs text-[#8a6e74]">
-              {sessao.historico.slice(0, 4).map((item) => (
-                <li key={item.id}>Fechado {item.fechada_em} · {item.operador_fechamento || item.operador} · contado {reais(lerReais(item.dinheiro_contado || "0"))} · diferença {reais(lerReais(item.diferenca || "0"))}</li>
-              ))}
-            </ul>
-          ) : null}
+          <div className="flex flex-wrap items-center gap-2">
+            <input value={saldoInicial} onChange={(evento) => setSaldoInicial(evento.target.value)} placeholder="Saldo inicial" className="w-40 rounded-xl border border-[#eadfe2] px-3 py-2" />
+            <button type="button" className="rounded-xl bg-[#7a3044] px-3 py-2 text-white" onClick={() => void SalaoAPI.abrirCaixa(saldoInicial || "0").then(() => { setPainelCaixa(false); return SalaoAPI.sessaoCaixa(); }).then(setSessao).catch((exc: Error) => setErro(exc.message))}>Abrir caixa</button>
+          </div>
+        </section>
+      ) : null}
+      {sessao?.exige_abertura && sessao.aberta && painelCaixa ? (
+        <section className="rounded-3xl bg-white p-4 text-sm">
+          <p>Saldo inicial {reais(lerReais(sessao.aberta.saldo_inicial))} · Dinheiro {reais(lerReais(sessao.aberta.dinheiro))} · Suprimentos {reais(lerReais(sessao.aberta.suprimentos))} · Sangrias {reais(lerReais(sessao.aberta.sangrias))} · Esperado na gaveta {reais(lerReais(sessao.aberta.esperado))}</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <input value={valorCaixa} onChange={(evento) => setValorCaixa(evento.target.value)} placeholder="Valor" className="w-28 rounded-xl border border-[#eadfe2] px-3 py-2" />
+            <input value={motivoCaixa} onChange={(evento) => setMotivoCaixa(evento.target.value)} placeholder="Motivo" className="min-w-40 flex-1 rounded-xl border border-[#eadfe2] px-3 py-2" />
+            <button type="button" className="rounded-xl bg-[#f6eef0] px-3 py-2" onClick={() => void SalaoAPI.movimentoCaixa("sangria", valorCaixa, motivoCaixa).then((aberta) => { setSessao({ ...sessao, aberta }); setValorCaixa(""); setMotivoCaixa(""); }).catch((exc: Error) => setErro(exc.message))}>Sangria</button>
+            <button type="button" className="rounded-xl bg-[#f6eef0] px-3 py-2" onClick={() => void SalaoAPI.movimentoCaixa("suprimento", valorCaixa, motivoCaixa).then((aberta) => { setSessao({ ...sessao, aberta }); setValorCaixa(""); setMotivoCaixa(""); }).catch((exc: Error) => setErro(exc.message))}>Suprimento</button>
+          </div>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <input value={contado} onChange={(evento) => setContado(evento.target.value)} placeholder="Dinheiro contado" className="w-40 rounded-xl border border-[#eadfe2] px-3 py-2" />
+            <button type="button" className="rounded-xl bg-[#7a3044] px-3 py-2 text-white" onClick={() => void SalaoAPI.fecharCaixa(contado, "").then(() => { setPainelCaixa(false); return SalaoAPI.sessaoCaixa(); }).then(setSessao).catch((exc: Error) => setErro(exc.message))}>Fechar caixa</button>
+          </div>
         </section>
       ) : null}
 

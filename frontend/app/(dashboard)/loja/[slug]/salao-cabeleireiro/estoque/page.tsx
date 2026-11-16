@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { ImportarXmlModal } from "@/components/salao/ImportarXmlModal";
 import { SalaoAPI, type ProdutoSalao } from "@/lib/salao-api";
 
 const VAZIO = { nome: "", codigo_barras: "", preco: "", saldo: "", comissao_percentual: "" };
@@ -16,6 +17,7 @@ export default function EstoqueSalaoPage() {
   const [editando, setEditando] = useState<number | null>(null);
   const [erro, setErro] = useState("");
   const [salvando, setSalvando] = useState(false);
+  const [importar, setImportar] = useState(false);
 
   function carregar() {
     return SalaoAPI.produtos().then(setProdutos).catch((exc: Error) => setErro(exc.message));
@@ -63,7 +65,10 @@ export default function EstoqueSalaoPage() {
           <h1 className="text-2xl font-semibold">Estoque</h1>
           <p className="text-sm text-[#8a6e74]">O saldo baixa só quando o caixa confirma a venda.</p>
         </div>
-        <button type="button" onClick={() => abrir()} className="rounded-full bg-[#7a3044] px-4 py-2 text-sm text-white">Adicionar produto</button>
+        <div className="flex gap-2">
+          <button type="button" onClick={() => setImportar(true)} className="rounded-full border border-[#eadfe2] bg-white px-4 py-2 text-sm">Importar XML</button>
+          <button type="button" onClick={() => abrir()} className="rounded-full bg-[#7a3044] px-4 py-2 text-sm text-white">Adicionar produto</button>
+        </div>
       </div>
       {erro && !form ? <p className="mb-3 text-sm text-red-700">{erro}</p> : null}
       <div className="grid gap-3 md:grid-cols-2">
@@ -76,6 +81,7 @@ export default function EstoqueSalaoPage() {
           </button>
         ))}
       </div>
+      <ImportarXmlModal aberto={importar} onFechar={() => setImportar(false)} onImportou={() => { carregar(); }} />
       {form ? (
         <div className="fixed inset-0 z-40 grid place-items-center bg-black/40 p-4" role="dialog" aria-modal="true">
           <div className="w-full max-w-md rounded-3xl bg-white p-5">

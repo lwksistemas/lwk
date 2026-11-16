@@ -280,3 +280,72 @@ class MovimentoEstoque(models.Model):
     class Meta:
         verbose_name = "Movimento de estoque"
         ordering = ["-created_at"]
+
+
+class NotaEntradaSalao(models.Model):
+    """NF-e de fornecedor. O saldo só muda quando o caixa confirma a importação."""
+
+    STATUS_RESUMO = "resumo"
+    STATUS_PENDENTE = "pendente"
+    STATUS_IMPORTADA = "importada"
+    STATUS_IGNORADA = "ignorada"
+
+    loja_id = models.IntegerField(db_index=True)
+    chave = models.CharField(max_length=44)
+    numero = models.CharField(max_length=20, blank=True, default="")
+    fornecedor_nome = models.CharField(max_length=200, blank=True, default="")
+    fornecedor_documento = models.CharField(max_length=20, blank=True, default="")
+    destinatario_documento = models.CharField(max_length=20, blank=True, default="")
+    data_emissao = models.DateField(null=True, blank=True)
+    valor = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True)
+    xml = models.TextField(blank=True, default="")
+    status = models.CharField(max_length=20, default=STATUS_PENDENTE)
+    origem = models.CharField(max_length=20, default="arquivo")
+    nsu = models.CharField(max_length=20, blank=True, default="")
+    ultimo_erro = models.TextField(blank=True, default="")
+    importada_em = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    objects = LojaIsolationManager()
+
+    class Meta:
+        verbose_name = "NF-e de entrada"
+        ordering = ["-data_emissao", "-id"]
+        constraints = [
+            models.UniqueConstraint(fields=["loja_id", "chave"], name="salao_nfe_entrada_loja_chave"),
+        ]
+
+    def save(self, *args, **kwargs):
+        from tenants.middleware import get_current_loja_id
+
+        if not self.loja_id:
+            atual = get_current_loja_id()
+            if atual:
+                self.loja_id = atual
+        super().save(*args, **kwargs)
+
+
+class NfeDistribuicaoSalao(models.Model):
+    """Último ponto da consulta de NF-e na SEFAZ deste salão."""
+
+    loja_id = models.IntegerField(db_index=True)
+    ult_nsu = models.CharField(max_length=15, default="000000000000000")
+    max_nsu = models.CharField(max_length=15, default="000000000000000")
+    consultado_em = models.DateTimeField(null=True, blank=True)
+    ultimo_erro = models.TextField(blank=True, default="")
+    objects = LojaIsolationManager()
+
+    class Meta:
+        verbose_name = "Consulta de NF-e"
+        constraints = [
+            models.UniqueConstraint(fields=["loja_id"], name="salao_nfe_dist_loja"),
+        ]
+
+    def save(self, *args, **kwargs):
+        from tenants.middleware import get_current_loja_id
+
+        if not self.loja_id:
+            atual = get_current_loja_id()
+            if atual:
+                self.loja_id = atual
+        super().save(*args, **kwargs)

@@ -2,6 +2,14 @@ from django.urls import path
 
 from .loja_config import IdentidadeView, LojaInfoView
 from .estoque_views import ProdutoDetailView, ProdutoListCreateView, VendaCreateView
+from .nfe_entrada_views import (
+    ImportarXmlView,
+    NfeConfirmarView,
+    NfeIgnorarView,
+    NfePendenteDetailView,
+    NfePendentesView,
+    NfeSincronizarView,
+)
 from .fiscal_views import SalaoNfceConfigView, SalaoNFSeConfigView, SalaoNFSeTesteView
 from .views import (
     AgendaView,
@@ -43,6 +51,12 @@ urlpatterns = [
     path("vendas/", VendaCreateView.as_view(), name="salao-vendas"),
     path("produtos/", ProdutoListCreateView.as_view(), name="salao-produtos"),
     path("produtos/<int:pk>/", ProdutoDetailView.as_view(), name="salao-produto"),
+    path("estoque/importar-xml/", ImportarXmlView.as_view(), name="salao-importar-xml"),
+    path("estoque/nfe-pendentes/", NfePendentesView.as_view(), name="salao-nfe-pendentes"),
+    path("estoque/nfe-pendentes/sincronizar/", NfeSincronizarView.as_view(), name="salao-nfe-sincronizar"),
+    path("estoque/nfe-pendentes/<int:pk>/", NfePendenteDetailView.as_view(), name="salao-nfe-pendente"),
+    path("estoque/nfe-pendentes/<int:pk>/confirmar/", NfeConfirmarView.as_view(), name="salao-nfe-confirmar"),
+    path("estoque/nfe-pendentes/<int:pk>/ignorar/", NfeIgnorarView.as_view(), name="salao-nfe-ignorar"),
     path("recebimentos/<int:pk>/", RecebimentoDetailView.as_view(), name="salao-recebimento"),
     path("clientes/", ClienteListCreateView.as_view(), name="salao-clientes"),
     path("clientes/<int:pk>/", ClienteDetailView.as_view(), name="salao-cliente"),

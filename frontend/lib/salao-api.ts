@@ -24,6 +24,34 @@ export type ProdutoSalao = {
   comissao_percentual: string;
 };
 
+export type NotaPendenteSalao = {
+  id: number;
+  numero: string;
+  fornecedor: string;
+  data_emissao: string;
+  status: string;
+  status_display: string;
+  tem_xml: boolean;
+  ultimo_erro: string;
+};
+
+export type ItemXmlSalao = {
+  nome: string;
+  gtin: string;
+  quantidade: number;
+  preco: string;
+  produto_id: number | null;
+  acao: "novo" | "atualizar" | "ignorar";
+};
+
+export type PreviewXmlSalao = {
+  id: number;
+  preview: boolean;
+  aviso_destinatario: string;
+  nota: { numero: string; fornecedor: string; data_emissao: string; valor_total: string };
+  produtos: ItemXmlSalao[];
+};
+
 export type VendaSalao = {
   numero: number;
   cliente: string;
@@ -136,10 +164,12 @@ export type CaixaSalao = {
 };
 
 async function salaoFetch<T>(path: string, options: RequestInit = {}, retried = false): Promise<T> {
+  const headers = { ...getClinicaBelezaHeadersWithLoja(), ...(options.headers || {}) };
+  if (options.body instanceof FormData) delete headers["Content-Type"];
   const response = await fetch(`${getApiBaseUrl()}/salao-cabeleireiro${path}`, {
     ...options,
     credentials: USE_JWT_HTTPONLY_COOKIES ? "include" : options.credentials,
-    headers: { ...getClinicaBelezaHeadersWithLoja(), ...(options.headers || {}) },
+    headers,
   });
   if (response.status === 401) {
     if (await handle401SessionResponse(response)) throw new Error("Sessão encerrada.");
@@ -195,6 +225,17 @@ export const SalaoAPI = {
   salvarProduto: (corpo: Record<string, unknown>, id?: number) =>
     salaoFetch<ProdutoSalao>(id ? `/produtos/${id}/` : "/produtos/", { method: id ? "PATCH" : "POST", body: JSON.stringify(corpo) }),
   arquivarProduto: (id: number) => salaoFetch(`/produtos/${id}/`, { method: "DELETE" }),
+  notasPendentes: () => salaoFetch<{ pendentes: NotaPendenteSalao[] }>("/estoque/nfe-pendentes/"),
+  buscarNotasSefaz: () => salaoFetch<{ ok: boolean; detail: string; novas: number; pendentes: NotaPendenteSalao[] }>("/estoque/nfe-pendentes/sincronizar/", { method: "POST", body: "{}" }),
+  enviarXml: (arquivo: File) => {
+    const corpo = new FormData();
+    corpo.append("arquivo", arquivo);
+    return salaoFetch<PreviewXmlSalao>("/estoque/importar-xml/", { method: "POST", body: corpo });
+  },
+  abrirNota: (id: number) => salaoFetch<PreviewXmlSalao>(`/estoque/nfe-pendentes/${id}/`),
+  confirmarNota: (id: number, produtos: ItemXmlSalao[]) =>
+    salaoFetch<{ criados: number; atualizados: number; ignorados: number }>(`/estoque/nfe-pendentes/${id}/confirmar/`, { method: "POST", body: JSON.stringify({ produtos }) }),
+  ignorarNota: (id: number) => salaoFetch<{ pendentes: NotaPendenteSalao[] }>(`/estoque/nfe-pendentes/${id}/ignorar/`, { method: "POST", body: "{}" }),
   vender: (corpo: { agendamento?: number; desconto: string; origem?: "caixa" | "agenda"; formas?: { forma: string; valor: string }[]; itens?: { produto: number; quantidade: number }[] }) =>
     salaoFetch<VendaSalao>("/vendas/", { method: "POST", body: JSON.stringify(corpo) }),
   receber: (id: number, corpo: { desconto: string; origem?: "agenda" | "caixa"; forma?: string; formas?: { forma: string; valor: string }[] }) =>

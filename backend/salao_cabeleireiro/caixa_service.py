@@ -63,6 +63,61 @@ def motivo_bloqueio_recebimento(local: str, origem: str, papel: str) -> str | No
     return None
 
 
+def validar_documentos(tem_servico: bool, tem_produto: bool, dados) -> None:
+    """Serviços aceitam NFS-e. Produtos aceitam NFC-e. Os dois juntos ficam só no comprovante."""
+    nfse = bool(dados.get("nfse")) if isinstance(dados, dict) else False
+    nfce = bool(dados.get("nfce")) if isinstance(dados, dict) else False
+    if tem_servico and tem_produto and (nfse or nfce):
+        raise ValueError("Serviço e produto juntos saem só no comprovante não fiscal.")
+    if tem_produto and not tem_servico and nfse:
+        raise ValueError("Venda só de produto não usa NFS-e.")
+    if tem_servico and not tem_produto and nfce:
+        raise ValueError("Atendimento só de serviço não usa NFC-e.")
+
+
+def repartir_desconto(precos, desconto) -> list[Decimal]:
+    """Um desconto do recebimento se divide entre os serviços, sem passar do preço de cada um."""
+    precos = [quantia(preco) for preco in precos]
+    desconto = quantia(desconto)
+    total = sum(precos, Decimal("0"))
+    if desconto < 0 or desconto > total:
+        raise ValueError("O desconto não pode passar do valor dos serviços.")
+    if not precos:
+        return []
+    partes = []
+    restante = desconto
+    for indice, preco in enumerate(precos):
+        if indice == len(precos) - 1:
+            parte = min(preco, restante)
+        else:
+            parte = (desconto * preco / total).quantize(CENTAVO, rounding=ROUND_HALF_UP) if total else Decimal("0")
+            parte = min(parte, preco, restante)
+        partes.append(parte)
+        restante -= parte
+    return partes
+
+
+def fatiar_partes(partes, valores) -> list[list[dict]]:
+    """Cada serviço fica com a fatia do pagamento que cobre o valor líquido dele."""
+    fila = [{"forma": parte["forma"], "resta": quantia(parte["valor"])} for parte in partes]
+    saida = []
+    for valor in valores:
+        falta = quantia(valor)
+        fatia = []
+        while falta > 0 and fila:
+            atual = fila[0]
+            if atual["resta"] <= falta:
+                fatia.append({"forma": atual["forma"], "valor": f"{atual['resta']:.2f}"})
+                falta -= atual["resta"]
+                fila.pop(0)
+            else:
+                fatia.append({"forma": atual["forma"], "valor": f"{falta:.2f}"})
+                atual["resta"] -= falta
+                falta = Decimal("0")
+        saida.append(fatia)
+    return saida
+
+
 def rotulo_formas(partes, forma_unica: str) -> str:
     if not partes or len(partes) == 1:
         return ROTULOS.get(forma_unica, forma_unica)

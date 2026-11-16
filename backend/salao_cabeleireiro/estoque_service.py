@@ -2,6 +2,7 @@
 from decimal import Decimal
 
 from django.db import transaction
+from django.db.models import Q
 from django.utils import timezone
 
 
@@ -26,7 +27,16 @@ def gravar(modelo, **kwargs):
         return modelo.objects.using(banco).create(**kwargs)
     return modelo.objects.create(**kwargs)
 
-from .caixa_service import comissao_do_atendimento, interpretar_formas, motivo_bloqueio_recebimento, quantia, rotulo_formas
+from .caixa_service import (
+    comissao_do_atendimento,
+    fatiar_partes,
+    interpretar_formas,
+    motivo_bloqueio_recebimento,
+    quantia,
+    repartir_desconto,
+    rotulo_formas,
+    validar_documentos,
+)
 from .models import MovimentoEstoque, Produto, Recebimento, Venda, VendaItem
 
 
@@ -89,18 +99,27 @@ def _baixar(produto, quantidade, venda):
     )
 
 
-def registrar_venda(dados, agendamento, papel: str, local: str, origem: str) -> Venda:
+def registrar_venda(dados, agendamentos, papel: str, local: str, origem: str) -> Venda:
+    """Um pagamento pode quitar vários serviços do mesmo cliente. Produto entra no mesmo recibo."""
+    agendamentos = list(agendamentos or [])
     pedidos = agrupar_pedidos(dados.get("itens") or dados.get("produtos"))
-    if agendamento is None and not pedidos:
+    if not agendamentos and not pedidos:
         raise ValueError("Escolha um atendimento ou um produto.")
-    if agendamento is not None:
-        if agendamento.status != "COMPLETED":
-            raise ValueError("Conclua o atendimento antes de receber.")
-        if any(item.is_active for item in agendamento.recebimentos.all()):
-            raise ValueError("Este atendimento já foi recebido.")
+    if agendamentos:
+        clientes = {item.cliente_id for item in agendamentos}
+        if len(clientes) > 1:
+            raise ValueError("Receba um cliente por vez.")
         motivo = motivo_bloqueio_recebimento(local, origem, papel)
         if motivo:
             raise PermissionError(motivo)
+        for agendamento in agendamentos:
+            if agendamento.status != "COMPLETED":
+                raise ValueError("Conclua o atendimento antes de receber.")
+            if any(item.is_active for item in agendamento.recebimentos.all()):
+                raise ValueError("Este atendimento já foi recebido.")
+    tem_servico = bool(agendamentos)
+    tem_produto = bool(pedidos)
+    validar_documentos(tem_servico, tem_produto, dados)
     with tenant_atomic():
         bloqueados = Produto.objects.none()
         if pedidos:
@@ -112,16 +131,21 @@ def registrar_venda(dados, agendamento, papel: str, local: str, origem: str) -> 
             produto = produtos[pedido["produto"]]
             if produto.saldo < pedido["quantidade"]:
                 raise ValueError(f"{produto.nome} tem {produto.saldo} no estoque.")
-        desconto = quantia(dados.get("desconto") or 0) if agendamento is not None else Decimal("0")
-        if agendamento is not None:
-            valor_servico, comissao, percentual = comissao_do_atendimento(
+        descontos = repartir_desconto(
+            [item.servico.preco for item in agendamentos],
+            (dados.get("desconto") or 0) if agendamentos else 0,
+        )
+        recibos_previstos = []
+        for agendamento, desconto_item in zip(agendamentos, descontos):
+            valor_item, comissao, percentual = comissao_do_atendimento(
                 agendamento.profissional,
                 agendamento.servico_id,
                 agendamento.servico.preco,
-                desconto,
+                desconto_item,
             )
-        else:
-            valor_servico, comissao = Decimal("0"), Decimal("0")
+            recibos_previstos.append((agendamento, desconto_item, valor_item, comissao, percentual))
+        valor_servico = sum((item[2] for item in recibos_previstos), Decimal("0")).quantize(Decimal("0.01"))
+        desconto = sum(descontos, Decimal("0")).quantize(Decimal("0.01")) if descontos else Decimal("0")
         valor_produtos = sum(
             (quantia(produtos[pedido["produto"]].preco) * pedido["quantidade"] for pedido in pedidos),
             Decimal("0"),
@@ -129,28 +153,32 @@ def registrar_venda(dados, agendamento, papel: str, local: str, origem: str) -> 
         total = (valor_servico + valor_produtos).quantize(Decimal("0.01"))
         partes = interpretar_formas(dados, total)
         partes_servico, partes_produtos = repartir_pagamento(partes, valor_servico)
-        recebimento = None
-        if agendamento is not None:
-            recebimento = gravar(
+        fatias = fatiar_partes(partes_servico, [item[2] for item in recibos_previstos])
+        recebimentos = []
+        for indice, (agendamento, desconto_item, valor_item, comissao, percentual) in enumerate(recibos_previstos):
+            fatia = fatias[indice] if indice < len(fatias) else []
+            recebimentos.append(gravar(
                 Recebimento,
                 agendamento=agendamento,
                 profissional=agendamento.profissional,
                 valor_servico=agendamento.servico.preco,
-                desconto=desconto,
-                valor=valor_servico,
-                forma=partes_servico[0]["forma"] if partes_servico else (partes[0]["forma"] if partes else "dinheiro"),
-                partes=partes_servico,
+                desconto=desconto_item,
+                valor=valor_item,
+                forma=fatia[0]["forma"] if fatia else (partes[0]["forma"] if partes else "dinheiro"),
+                partes=fatia,
                 comissao_percentual=percentual,
                 comissao_valor=comissao,
                 observacao=(dados.get("observacao") or "")[:200],
-            )
+            ))
+        recebimento = recebimentos[0] if recebimentos else None
+        primeiro = agendamentos[0] if agendamentos else None
         ultimo = Venda.objects.select_for_update().order_by("-numero").first()
         venda = gravar(
             Venda,
             numero=(ultimo.numero if ultimo else 0) + 1,
-            agendamento=agendamento,
+            agendamento=primeiro,
             recebimento=recebimento,
-            cliente_nome=agendamento.cliente.nome if agendamento is not None else (dados.get("cliente_nome") or "")[:160],
+            cliente_nome=primeiro.cliente.nome if primeiro is not None else (dados.get("cliente_nome") or "")[:160],
             valor_servico=valor_servico,
             valor_produtos=valor_produtos,
             desconto=desconto,
@@ -159,6 +187,8 @@ def registrar_venda(dados, agendamento, papel: str, local: str, origem: str) -> 
             partes=partes,
             partes_produtos=partes_produtos,
         )
+        if recebimentos:
+            Recebimento.objects.filter(pk__in=[item.pk for item in recebimentos]).update(venda=venda)
         for pedido in pedidos:
             produto = produtos[pedido["produto"]]
             preco = quantia(produto.preco)
@@ -177,6 +207,28 @@ def registrar_venda(dados, agendamento, papel: str, local: str, origem: str) -> 
             )
             _baixar(produto, pedido["quantidade"], venda)
         return venda
+
+
+def estornar_operacao(recebimento):
+    """Um pagamento com vários serviços se desfaz por inteiro, junto com o estoque."""
+    if recebimento is None or not recebimento.is_active:
+        return
+    with tenant_atomic():
+        venda = None
+        if getattr(recebimento, "venda_id", None):
+            candidata = recebimento.venda
+            if candidata is not None and candidata.is_active:
+                venda = candidata
+        if venda is None:
+            venda = Venda.objects.filter(recebimento=recebimento, is_active=True).first()
+        if venda is not None:
+            estornar_venda(venda)
+            Recebimento.objects.filter(is_active=True).filter(
+                Q(pk=recebimento.pk) | Q(venda=venda) | Q(pk=venda.recebimento_id)
+            ).update(is_active=False)
+            return
+        recebimento.is_active = False
+        recebimento.save(update_fields=["is_active"])
 
 
 def estornar_venda(venda: Venda):
@@ -207,12 +259,26 @@ def estornar_venda(venda: Venda):
 
 
 def publico_venda(venda: Venda) -> dict:
+    recibos = list(
+        Recebimento.objects.filter(venda=venda, is_active=True).select_related("agendamento__servico", "profissional")
+    )
+    if not recibos and venda.recebimento_id:
+        recibos = [venda.recebimento]
     return {
         "numero": venda.numero,
         "cliente": venda.cliente_nome or "Consumidor",
         "valor": f"{quantia(venda.valor):.2f}",
+        "desconto": f"{quantia(venda.desconto):.2f}",
         "forma_label": rotulo_formas(venda.partes, venda.forma),
         "quando": timezone.localtime(venda.created_at).strftime("%d/%m/%Y %H:%M"),
+        "servicos": [
+            {
+                "nome": item.agendamento.servico.nome,
+                "profissional": item.profissional.nome,
+                "total": f"{quantia(item.valor):.2f}",
+            }
+            for item in recibos
+        ],
         "itens": [
             {"nome": item.nome, "quantidade": item.quantidade, "total": f"{quantia(item.total):.2f}"}
             for item in venda.itens.all()

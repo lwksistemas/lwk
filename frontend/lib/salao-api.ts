@@ -59,8 +59,10 @@ export type VendaSalao = {
   numero: number;
   cliente: string;
   valor: string;
+  desconto?: string;
   forma_label: string;
   quando: string;
+  servicos?: { nome: string; profissional: string; total: string }[];
   itens: { nome: string; quantidade: number; total: string }[];
 };
 
@@ -251,7 +253,7 @@ export const SalaoAPI = {
   confirmarNota: (id: number, produtos: ItemXmlSalao[]) =>
     salaoFetch<{ criados: number; atualizados: number; ignorados: number }>(`/estoque/nfe-pendentes/${id}/confirmar/`, { method: "POST", body: JSON.stringify({ produtos }) }),
   ignorarNota: (id: number) => salaoFetch<{ pendentes: NotaPendenteSalao[] }>(`/estoque/nfe-pendentes/${id}/ignorar/`, { method: "POST", body: "{}" }),
-  vender: (corpo: { agendamento?: number; desconto: string; origem?: "caixa" | "agenda"; formas?: { forma: string; valor: string }[]; itens?: { produto: number; quantidade: number }[] }) =>
+  vender: (corpo: { agendamento?: number; agendamentos?: number[]; desconto: string; origem?: "caixa" | "agenda"; formas?: { forma: string; valor: string }[]; itens?: { produto: number; quantidade: number }[]; nfse?: boolean; nfce?: boolean }) =>
     salaoFetch<VendaSalao>("/vendas/", { method: "POST", body: JSON.stringify(corpo) }),
   receber: (id: number, corpo: { desconto: string; origem?: "agenda" | "caixa"; forma?: string; formas?: { forma: string; valor: string }[] }) =>
     salaoFetch<AgendamentoSalao>(`/agendamentos/${id}/receber/`, { method: "POST", body: JSON.stringify(corpo) }),

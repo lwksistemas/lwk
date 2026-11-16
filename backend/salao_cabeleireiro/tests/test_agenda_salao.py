@@ -3,7 +3,15 @@ from datetime import datetime, time, timedelta
 from decimal import Decimal
 
 from salao_cabeleireiro.agenda_service import avaliar_jornada, intervalos_conflitam
-from salao_cabeleireiro.caixa_service import calcular_recebimento, interpretar_formas, motivo_bloqueio_recebimento, rotulo_formas
+from salao_cabeleireiro.caixa_service import (
+    calcular_recebimento,
+    fatiar_partes,
+    interpretar_formas,
+    motivo_bloqueio_recebimento,
+    repartir_desconto,
+    rotulo_formas,
+    validar_documentos,
+)
 from salao_cabeleireiro.estoque_service import agrupar_pedidos, repartir_pagamento
 from salao_cabeleireiro.fiscal_service import SalaoFiscalErro, gravar_nfce
 from salao_cabeleireiro.comunicacao_service import regras_de
@@ -98,6 +106,28 @@ class CaixaSalaoTest(unittest.TestCase):
         servico, produto = repartir_pagamento(partes, Decimal("40.00"))
         self.assertEqual(servico, [{"forma": "dinheiro", "valor": "40.00"}])
         self.assertEqual(produto, [{"forma": "pix", "valor": "35.00"}])
+
+    def test_varios_servicos_dividem_desconto_e_pagamento(self):
+        descontos = repartir_desconto([Decimal("60.00"), Decimal("90.00")], Decimal("15.00"))
+        self.assertEqual(sum(descontos), Decimal("15.00"))
+        self.assertEqual(len(descontos), 2)
+        fatias = fatiar_partes(
+            [{"forma": "dinheiro", "valor": "50.00"}, {"forma": "pix", "valor": "85.00"}],
+            [Decimal("50.00"), Decimal("85.00")],
+        )
+        self.assertEqual(fatias[0], [{"forma": "dinheiro", "valor": "50.00"}])
+        self.assertEqual(fatias[1], [{"forma": "pix", "valor": "85.00"}])
+
+    def test_documento_segue_o_que_esta_no_recebimento(self):
+        validar_documentos(True, False, {"nfse": True, "nfce": False})
+        validar_documentos(False, True, {"nfse": False, "nfce": True})
+        validar_documentos(True, True, {})
+        with self.assertRaises(ValueError):
+            validar_documentos(True, True, {"nfse": True})
+        with self.assertRaises(ValueError):
+            validar_documentos(True, False, {"nfce": True})
+        with self.assertRaises(ValueError):
+            validar_documentos(False, True, {"nfse": True})
 
     def test_quantidade_do_mesmo_produto_soma(self):
         pedidos = agrupar_pedidos([{"produto": 3, "quantidade": 1}, {"produto": "3", "quantidade": 2}])

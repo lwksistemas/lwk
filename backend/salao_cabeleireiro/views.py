@@ -748,14 +748,9 @@ class RecebimentoDetailView(GetObjectMixin, APIView):
             return erro
         if not recebimento.is_active:
             return _erro(self.not_found_message, status.HTTP_404_NOT_FOUND)
-        from .estoque_service import estornar_venda
-        from .models import Venda
+        from .estoque_service import estornar_operacao
 
-        venda = Venda.objects.filter(recebimento=recebimento, is_active=True).first()
-        if venda is not None:
-            estornar_venda(venda)
-        recebimento.is_active = False
-        recebimento.save(update_fields=["is_active"])
+        estornar_operacao(recebimento)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 

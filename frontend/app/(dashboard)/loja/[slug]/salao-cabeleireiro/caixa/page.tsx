@@ -63,7 +63,20 @@ type ReciboPronto = {
   telefone: string;
   email: string;
   documentos: DocumentosRecibo;
+  tipo: "servicos" | "produtos" | "misto";
 };
+
+function textoDocumento(chave: keyof DocumentosRecibo, tipo: ReciboPronto["tipo"] | "vazio") {
+  if (chave === "comprovante") return "Resumo do pagamento. Serve para serviço, produto ou os dois juntos.";
+  if (chave === "nfse") {
+    if (tipo === "misto") return "Não se aplica. Serviço e produto juntos saem só no comprovante não fiscal.";
+    if (tipo !== "servicos") return "Não se aplica sem serviço.";
+    return "Nota Fiscal de Serviço Eletrônica. A emissão neste caixa ainda não está ligada.";
+  }
+  if (tipo === "misto") return "Não se aplica. Serviço e produto juntos saem só no comprovante não fiscal.";
+  if (tipo !== "produtos") return "Não se aplica sem produto.";
+  return "Cupom Fiscal Eletrônico de Produtos. A emissão neste caixa ainda não está ligada.";
+}
 
 function escaparHtml(valor: string) {
   return valor.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -101,7 +114,7 @@ export default function CaixaPdvPage() {
   const [clientes, setClientes] = useState<ClienteSalao[]>([]);
   const [produtos, setProdutos] = useState<ProdutoSalao[]>([]);
   const [carrinho, setCarrinho] = useState<ItemCarrinho[]>([]);
-  const [escolhido, setEscolhido] = useState<number | null>(null);
+  const [escolhidos, setEscolhidos] = useState<number[]>([]);
   const [desconto, setDesconto] = useState("");
   const [formaRapida, setFormaRapida] = useState<FormaRapida>("dinheiro");
   const [linhas, setLinhas] = useState<Linha[]>([{ id: "1", forma: "dinheiro", valor: "" }]);
@@ -113,7 +126,7 @@ export default function CaixaPdvPage() {
   const [salvando, setSalvando] = useState(false);
   const [sucesso, setSucesso] = useState<ReciboPronto | null>(null);
   const [avisoEntrega, setAvisoEntrega] = useState("");
-  const [documentos, setDocumentos] = useState<DocumentosRecibo>({ comprovante: true, nfse: true, nfce: true });
+  const [documentos, setDocumentos] = useState<DocumentosRecibo>({ comprovante: true, nfse: false, nfce: false });
 
   function carregar() {
     const fim = new Date();
@@ -125,7 +138,7 @@ export default function CaixaPdvPage() {
       .then((lista) => {
         const pendentes = lista.filter((item) => item.status === "COMPLETED" && !item.recebido);
         setFila(pendentes);
-        setEscolhido((atual) => (atual != null && pendentes.some((item) => item.id === atual) ? atual : pendentes[0]?.id ?? null));
+        setEscolhidos((atual) => atual.filter((id) => pendentes.some((item) => item.id === id)));
       })
       .catch((exc: Error) => setErro(exc.message));
   }
@@ -153,9 +166,15 @@ export default function CaixaPdvPage() {
     return produtos.filter((item) => `${item.nome} ${item.codigo_barras}`.toLowerCase().includes(termo));
   }, [busca, produtos]);
 
-  const atual = fila.find((item) => item.id === escolhido) || null;
+  const selecionados = escolhidos
+    .map((id) => fila.find((item) => item.id === id))
+    .filter((item): item is AgendamentoSalao => Boolean(item));
+  const atual = selecionados[0] || null;
   const cliente = clientes.find((item) => item.id === atual?.cliente);
-  const preco = atual ? lerReais(atual.preco) : 0;
+  const preco = Math.round(selecionados.reduce((acc, item) => acc + lerReais(item.preco), 0) * 100) / 100;
+  const temServico = selecionados.length > 0;
+  const temProduto = carrinho.length > 0;
+  const tipoOperacao: ReciboPronto["tipo"] | "vazio" = temServico && temProduto ? "misto" : temServico ? "servicos" : temProduto ? "produtos" : "vazio";
   const valorDesconto = Math.min(preco, Math.max(0, lerReais(desconto)));
   const totalProdutos = Math.round(carrinho.reduce((acc, item) => acc + lerReais(item.preco) * item.quantidade, 0) * 100) / 100;
   const subtotal = Math.round((preco + totalProdutos) * 100) / 100;
@@ -174,6 +193,14 @@ export default function CaixaPdvPage() {
     setLinhas([{ id: "1", forma: formaRapida, valor: total > 0 ? total.toFixed(2) : "" }]);
   }, [total, formaRapida]);
 
+  useEffect(() => {
+    setDocumentos((atualDocs) => ({
+      comprovante: tipoOperacao === "misto" ? true : atualDocs.comprovante,
+      nfse: tipoOperacao === "servicos" ? atualDocs.nfse : false,
+      nfce: tipoOperacao === "produtos" ? atualDocs.nfce : false,
+    }));
+  }, [tipoOperacao]);
+
   function escolherForma(proxima: FormaRapida) {
     setFormaRapida(proxima);
     setEntregue("");
@@ -186,11 +213,20 @@ export default function CaixaPdvPage() {
   }
 
   function selecionar(item: AgendamentoSalao) {
-    setEscolhido(item.id);
-    setDesconto("");
-    setEntregue("");
     setSucesso(null);
+    setEntregue("");
+    if (escolhidos.includes(item.id)) {
+      setEscolhidos(escolhidos.filter((id) => id !== item.id));
+      setErro("");
+      return;
+    }
+    if (atual && atual.cliente !== item.cliente) {
+      setErro("Receba um cliente por vez.");
+      return;
+    }
     setErro("");
+    setEscolhidos([...escolhidos, item.id]);
+    setDesconto("");
   }
 
   function colocarProduto(produto: ProdutoSalao) {
@@ -230,12 +266,15 @@ export default function CaixaPdvPage() {
     setSalvando(true);
     try {
       const venda = await SalaoAPI.vender({
-        agendamento: atual?.id,
+        agendamentos: selecionados.map((item) => item.id),
         desconto: valorDesconto.toFixed(2),
         origem: "caixa",
+        nfse: tipoOperacao === "servicos" && documentos.nfse,
+        nfce: tipoOperacao === "produtos" && documentos.nfce,
         formas: total > 0 ? linhas.filter((linha) => lerReais(linha.valor) > 0).map((linha) => ({ forma: linha.forma, valor: lerReais(linha.valor).toFixed(2) })) : [],
         itens: carrinho.map((item) => ({ produto: item.produto, quantidade: item.quantidade })),
       });
+      const tipoRecibo: ReciboPronto["tipo"] = tipoOperacao === "vazio" ? "produtos" : tipoOperacao;
       setAvisoEntrega("");
       setSucesso({
         cliente: venda.cliente,
@@ -243,16 +282,21 @@ export default function CaixaPdvPage() {
         valor: venda.valor,
         forma: venda.forma_label,
         quando: venda.quando,
-        desconto: valorDesconto.toFixed(2),
+        desconto: venda.desconto || valorDesconto.toFixed(2),
         telefone: cliente?.telefone || "",
         email: cliente?.email || "",
-        documentos: { ...documentos },
+        documentos: {
+          comprovante: documentos.comprovante || tipoRecibo === "misto",
+          nfse: tipoRecibo === "servicos" && documentos.nfse,
+          nfce: tipoRecibo === "produtos" && documentos.nfce,
+        },
+        tipo: tipoRecibo,
         linhas: [
-          ...(atual ? [{ nome: `${atual.servico_nome} (Serviço)`, detalhe: atual.profissional_nome ? `Profissional: ${atual.profissional_nome}` : "", total: preco.toFixed(2) }] : []),
-          ...carrinho.map((item) => ({ nome: `${item.quantidade}× ${item.nome}`, detalhe: "", total: (lerReais(item.preco) * item.quantidade).toFixed(2) })),
+          ...(venda.servicos || []).map((item) => ({ nome: `${item.nome} (Serviço)`, detalhe: item.profissional ? `Profissional: ${item.profissional}` : "", total: item.total })),
+          ...(venda.itens || []).map((item) => ({ nome: `${item.quantidade}× ${item.nome}`, detalhe: "", total: item.total })),
         ],
       });
-      setEscolhido(null);
+      setEscolhidos([]);
       setCarrinho([]);
       setDesconto("");
       setEntregue("");
@@ -265,11 +309,11 @@ export default function CaixaPdvPage() {
     }
   }
 
-  const temConteudo = Boolean(atual) || carrinho.length > 0;
+  const temConteudo = selecionados.length > 0 || carrinho.length > 0;
   const linhasPrevia = sucesso
     ? sucesso.linhas
     : [
-        ...(atual ? [{ nome: `${atual.servico_nome} (Serviço)`, detalhe: atual.profissional_nome ? `Profissional: ${atual.profissional_nome}` : "", total: preco.toFixed(2) }] : []),
+        ...selecionados.map((item) => ({ nome: `${item.servico_nome} (Serviço)`, detalhe: item.profissional_nome ? `Profissional: ${item.profissional_nome}` : "", total: lerReais(item.preco).toFixed(2) })),
         ...carrinho.map((item) => ({ nome: `${item.quantidade}× ${item.nome}`, detalhe: "", total: (lerReais(item.preco) * item.quantidade).toFixed(2) })),
       ];
 
@@ -279,6 +323,11 @@ export default function CaixaPdvPage() {
   }
 
   function marcarDocumento(chave: keyof DocumentosRecibo, marcado: boolean) {
+    const tipo = sucesso?.tipo || tipoOperacao;
+    if (tipo === "misto" && chave !== "comprovante") return;
+    if (tipo === "misto" && chave === "comprovante" && !marcado) return;
+    if ((tipo === "servicos" || tipo === "vazio") && chave === "nfce") return;
+    if ((tipo === "produtos" || tipo === "vazio") && chave === "nfse") return;
     setDocumentos((atualDocs) => ({ ...atualDocs, [chave]: marcado }));
     setSucesso((atualRecibo) => atualRecibo ? { ...atualRecibo, documentos: { ...atualRecibo.documentos, [chave]: marcado } } : atualRecibo);
     setAvisoEntrega("");
@@ -365,9 +414,10 @@ export default function CaixaPdvPage() {
             </button>
           </div>
           <input value={busca} onChange={(evento) => setBusca(evento.target.value)} placeholder={aba === "atendimentos" ? "Buscar cliente ou atendimento..." : "Nome ou código de barras"} className="mt-3 w-full rounded-xl border border-[#eadfe2] px-3 py-2 text-sm" />
+          {aba === "atendimentos" ? <p className="mt-2 text-xs text-[#8a6e74]">Pode marcar vários atendimentos do mesmo cliente.</p> : null}
           <div className="mt-3 space-y-2">
             {aba === "atendimentos" ? visiveis.map((item) => (
-              <button key={item.id} type="button" onClick={() => selecionar(item)} className={`flex w-full items-center justify-between gap-3 rounded-2xl border px-3 py-3 text-left ${escolhido === item.id ? "border-[#f3c3cf] bg-[#fdecef]" : "border-[#f0e4e7]"}`}>
+              <button key={item.id} type="button" onClick={() => selecionar(item)} className={`flex w-full items-center justify-between gap-3 rounded-2xl border px-3 py-3 text-left ${escolhidos.includes(item.id) ? "border-[#f3c3cf] bg-[#fdecef]" : "border-[#f0e4e7]"}`}>
                 <span>
                   <span className="block font-medium">{item.cliente_nome}</span>
                   <span className="block text-sm text-[#8a6e74]">{item.servico_nome} · {reais(lerReais(item.preco))}</span>
@@ -401,23 +451,23 @@ export default function CaixaPdvPage() {
                 {cliente?.email ? <p className="text-sm text-[#8a6e74]">{cliente.email}</p> : null}
               </div>
             </div>
-            {atual ? <button type="button" className="text-sm font-medium text-[#7a3044]" onClick={() => { setEscolhido(null); setDesconto(""); }}>Trocar cliente</button> : null}
+            {selecionados.length ? <button type="button" className="text-sm font-medium text-[#7a3044]" onClick={() => { setEscolhidos([]); setDesconto(""); }}>Trocar cliente</button> : null}
           </div>
 
           <div className="mt-4">
             <p className="text-sm font-medium">Itens do recebimento</p>
             <div className="mt-2 space-y-2">
-              {atual ? (
-                <div className="flex items-center gap-3 rounded-2xl border border-[#f0e4e7] px-3 py-3">
+              {selecionados.map((item) => (
+                <div key={item.id} className="flex items-center gap-3 rounded-2xl border border-[#f0e4e7] px-3 py-3">
                   <Scissors size={16} className="text-[#7a3044]" />
                   <span className="min-w-0 flex-1">
-                    <span className="block font-medium">{atual.servico_nome} (Serviço)</span>
-                    <span className="block text-sm text-[#8a6e74]">Profissional: {atual.profissional_nome}</span>
+                    <span className="block font-medium">{item.servico_nome} (Serviço)</span>
+                    <span className="block text-sm text-[#8a6e74]">Profissional: {item.profissional_nome}</span>
                   </span>
-                  <span className="font-medium">{reais(preco)}</span>
-                  <button type="button" aria-label="Remover serviço" onClick={() => setEscolhido(null)} className="text-[#8a6e74]"><Trash2 size={16} /></button>
+                  <span className="font-medium">{reais(lerReais(item.preco))}</span>
+                  <button type="button" aria-label="Remover serviço" onClick={() => setEscolhidos(escolhidos.filter((id) => id !== item.id))} className="text-[#8a6e74]"><Trash2 size={16} /></button>
                 </div>
-              ) : null}
+              ))}
               {carrinho.map((item) => (
                 <div key={item.produto} className="flex items-center gap-3 rounded-2xl border border-[#f0e4e7] px-3 py-3">
                   <ShoppingBag size={16} className="text-[#7a3044]" />
@@ -488,9 +538,9 @@ export default function CaixaPdvPage() {
             )}
           </div>
 
-          {atual && local === "agenda" ? <p className="mt-3 text-sm text-[#8a6e74]">Neste salão o serviço é recebido na agenda.</p> : null}
+          {selecionados.length > 0 && local === "agenda" ? <p className="mt-3 text-sm text-[#8a6e74]">Neste salão o serviço é recebido na agenda.</p> : null}
           {erro ? <p className="mt-3 text-sm text-red-700">{erro}</p> : null}
-          <button type="button" onClick={confirmar} disabled={salvando || !temConteudo || (Boolean(atual) && local === "agenda")} className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-[#7a3044] px-4 py-3 text-sm font-semibold text-white disabled:opacity-60">
+          <button type="button" onClick={confirmar} disabled={salvando || !temConteudo || (selecionados.length > 0 && local === "agenda")} className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-[#7a3044] px-4 py-3 text-sm font-semibold text-white disabled:opacity-60">
             <Check size={16} />
             {salvando ? "Registrando…" : "Confirmar recebimento"}
           </button>
@@ -499,19 +549,31 @@ export default function CaixaPdvPage() {
         <section className="space-y-4">
           <div className="rounded-3xl bg-white p-4">
             <p className="font-medium">Documentos (após o recebimento)</p>
-            {[
-              ["comprovante", "Comprovante não fiscal", "Resumo do pagamento (serviços e produtos)."],
-              ["nfse", "NFS-e (Serviços)", "Nota Fiscal de Serviço Eletrônica."],
-              ["nfce", "NFC-e (Produtos)", "Cupom Fiscal Eletrônico de Produtos."],
-            ].map(([chave, titulo, texto]) => (
-              <label key={chave} className="mt-3 flex items-start justify-between gap-3 text-sm">
-                <span>
-                  <span className="block font-medium">{titulo}</span>
-                  <span className="block text-[#8a6e74]">{texto}</span>
-                </span>
-                <input type="checkbox" checked={documentos[chave as keyof typeof documentos]} onChange={(evento) => setDocumentos({ ...documentos, [chave]: evento.target.checked })} className="mt-1 h-4 w-4 accent-[#7a3044]" />
-              </label>
-            ))}
+            <p className="mt-1 text-xs text-[#8a6e74]">
+              {tipoOperacao === "misto"
+                ? "Serviço e produto juntos saem só no comprovante não fiscal."
+                : tipoOperacao === "servicos"
+                  ? "Serviços podem sair no comprovante não fiscal e na NFS-e."
+                  : tipoOperacao === "produtos"
+                    ? "Produtos podem sair no comprovante não fiscal e na NFC-e."
+                    : "Escolha o atendimento ou o produto para ver os documentos."}
+            </p>
+            {([
+              ["comprovante", "Comprovante não fiscal"],
+              ["nfse", "NFS-e (Serviços)"],
+              ["nfce", "NFC-e (Produtos)"],
+            ] as const).map(([chave, titulo]) => {
+              const liberado = chave === "comprovante" || (chave === "nfse" ? tipoOperacao === "servicos" : tipoOperacao === "produtos");
+              return (
+                <label key={chave} className={`mt-3 flex items-start justify-between gap-3 text-sm ${liberado ? "" : "opacity-50"}`}>
+                  <span>
+                    <span className="block font-medium">{titulo}</span>
+                    <span className="block text-[#8a6e74]">{textoDocumento(chave, tipoOperacao)}</span>
+                  </span>
+                  <input type="checkbox" checked={liberado && documentos[chave]} disabled={!liberado || (chave === "comprovante" && tipoOperacao === "misto")} onChange={(evento) => setDocumentos({ ...documentos, [chave]: evento.target.checked })} className="mt-1 h-4 w-4 accent-[#7a3044]" />
+                </label>
+              );
+            })}
           </div>
           <div className="rounded-3xl bg-white p-4 text-sm">
             <p className="font-medium">Prévia do comprovante</p>
@@ -558,18 +620,21 @@ export default function CaixaPdvPage() {
               <div>
                 <p className="text-sm font-medium">Documentos para o cliente</p>
                 {([
-                  ["comprovante", "Comprovante não fiscal", "Resumo do pagamento (serviços e produtos)."],
-                  ["nfse", "NFS-e (Serviços)", "Nota Fiscal de Serviço Eletrônica."],
-                  ["nfce", "NFC-e (Produtos)", "Cupom Fiscal Eletrônico de Produtos."],
-                ] as const).map(([chave, titulo, texto]) => (
-                  <label key={chave} className="mt-3 flex items-start justify-between gap-3 text-sm">
-                    <span>
-                      <span className="block font-medium">{titulo}</span>
-                      <span className="block text-[#8a6e74]">{texto}</span>
-                    </span>
-                    <input type="checkbox" checked={sucesso.documentos[chave]} onChange={(evento) => marcarDocumento(chave, evento.target.checked)} className="mt-1 h-4 w-4 accent-[#7a3044]" />
-                  </label>
-                ))}
+                  ["comprovante", "Comprovante não fiscal"],
+                  ["nfse", "NFS-e (Serviços)"],
+                  ["nfce", "NFC-e (Produtos)"],
+                ] as const).map(([chave, titulo]) => {
+                  const liberado = chave === "comprovante" || (chave === "nfse" ? sucesso.tipo === "servicos" : sucesso.tipo === "produtos");
+                  return (
+                    <label key={chave} className={`mt-3 flex items-start justify-between gap-3 text-sm ${liberado ? "" : "opacity-50"}`}>
+                      <span>
+                        <span className="block font-medium">{titulo}</span>
+                        <span className="block text-[#8a6e74]">{textoDocumento(chave, sucesso.tipo)}</span>
+                      </span>
+                      <input type="checkbox" checked={liberado && sucesso.documentos[chave]} disabled={!liberado || (chave === "comprovante" && sucesso.tipo === "misto")} onChange={(evento) => marcarDocumento(chave, evento.target.checked)} className="mt-1 h-4 w-4 accent-[#7a3044]" />
+                    </label>
+                  );
+                })}
                 {sucesso.documentos.nfse || sucesso.documentos.nfce ? (
                   <p className="mt-3 text-xs text-[#8a6e74]">A nota de serviço e o cupom fiscal não são emitidos neste caixa. O cliente recebe o comprovante não fiscal.</p>
                 ) : null}

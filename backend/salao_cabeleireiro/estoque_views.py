@@ -122,19 +122,36 @@ class ProdutoDetailView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+def _agendamentos_pedidos(dados):
+    brutos = dados.get("agendamentos")
+    if not isinstance(brutos, list):
+        unico = dados.get("agendamento")
+        brutos = [] if unico in (None, "", 0, "0") else [unico]
+    ids = []
+    for bruto in brutos:
+        try:
+            pk = int(bruto)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("Agendamento não encontrado.") from exc
+        if pk not in ids:
+            ids.append(pk)
+    itens = []
+    for pk in ids:
+        item = _agendamento_completo(pk)
+        if item is None:
+            raise ValueError("Agendamento não encontrado.")
+        itens.append(item)
+    return itens
+
+
 class VendaCreateView(APIView):
     permission_classes = [IsAuthenticated, IsSalaoMembro]
 
     def post(self, request):
-        agendamento = None
-        bruto = request.data.get("agendamento")
-        if bruto not in (None, "", 0, "0"):
-            try:
-                agendamento = _agendamento_completo(int(bruto))
-            except (TypeError, ValueError):
-                agendamento = None
-            if agendamento is None:
-                return _erro("Agendamento não encontrado.", status.HTTP_404_NOT_FOUND)
+        try:
+            agendamentos = _agendamentos_pedidos(request.data)
+        except ValueError as exc:
+            return _erro(str(exc), status.HTTP_404_NOT_FOUND)
         config = _config()
         origem = (request.data.get("origem") or "caixa").strip()
         if origem not in {"agenda", "caixa"}:
@@ -143,7 +160,7 @@ class VendaCreateView(APIView):
         try:
             venda = registrar_venda(
                 request.data,
-                agendamento,
+                agendamentos,
                 papel_salao(loja, prof, request.user, config.modelo),
                 config.local_recebimento,
                 origem,

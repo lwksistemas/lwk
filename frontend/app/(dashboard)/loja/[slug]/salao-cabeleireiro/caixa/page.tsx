@@ -709,35 +709,6 @@ export default function CaixaPdvPage() {
         </section>
 
         <section className="space-y-4">
-          <div className="rounded-3xl bg-white p-4">
-            <p className="font-medium">Documentos (após o recebimento)</p>
-            <p className="mt-1 text-xs text-[#8a6e74]">
-              {tipoOperacao === "misto"
-                ? "Serviço e produto juntos saem só no comprovante não fiscal."
-                : tipoOperacao === "servicos"
-                  ? "Serviços podem sair no comprovante não fiscal e na NFS-e."
-                  : tipoOperacao === "produtos"
-                    ? "Produtos podem sair no comprovante não fiscal e na NFC-e."
-                    : "Escolha o atendimento ou o produto para ver os documentos."}
-            </p>
-            {([
-              ["comprovante", "Comprovante não fiscal"],
-              ["nfse", "NFS-e (Serviços)"],
-              ["nfce", "NFC-e (Produtos)"],
-            ] as const).map(([chave, titulo]) => {
-              const liberado = chave === "comprovante" || (chave === "nfse" ? tipoOperacao === "servicos" : tipoOperacao === "produtos");
-              return (
-                <label key={chave} className={`mt-3 flex items-start justify-between gap-3 text-sm ${liberado ? "" : "opacity-50"}`}>
-                  <span>
-                    <span className="block font-medium">{titulo}</span>
-                    <span className="block text-[#8a6e74]">{textoDocumento(chave, tipoOperacao)}</span>
-                    <span className="block text-xs text-[#5c3d45]">{situacaoDocumento(chave, tipoOperacao, documentos[chave], false)}</span>
-                  </span>
-                  <input type="checkbox" checked={liberado && documentos[chave]} disabled={!liberado || (chave === "comprovante" && tipoOperacao === "misto")} onChange={(evento) => setDocumentos({ ...documentos, [chave]: evento.target.checked })} className="mt-1 h-4 w-4 accent-[#7a3044]" />
-                </label>
-              );
-            })}
-          </div>
           <div className="rounded-3xl bg-white p-4 text-sm">
             <div className="flex items-center justify-between gap-2">
               <p className="font-medium">Prévia do comprovante</p>

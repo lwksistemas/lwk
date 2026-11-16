@@ -5,6 +5,7 @@ import { useParams, usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Calendar, ChevronLeft, ChevronRight, LayoutDashboard, LogOut, Package, Receipt, Scissors, Settings, Users, UserRound, Wallet } from "lucide-react";
 import { useLojaAuth } from "@/hooks/useLojaAuth";
+import { CoresStatusProvider, mapaStatus } from "@/components/salao/cores-salao";
 import { SalaoAPI, type LocalRecebimentoSalao, type PainelSalao, type PapelSalao } from "@/lib/salao-api";
 
 const ITENS = [
@@ -35,6 +36,7 @@ export function SalaoShell({ children }: { children: React.ReactNode }) {
   const [oculto, setOculto] = useState(false);
   const [painel, setPainel] = useState<PainelSalao>("operacao");
   const [cores, setCores] = useState({ menu: "", fundo: "" });
+  const [status, setStatus] = useState(() => mapaStatus(null));
   const [papel, setPapel] = useState<PapelSalao | "">("");
   const [localRecebimento, setLocalRecebimento] = useState<LocalRecebimentoSalao>("caixa");
   const tema = TEMAS[painel];
@@ -48,6 +50,7 @@ export function SalaoShell({ children }: { children: React.ReactNode }) {
     SalaoAPI.config().then((dados) => {
       setPainel(dados.painel);
       setCores({ menu: dados.cor_primaria || "", fundo: dados.cor_fundo_pagina || "" });
+      setStatus(mapaStatus(dados.agenda_status_colors));
       if (dados.papel) setPapel(dados.papel);
       if (dados.local_recebimento) setLocalRecebimento(dados.local_recebimento);
     }).catch(() => undefined);
@@ -55,8 +58,18 @@ export function SalaoShell({ children }: { children: React.ReactNode }) {
       const proximo = (evento as CustomEvent<PainelSalao>).detail;
       if (proximo === "operacao" || proximo === "gestao" || proximo === "semana") setPainel(proximo);
     }
+    function aoIdentidade(evento: Event) {
+      const dados = (evento as CustomEvent<{ cor_primaria?: string; cor_fundo_pagina?: string; agenda_status_colors?: Record<string, { bg?: string }> }>).detail;
+      if (!dados) return;
+      setCores({ menu: dados.cor_primaria || "", fundo: dados.cor_fundo_pagina || "" });
+      setStatus(mapaStatus(dados.agenda_status_colors));
+    }
     window.addEventListener("salao-painel", aoTrocar);
-    return () => window.removeEventListener("salao-painel", aoTrocar);
+    window.addEventListener("salao-identidade", aoIdentidade);
+    return () => {
+      window.removeEventListener("salao-painel", aoTrocar);
+      window.removeEventListener("salao-identidade", aoIdentidade);
+    };
   }, [pathname]);
 
   useEffect(() => {
@@ -106,7 +119,7 @@ export function SalaoShell({ children }: { children: React.ReactNode }) {
         </button>
       </aside>
       <div className="min-w-0 p-4 sm:p-5">
-        {children}
+        <CoresStatusProvider cores={status}>{children}</CoresStatusProvider>
       </div>
     </div>
   );

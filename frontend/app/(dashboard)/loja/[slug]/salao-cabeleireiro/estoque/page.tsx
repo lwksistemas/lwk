@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { ImportarXmlModal } from "@/components/salao/ImportarXmlModal";
+import { toUpperCase } from "@/lib/format-br";
 import { SalaoAPI, type ProdutoSalao } from "@/lib/salao-api";
 
-const VAZIO = { nome: "", codigo_barras: "", preco: "", saldo: "", comissao_percentual: "" };
+const VAZIO = { nome: "", fornecedor: "", codigo_barras: "", preco: "", saldo: "", comissao_percentual: "" };
 
 function reais(valor: string) {
   const numero = Number(valor);
@@ -30,6 +31,7 @@ export default function EstoqueSalaoPage() {
     setEditando(produto?.id ?? null);
     setForm(produto ? {
       nome: produto.nome,
+      fornecedor: produto.fornecedor || "",
       codigo_barras: produto.codigo_barras,
       preco: produto.preco,
       saldo: String(produto.saldo),
@@ -44,6 +46,7 @@ export default function EstoqueSalaoPage() {
     try {
       await SalaoAPI.salvarProduto({
         nome: form.nome,
+        fornecedor: form.fornecedor,
         codigo_barras: form.codigo_barras,
         preco: form.preco || "0",
         saldo: Number(form.saldo || 0),
@@ -76,6 +79,7 @@ export default function EstoqueSalaoPage() {
         {produtos.map((produto) => (
           <button key={produto.id} type="button" onClick={() => abrir(produto)} className="rounded-3xl bg-white p-4 text-left">
             <span className="block font-medium">{produto.nome}</span>
+            {produto.fornecedor ? <span className="mt-1 block text-sm text-[#8a6e74]">{produto.fornecedor}</span> : null}
             <span className="mt-1 block text-sm text-[#8a6e74]">{reais(produto.preco)} · saldo {produto.saldo}</span>
             {produto.codigo_barras ? <span className="block text-sm text-[#8a6e74]">Código {produto.codigo_barras}</span> : null}
           </button>
@@ -87,7 +91,8 @@ export default function EstoqueSalaoPage() {
           <div className="w-full max-w-md rounded-3xl bg-white p-5">
             <h2 className="text-lg font-semibold">{editando ? "Editar produto" : "Adicionar produto"}</h2>
             {erro ? <p className="mt-2 text-sm text-red-700">{erro}</p> : null}
-            <label className="mt-3 block text-sm">Nome<input value={form.nome} onChange={(evento) => setForm({ ...form, nome: evento.target.value })} className="mt-1 w-full rounded-xl border border-[#eadfe2] px-3 py-2" /></label>
+            <label className="mt-3 block text-sm">Nome comercial<input value={form.nome} maxLength={200} onChange={(evento) => setForm({ ...form, nome: toUpperCase(evento.target.value) })} className="mt-1 w-full rounded-xl border border-[#eadfe2] px-3 py-2" /></label>
+            <label className="mt-3 block text-sm">Nome do fornecedor<input value={form.fornecedor} maxLength={100} placeholder="Nome do fornecedor" onChange={(evento) => setForm({ ...form, fornecedor: toUpperCase(evento.target.value) })} className="mt-1 w-full rounded-xl border border-[#eadfe2] px-3 py-2" /></label>
             <label className="mt-3 block text-sm">Código de barras<input value={form.codigo_barras} onChange={(evento) => setForm({ ...form, codigo_barras: evento.target.value })} className="mt-1 w-full rounded-xl border border-[#eadfe2] px-3 py-2" /></label>
             <div className="mt-3 grid grid-cols-3 gap-2">
               <label className="text-sm">Preço<input value={form.preco} onChange={(evento) => setForm({ ...form, preco: evento.target.value })} className="mt-1 w-full rounded-xl border border-[#eadfe2] px-3 py-2" /></label>

@@ -86,22 +86,27 @@ def _aviso_destinatario(loja, documento_nota: str) -> str:
 
 
 def _linhas_preview(parsed: dict) -> list[dict]:
+    from .estoque_service import nome_comercial, nome_fornecedor
     from .models import Produto
 
+    fornecedor = nome_fornecedor(parsed.get("fornecedor") or "")
     linhas = []
     for item in parsed.get("produtos") or []:
-        nome = (item.get("nome") or "").strip()[:120]
+        nome = (item.get("nome") or "").strip()[:200]
         if len(nome) < 2:
             continue
         gtin = (item.get("gtin") or "")[:40]
         quantidade = unidades_da_nota(item.get("quantidade") or "0", item.get("fator") or "1")
+        comercial = nome_comercial(nome)
         existente = None
         if gtin:
             existente = Produto.objects.filter(codigo_barras=gtin, is_active=True).first()
         if existente is None:
-            existente = Produto.objects.filter(nome__iexact=nome, is_active=True).first()
+            existente = Produto.objects.filter(nome__iexact=comercial, is_active=True).first()
         linhas.append({
             "nome": nome,
+            "nome_comercial": comercial,
+            "fornecedor": fornecedor,
             "gtin": gtin,
             "quantidade": quantidade,
             "preco": str(_decimal(item.get("preco_unitario")).quantize(Decimal("0.01"))),
@@ -173,7 +178,7 @@ def preview_da_nota(nota_id: int, loja) -> dict:
 
 def _aplicar(nota, linhas: list[dict]):
     from .caixa_service import quantia
-    from .estoque_service import gravar, tenant_atomic
+    from .estoque_service import gravar, nome_comercial, nome_fornecedor, tenant_atomic
     from .models import MovimentoEstoque, NotaEntradaSalao, Produto
 
     criados = atualizados = ignorados = 0
@@ -186,7 +191,7 @@ def _aplicar(nota, linhas: list[dict]):
                 ignorados += 1
                 continue
             quantidade = int(item.get("quantidade") or 0)
-            nome = (item.get("nome") or "").strip()[:120]
+            nome = nome_comercial(item.get("nome_comercial") or "") or nome_comercial(item.get("nome") or "")
             if quantidade <= 0 or len(nome) < 2:
                 ignorados += 1
                 continue
@@ -203,6 +208,7 @@ def _aplicar(nota, linhas: list[dict]):
                 produto = gravar(
                     Produto,
                     nome=nome,
+                    fornecedor=nome_fornecedor(item.get("fornecedor") or ""),
                     codigo_barras=gtin,
                     preco=quantia(item.get("preco") or 0),
                     saldo=0,
@@ -249,6 +255,8 @@ def confirmar_nota(nota_id: int, produtos: list | None, loja) -> dict:
                 linha["quantidade"] = int(escolhido.get("quantidade") or 0)
             if escolhido.get("acao") in {"novo", "atualizar", "ignorar"}:
                 linha["acao"] = escolhido["acao"]
+            if "nome_comercial" in escolhido:
+                linha["nome_comercial"] = str(escolhido.get("nome_comercial") or "")[:200]
             if escolhido.get("preco") not in (None, ""):
                 linha["preco"] = str(escolhido["preco"])
     return _aplicar(nota, linhas)

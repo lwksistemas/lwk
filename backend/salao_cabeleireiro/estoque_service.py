@@ -219,10 +219,20 @@ def publico_venda(venda: Venda) -> dict:
     }
 
 
+def nome_comercial(valor: str) -> str:
+    """Nome do estoque, do caixa e do recibo. A clínica grava em maiúsculas."""
+    return (valor or "").strip().upper()[:200]
+
+
+def nome_fornecedor(valor: str) -> str:
+    return (valor or "").strip().upper()[:100]
+
+
 def publico_produto(produto: Produto) -> dict:
     return {
         "id": produto.id,
         "nome": produto.nome,
+        "fornecedor": produto.fornecedor,
         "codigo_barras": produto.codigo_barras,
         "preco": f"{quantia(produto.preco):.2f}",
         "saldo": produto.saldo,

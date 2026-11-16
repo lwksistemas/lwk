@@ -192,7 +192,8 @@ class Produto(models.Model):
     """Produto vendido no caixa. O saldo só muda depois que a venda é confirmada."""
 
     loja_id = models.IntegerField(db_index=True)
-    nome = models.CharField(max_length=120)
+    nome = models.CharField(max_length=200, verbose_name="Nome comercial")
+    fornecedor = models.CharField(max_length=100, blank=True, default="", verbose_name="Nome do fornecedor")
     codigo_barras = models.CharField(max_length=40, blank=True, default="")
     preco = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("0"))
     saldo = models.PositiveIntegerField(default=0)
@@ -258,7 +259,7 @@ class Venda(models.Model):
 class VendaItem(models.Model):
     venda = models.ForeignKey(Venda, on_delete=models.CASCADE, related_name="itens")
     produto = models.ForeignKey(Produto, on_delete=models.PROTECT, related_name="itens")
-    nome = models.CharField(max_length=120)
+    nome = models.CharField(max_length=200)
     quantidade = models.PositiveIntegerField()
     preco = models.DecimalField(max_digits=10, decimal_places=2)
     total = models.DecimalField(max_digits=10, decimal_places=2)

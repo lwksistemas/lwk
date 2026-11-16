@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { toUpperCase } from "@/lib/format-br";
 import { SalaoAPI, type ItemXmlSalao, type NotaPendenteSalao, type PreviewXmlSalao } from "@/lib/salao-api";
 
 export function ImportarXmlModal({ aberto, onFechar, onImportou }: { aberto: boolean; onFechar: () => void; onImportou: () => void }) {
@@ -121,12 +122,18 @@ export function ImportarXmlModal({ aberto, onFechar, onImportou }: { aberto: boo
               <div key={`${item.gtin}-${indice}`} className="grid grid-cols-[1fr_5rem_8rem] items-center gap-2 rounded-2xl border border-[#f0e4e7] p-3 text-sm">
                 <span>
                   <span className="block font-medium">{item.nome}</span>
-                  <span className="text-[#8a6e74]">{item.acao === "atualizar" ? "Já existe no estoque" : "Produto novo"}{item.gtin ? ` · ${item.gtin}` : ""}</span>
+                  <span className="text-[#8a6e74]">{item.acao === "atualizar" ? "Já existe no estoque" : "Produto novo"}{item.fornecedor ? ` · ${item.fornecedor}` : ""}{item.gtin ? ` · ${item.gtin}` : ""}</span>
                 </span>
                 <input value={item.quantidade} onChange={(evento) => setItens(itens.map((atual, posicao) => posicao === indice ? { ...atual, quantidade: Number(evento.target.value) || 0 } : atual))} className="rounded-xl border border-[#eadfe2] px-2 py-1" />
                 <button type="button" className="text-[#7a3044]" onClick={() => setItens(itens.map((atual, posicao) => posicao === indice ? { ...atual, acao: atual.acao === "ignorar" ? (atual.produto_id ? "atualizar" : "novo") : "ignorar" } : atual))}>
                   {item.acao === "ignorar" ? "Ignorado" : "Entrar"}
                 </button>
+                {item.acao === "novo" ? (
+                  <label className="col-span-3 block text-xs text-[#8a6e74]">
+                    Nome comercial
+                    <input value={item.nome_comercial || ""} maxLength={200} onChange={(evento) => setItens(itens.map((atual, posicao) => posicao === indice ? { ...atual, nome_comercial: toUpperCase(evento.target.value) } : atual))} className="mt-1 w-full rounded-xl border border-[#eadfe2] px-2 py-1 text-sm text-[#3a2428]" />
+                  </label>
+                ) : null}
               </div>
             ))}
             <div className="flex justify-end gap-2">

@@ -5,14 +5,15 @@ import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import apiClient from "@/lib/api-client";
+import { hexCor, STATUS_PADRAO } from "@/components/salao/cores-salao";
 
 const STATUS = [
-  ["SCHEDULED", "Aguardando", "#a16207"],
-  ["CONFIRMED", "Confirmado", "#1d4ed8"],
-  ["IN_PROGRESS", "Em atendimento", "#4c1d78"],
-  ["COMPLETED", "Concluído", "#1f8a4c"],
-  ["CANCELLED", "Cancelado", "#b91c1c"],
-  ["NO_SHOW", "Faltou", "#6b7280"],
+  ["SCHEDULED", "Aguardando"],
+  ["CONFIRMED", "Confirmado"],
+  ["IN_PROGRESS", "Em atendimento"],
+  ["COMPLETED", "Concluído"],
+  ["CANCELLED", "Cancelado"],
+  ["NO_SHOW", "Faltou"],
 ] as const;
 
 type Identidade = {
@@ -29,28 +30,33 @@ export default function AparenciaSalaoPage() {
   const [aviso, setAviso] = useState("");
 
   useEffect(() => {
-    apiClient.get<Identidade>("/salao-cabeleireiro/identidade/").then((resposta) => setForm(resposta.data)).catch(() => setErro("Não foi possível carregar a identidade visual."));
+    apiClient.get<Identidade>("/salao-cabeleireiro/identidade/").then((resposta) => setForm(normalizar(resposta.data))).catch(() => setErro("Não foi possível carregar a identidade visual."));
   }, []);
 
   async function gravar() {
     if (!form) return;
     setErro("");
     setAviso("");
-    const cores = Object.fromEntries(STATUS.map(([codigo, _nome, padrao]) => {
-      const atual = form.agenda_status_colors[codigo]?.bg || padrao;
+    const mapa = form.agenda_status_colors || {};
+    const cores = Object.fromEntries(STATUS.map(([codigo]) => {
+      const atual = hexCor(mapa[codigo]?.bg, STATUS_PADRAO[codigo]);
       return [codigo, { bg: atual, border: atual }];
     }));
+    const corpo = {
+      cor_primaria: hexCor(form.cor_primaria, "#7a3044"),
+      cor_secundaria: hexCor(form.cor_secundaria, "#4c1d78"),
+      cor_fundo_pagina: hexCor(form.cor_fundo_pagina, "#fbf6f4"),
+      agenda_status_colors: cores,
+    };
     try {
-      const resposta = await apiClient.patch<Identidade>("/salao-cabeleireiro/identidade/", {
-        cor_primaria: form.cor_primaria,
-        cor_secundaria: form.cor_secundaria,
-        cor_fundo_pagina: form.cor_fundo_pagina,
-        agenda_status_colors: cores,
-      });
-      setForm(resposta.data);
-      setAviso("A identidade visual ficou gravada neste salão. Volte às configurações para ver o menu.");
-    } catch {
-      setErro("Não foi possível gravar as cores.");
+      const resposta = await apiClient.patch<Identidade>("/salao-cabeleireiro/identidade/", corpo);
+      const gravado = normalizar(resposta.data);
+      setForm(gravado);
+      window.dispatchEvent(new CustomEvent("salao-identidade", { detail: gravado }));
+      setAviso("A identidade visual ficou gravada neste salão.");
+    } catch (exc) {
+      const resposta = (exc as { response?: { data?: { error?: string } } }).response?.data?.error;
+      setErro(typeof resposta === "string" ? resposta : "Não foi possível gravar as cores.");
     }
   }
 
@@ -65,15 +71,15 @@ export default function AparenciaSalaoPage() {
       {aviso ? <p className="mt-3 text-sm text-[#1f8a4c]">{aviso}</p> : null}
       {form ? (
         <div className="mt-4 max-w-xl space-y-4 rounded-3xl border border-[#f0e4e6] bg-white p-4">
-          <Cor nome="Cor do menu" valor={form.cor_primaria || "#7A3044"} aoMudar={(valor) => setForm({ ...form, cor_primaria: valor })} />
-          <Cor nome="Cor secundária" valor={form.cor_secundaria || "#4c1d78"} aoMudar={(valor) => setForm({ ...form, cor_secundaria: valor })} />
-          <Cor nome="Fundo das páginas" valor={form.cor_fundo_pagina || "#fbf6f4"} aoMudar={(valor) => setForm({ ...form, cor_fundo_pagina: valor })} />
+          <Cor nome="Cor do menu" valor={form.cor_primaria} aoMudar={(valor) => setForm({ ...form, cor_primaria: valor })} />
+          <Cor nome="Cor secundária" valor={form.cor_secundaria} aoMudar={(valor) => setForm({ ...form, cor_secundaria: valor })} />
+          <Cor nome="Fundo das páginas" valor={form.cor_fundo_pagina} aoMudar={(valor) => setForm({ ...form, cor_fundo_pagina: valor })} />
           <div className="grid gap-2">
-            {STATUS.map(([codigo, nome, padrao]) => (
+            {STATUS.map(([codigo, nome]) => (
               <Cor
                 key={codigo}
                 nome={nome}
-                valor={form.agenda_status_colors[codigo]?.bg || padrao}
+                valor={hexCor(form.agenda_status_colors?.[codigo]?.bg, STATUS_PADRAO[codigo])}
                 aoMudar={(valor) => setForm({ ...form, agenda_status_colors: { ...form.agenda_status_colors, [codigo]: { bg: valor, border: valor } } })}
               />
             ))}
@@ -85,12 +91,25 @@ export default function AparenciaSalaoPage() {
   );
 }
 
+function normalizar(dados: Identidade): Identidade {
+  const mapa = dados.agenda_status_colors || {};
+  return {
+    cor_primaria: hexCor(dados.cor_primaria, "#7a3044"),
+    cor_secundaria: hexCor(dados.cor_secundaria, "#4c1d78"),
+    cor_fundo_pagina: hexCor(dados.cor_fundo_pagina, "#fbf6f4"),
+    agenda_status_colors: Object.fromEntries(STATUS.map(([codigo]) => {
+      const cor = hexCor(mapa[codigo]?.bg, STATUS_PADRAO[codigo]);
+      return [codigo, { bg: cor, border: cor }];
+    })),
+  };
+}
+
 function Cor({ nome, valor, aoMudar }: { nome: string; valor: string; aoMudar: (valor: string) => void }) {
-  const hex = /^#[0-9A-Fa-f]{6}$/.test(valor) ? valor : "#7A3044";
+  const hex = hexCor(valor, "#7a3044");
   return (
     <label className="flex items-center justify-between gap-3 text-sm">
       {nome}
-      <input type="color" value={hex} aria-label={nome} onChange={(evento) => aoMudar(evento.target.value)} />
+      <input type="color" value={hex} aria-label={nome} onChange={(evento) => aoMudar(hexCor(evento.target.value, hex))} />
     </label>
   );
 }

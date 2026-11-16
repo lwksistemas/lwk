@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { CalendarPlus, Gift, Scissors, Users } from "lucide-react";
+import { STATUS_PADRAO, useStatusSalao } from "@/components/salao/cores-salao";
 import { SalaoAPI, type AgendamentoSalao, type BloqueioSalao, type JornadaDia, type PainelSalao, type ProfissionalSalao, type ResumoSalao } from "@/lib/salao-api";
 import { agendaDemonstracao, bloqueiosDemonstracao, jornadasDemonstracao, profissionaisDemonstracao, resumoDemonstracao } from "@/components/salao/demonstracao-salao";
 
@@ -448,7 +449,8 @@ function Iniciais({ nome, cor }: { nome: string; cor: string }) {
 }
 
 function Selo({ status, texto }: { status: string; texto: string }) {
-  const cor = status === "COMPLETED" ? "#1f8a4c" : status === "IN_PROGRESS" ? "#4c1d78" : status === "CONFIRMED" ? "#1d4ed8" : "#a16207";
+  const cores = useStatusSalao();
+  const cor = cores[status] || STATUS_PADRAO[status] || STATUS_PADRAO.SCHEDULED;
   return <span className="shrink-0 rounded-full px-2 py-0.5 text-[11px]" style={{ color: cor, background: `${cor}18` }}>{texto}</span>;
 }
 

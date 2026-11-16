@@ -18,6 +18,7 @@ export type PapelSalao = "administrador" | "autonomo" | "recepcionista" | "profi
 export type ProdutoSalao = {
   id: number;
   nome: string;
+  fornecedor: string;
   codigo_barras: string;
   preco: string;
   saldo: number;
@@ -37,6 +38,8 @@ export type NotaPendenteSalao = {
 
 export type ItemXmlSalao = {
   nome: string;
+  nome_comercial: string;
+  fornecedor: string;
   gtin: string;
   quantidade: number;
   preco: string;
@@ -197,7 +200,9 @@ export const SalaoAPI = {
     pode_trocar: boolean;
     paineis: { id: PainelSalao; nome: string }[];
     cor_primaria: string;
+    cor_secundaria: string;
     cor_fundo_pagina: string;
+    agenda_status_colors: Record<string, { bg?: string; border?: string }>;
     modelo: ModeloSalao;
     local_recebimento: LocalRecebimentoSalao;
     papel: PapelSalao;

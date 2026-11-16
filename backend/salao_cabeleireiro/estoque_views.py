@@ -6,7 +6,15 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .caixa_service import quantia
-from .estoque_service import gravar, publico_produto, publico_venda, registrar_venda, tenant_atomic
+from .estoque_service import (
+    gravar,
+    nome_comercial,
+    nome_fornecedor,
+    publico_produto,
+    publico_venda,
+    registrar_venda,
+    tenant_atomic,
+)
 from .models import MovimentoEstoque, Produto
 from .permissions import IsSalaoAdmin, IsSalaoMembro, contexto_salao, papel_salao
 from .views import _agendamento_completo, _config, _erro
@@ -22,13 +30,14 @@ class ProdutoListCreateView(APIView):
         qs = Produto.objects.filter(is_active=True).order_by("nome")
         termo = (request.query_params.get("q") or "").strip()
         if termo:
-            qs = qs.filter(Q(nome__icontains=termo) | Q(codigo_barras__iexact=termo))
+            qs = qs.filter(Q(nome__icontains=termo) | Q(fornecedor__icontains=termo) | Q(codigo_barras__iexact=termo))
         return Response([publico_produto(item) for item in qs[:200]])
 
     def post(self, request):
-        nome = (request.data.get("nome") or "").strip()
+        nome = nome_comercial(request.data.get("nome") or "")
         if len(nome) < 2:
-            return _erro("Informe o nome do produto.")
+            return _erro("Informe o nome comercial do produto.")
+        fornecedor = nome_fornecedor(request.data.get("fornecedor") or "")
         try:
             preco = quantia(request.data.get("preco") or 0)
             saldo = int(request.data.get("saldo") or 0)
@@ -43,7 +52,8 @@ class ProdutoListCreateView(APIView):
         with tenant_atomic():
             produto = gravar(
                 Produto,
-                nome=nome[:120],
+                nome=nome,
+                fornecedor=fornecedor,
                 codigo_barras=codigo,
                 preco=preco,
                 saldo=saldo,
@@ -67,9 +77,10 @@ class ProdutoDetailView(APIView):
         produto = Produto.objects.filter(pk=pk, is_active=True).first()
         if produto is None:
             return _erro("Produto não encontrado.", status.HTTP_404_NOT_FOUND)
-        nome = (request.data.get("nome") or produto.nome).strip()
+        nome = nome_comercial(request.data.get("nome") if "nome" in request.data else produto.nome)
         if len(nome) < 2:
-            return _erro("Informe o nome do produto.")
+            return _erro("Informe o nome comercial do produto.")
+        fornecedor = nome_fornecedor(request.data.get("fornecedor") if "fornecedor" in request.data else produto.fornecedor)
         try:
             preco = quantia(request.data.get("preco") if request.data.get("preco") not in (None, "") else produto.preco)
             saldo = int(request.data.get("saldo") if request.data.get("saldo") not in (None, "") else produto.saldo)
@@ -85,7 +96,8 @@ class ProdutoDetailView(APIView):
         with tenant_atomic():
             produto = Produto.objects.select_for_update().get(pk=produto.pk)
             diferenca = saldo - produto.saldo
-            produto.nome = nome[:120]
+            produto.nome = nome
+            produto.fornecedor = fornecedor
             produto.codigo_barras = codigo
             produto.preco = preco
             produto.saldo = saldo

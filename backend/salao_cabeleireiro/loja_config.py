@@ -9,10 +9,12 @@ from .permissions import IsSalaoAdmin, IsSalaoMembro, contexto_salao
 
 def cores_gravadas(loja) -> dict:
     if loja is None:
-        return {"cor_primaria": "", "cor_fundo_pagina": ""}
+        return {"cor_primaria": "", "cor_secundaria": "", "cor_fundo_pagina": "", "agenda_status_colors": {}}
     return {
         "cor_primaria": (loja.cor_primaria or "").strip(),
+        "cor_secundaria": (loja.cor_secundaria or "").strip(),
         "cor_fundo_pagina": (getattr(loja, "cor_fundo_pagina", None) or "").strip(),
+        "agenda_status_colors": getattr(loja, "agenda_status_colors", None) or {},
     }
 
 
@@ -92,7 +94,14 @@ class IdentidadeView(APIView):
             loja.agenda_status_colors = sanitize_agenda_status_colors(dados.get("agenda_status_colors"))
             campos.append("agenda_status_colors")
         if campos:
-            loja.save(update_fields=[*campos, "updated_at"])
+            from django.utils import timezone
+
+            from superadmin.models import Loja
+
+            valores = {campo: getattr(loja, campo) for campo in campos}
+            valores["updated_at"] = timezone.now()
+            Loja.objects.using("default").filter(pk=loja.pk).update(**valores)
+            loja.refresh_from_db(using="default")
             from superadmin.loja_utils import invalidate_loja_info_publica_cache, rebuild_loja_info_publica_cache
 
             invalidate_loja_info_publica_cache(loja)

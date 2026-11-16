@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { STATUS_PADRAO, useStatusSalao } from "@/components/salao/cores-salao";
 import { diaTemAtendimento } from "@/components/salao/PaineisSalao";
 import { SalaoAPI, type AgendamentoSalao, type BloqueioSalao, type ClienteSalao, type JornadaDia, type LocalRecebimentoSalao, type ProfissionalSalao, type ServicoSalao } from "@/lib/salao-api";
 
@@ -50,15 +51,8 @@ function inicioDaSemana(data: Date) {
   return copia;
 }
 
-function corStatus(status: string) {
-  if (status === "COMPLETED") return "#1f8a4c";
-  if (status === "IN_PROGRESS") return "#1f8f86";
-  if (status === "CONFIRMED") return "#7a3044";
-  if (status === "CANCELLED" || status === "NO_SHOW") return "#8a6e74";
-  return "#d7a3ae";
-}
-
 export default function AgendaSalaoPage() {
+  const statusCores = useStatusSalao();
   const params = useParams();
   const slug = params.slug as string;
   const searchParams = useSearchParams();
@@ -523,7 +517,7 @@ export default function AgendaSalaoPage() {
                       onClick={(evento) => { evento.stopPropagation(); setForm(null); setConfirmarExclusao(false); setSelecionado(item); }}
                       title={`${faixa} · Profissional ${item.profissional_nome} · Cliente ${item.cliente_nome}`}
                       className="absolute left-1 right-1 overflow-hidden rounded-md px-1 py-0.5 text-left text-[11px] leading-tight text-white"
-                      style={{ top: Math.max(0, topo), height: Math.max(48, (item.duracao_minutos / 60) * ALTURA_HORA), background: corStatus(item.status) }}
+                      style={{ top: Math.max(0, topo), height: Math.max(48, (item.duracao_minutos / 60) * ALTURA_HORA), background: statusCores[item.status] || STATUS_PADRAO.SCHEDULED }}
                     >
                       <span className="block truncate">{faixa}</span>
                       <span className="block truncate">Profissional {item.profissional_nome}</span>

@@ -73,6 +73,10 @@ export type ComprovanteSalao = {
   desconto?: string;
   valor: string;
   cancelado?: boolean;
+  cancelado_em?: string;
+  cancelado_por?: string;
+  motivo?: string;
+  estorno?: string;
   servicos?: { nome: string; profissional?: string; total: string }[];
   produtos?: { nome: string; quantidade?: number; total: string }[];
   formas?: { nome: string; valor: string }[];
@@ -109,6 +113,30 @@ export type ClienteSalao = {
   cidade?: string | null;
   estado?: string | null;
   endereco?: string | null;
+};
+
+export type ResumoSessaoSalao = {
+  id: number;
+  operador: string;
+  aberta_em: string;
+  saldo_inicial: string;
+  dinheiro: string;
+  suprimentos: string;
+  sangrias: string;
+  esperado: string;
+  fechada_em: string;
+  operador_fechamento: string;
+  dinheiro_contado: string;
+  diferenca: string;
+  observacao: string;
+  aberta: boolean;
+};
+
+export type SessaoCaixaSalao = {
+  modelo: "recepcionista" | "autonomo";
+  exige_abertura: boolean;
+  aberta: ResumoSessaoSalao | null;
+  historico: ResumoSessaoSalao[];
 };
 
 export type FormaPagamentoSalao = {
@@ -204,6 +232,9 @@ export type ComunicacaoSalao = {
 
 export type CaixaSalao = {
   total: string;
+  servicos?: string;
+  produtos?: string;
+  descontos?: string;
   quantidade: number;
   por_forma: { forma: string; nome: string; total: string }[];
   comissoes: { nome: string; quantidade: number; recebido: string; comissao: string }[];
@@ -315,7 +346,25 @@ export const SalaoAPI = {
   vender: (corpo: { agendamento?: number; agendamentos?: number[]; desconto: string; origem?: "caixa" | "agenda"; formas?: { forma: string; valor: string }[]; itens?: { produto: number; quantidade: number }[]; nfse?: boolean; nfce?: boolean }) =>
     salaoFetch<VendaSalao>("/vendas/", { method: "POST", body: JSON.stringify(corpo) }),
   venda: (numero: number) => salaoFetch<VendaSalao>(`/vendas/${numero}/`),
-  comprovantes: (q = "", data = "") => salaoFetch<{ numero: number; quando: string; cliente: string; valor: string; operador: string; cancelado: boolean }[]>(`/vendas/?q=${encodeURIComponent(q)}&data=${encodeURIComponent(data)}`),
+  comprovantes: (filtro: { q?: string; inicio?: string; fim?: string; operador?: string; situacao?: string; tipo?: string } = {}) => {
+    const params = new URLSearchParams();
+    if (filtro.q) params.set("q", filtro.q);
+    if (filtro.inicio) params.set("inicio", filtro.inicio);
+    if (filtro.fim) params.set("fim", filtro.fim);
+    if (filtro.operador) params.set("operador", filtro.operador);
+    if (filtro.situacao) params.set("situacao", filtro.situacao);
+    if (filtro.tipo) params.set("tipo", filtro.tipo);
+    return salaoFetch<{ numero: number; quando: string; cliente: string; valor: string; operador: string; cancelado: boolean; tipo: string }[]>(`/vendas/?${params.toString()}`);
+  },
+  sessaoCaixa: () => salaoFetch<SessaoCaixaSalao>("/caixa/sessao/"),
+  abrirCaixa: (saldo_inicial: string) =>
+    salaoFetch<ResumoSessaoSalao>("/caixa/abrir/", { method: "POST", body: JSON.stringify({ saldo_inicial }) }),
+  fecharCaixa: (dinheiro_contado: string, observacao: string) =>
+    salaoFetch<ResumoSessaoSalao>("/caixa/fechar/", { method: "POST", body: JSON.stringify({ dinheiro_contado, observacao }) }),
+  movimentoCaixa: (tipo: "sangria" | "suprimento", valor: string, motivo: string) =>
+    salaoFetch<ResumoSessaoSalao>("/caixa/movimento/", { method: "POST", body: JSON.stringify({ tipo, valor, motivo }) }),
+  cancelarRecibo: (numero: number, motivo: string) =>
+    salaoFetch<VendaSalao>(`/vendas/${numero}/cancelar/`, { method: "POST", body: JSON.stringify({ motivo }) }),
   htmlRecibo: async (numero: number) => {
     const resposta = await fetch(`${getApiBaseUrl()}/salao-cabeleireiro/vendas/${numero}/html/`, {
       credentials: USE_JWT_HTTPONLY_COOKIES ? "include" : "same-origin",

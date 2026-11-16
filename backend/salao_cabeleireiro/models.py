@@ -298,6 +298,10 @@ class Venda(models.Model):
     partes_produtos = models.JSONField(default=list, blank=True)
     operador_nome = models.CharField(max_length=160, blank=True, default="")
     comprovante = models.JSONField(default=dict, blank=True)
+    cancelado_em = models.DateTimeField(null=True, blank=True)
+    cancelado_por = models.CharField(max_length=160, blank=True, default="")
+    motivo_cancelamento = models.CharField(max_length=200, blank=True, default="")
+    estoque_estornado = models.BooleanField(default=False)
     sessao = models.ForeignKey(
         "SessaoCaixa",
         null=True,
@@ -329,12 +333,44 @@ class SessaoCaixa(models.Model):
     loja_id = models.IntegerField(db_index=True)
     operador_nome = models.CharField(max_length=160, blank=True, default="")
     aberta_em = models.DateTimeField(auto_now_add=True)
+    saldo_inicial = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("0"))
+    fechada_em = models.DateTimeField(null=True, blank=True)
+    operador_fechamento = models.CharField(max_length=160, blank=True, default="")
+    dinheiro_contado = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    diferenca = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    observacao = models.CharField(max_length=200, blank=True, default="")
     is_active = models.BooleanField(default=True)
     objects = LojaIsolationManager()
 
     class Meta:
         verbose_name = "Sessão do caixa"
         ordering = ["-aberta_em"]
+
+    def save(self, *args, **kwargs):
+        from tenants.middleware import get_current_loja_id
+
+        if not self.loja_id:
+            atual = get_current_loja_id()
+            if atual:
+                self.loja_id = atual
+        super().save(*args, **kwargs)
+
+
+class MovimentoCaixa(models.Model):
+    """Sangria tira dinheiro da gaveta. Suprimento coloca."""
+
+    loja_id = models.IntegerField(db_index=True)
+    sessao = models.ForeignKey(SessaoCaixa, on_delete=models.PROTECT, related_name="movimentos")
+    tipo = models.CharField(max_length=20)
+    valor = models.DecimalField(max_digits=10, decimal_places=2)
+    motivo = models.CharField(max_length=200, blank=True, default="")
+    operador_nome = models.CharField(max_length=160, blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+    objects = LojaIsolationManager()
+
+    class Meta:
+        verbose_name = "Movimento do caixa"
+        ordering = ["-created_at"]
 
     def save(self, *args, **kwargs):
         from tenants.middleware import get_current_loja_id

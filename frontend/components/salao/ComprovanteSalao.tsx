@@ -31,12 +31,20 @@ export function ComprovanteSalaoCard({ dados }: { dados: ComprovanteSalao }) {
       <div className="mt-3 px-1.5 py-2 text-center font-sans text-xs font-bold tracking-wide text-white" style={{ background: cor }}>
         COMPROVANTE DE PAGAMENTO<br />(NÃO FISCAL)
       </div>
-      {dados.cancelado ? <p className="mt-2 text-center font-sans text-sm font-bold text-[#9f1239]">CANCELADO</p> : null}
+      {dados.cancelado ? (
+        <div className="mt-2 text-center font-sans text-[#9f1239]">
+          <p className="text-sm font-bold">CANCELADO</p>
+          <p className="text-[11px]">Pagamento cancelado{dados.cancelado_em ? ` em ${dados.cancelado_em}` : ""}{dados.cancelado_por ? ` por ${dados.cancelado_por}` : ""}.{dados.motivo ? ` Motivo: ${dados.motivo}.` : ""}{dados.estorno ? ` ${dados.estorno}.` : ""}</p>
+        </div>
+      ) : null}
       <div className="mt-2.5 flex justify-between gap-2 font-sans text-xs">
         <span>Nº {numero}</span>
         <span>{dados.quando}</span>
       </div>
-      <div className="mt-2 rounded-lg border border-[#f0e4e7] px-2 py-2 font-sans text-[13px]">Cliente: <strong>{dados.cliente || "Consumidor"}</strong></div>
+      <div className="mt-2 rounded-lg border border-[#f0e4e7] px-2 py-2 font-sans text-[13px]">
+        Cliente: <strong>{dados.cliente || "Consumidor"}</strong>
+        {dados.operador && dados.operador.trim().toLocaleLowerCase() !== (salao?.nome || "").trim().toLocaleLowerCase() ? <div className="mt-1 text-xs text-[#5c3d45]">Operador: {dados.operador}</div> : null}
+      </div>
       <table className="mt-2 w-full border-collapse font-sans text-[13px]">
         <tbody>
           {servicos.length > 0 ? <tr><td colSpan={2} className="pb-1 pt-2 text-xs tracking-wide text-[#6b4a52]">SERVIÇOS</td></tr> : null}
@@ -62,7 +70,7 @@ export function ComprovanteSalaoCard({ dados }: { dados: ComprovanteSalao }) {
         </tbody>
       </table>
       <div className="mt-2 flex justify-between px-2.5 py-2 font-sans font-bold text-white" style={{ background: cor }}>
-        <span>Total pago</span>
+        <span>{dados.cancelado ? "Valor original" : "Total pago"}</span>
         <span>{reais(dados.valor)}</span>
       </div>
       {formas.length > 0 ? (

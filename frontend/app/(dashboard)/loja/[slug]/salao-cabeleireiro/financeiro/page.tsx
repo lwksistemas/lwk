@@ -175,6 +175,7 @@ export default function FinanceiroSalaoPage() {
         <article className="rounded-3xl border border-[#f0e4e6] bg-white p-4">
           <p className="text-sm text-[#8a6e74]">Recebido</p>
           <p className="mt-1 text-2xl font-semibold text-[#7a3044]">{caixa?.total || "R$ 0,00"}</p>
+          {caixa?.servicos ? <p className="mt-2 text-xs text-[#8a6e74]">Serviços {caixa.servicos} · Produtos {caixa.produtos || "R$ 0,00"} · Descontos {caixa.descontos || "R$ 0,00"}</p> : null}
         </article>
         {(caixa?.por_forma || []).map((item) => (
           <article key={item.forma} className="rounded-3xl border border-[#f0e4e6] bg-white p-4">

@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Banknote, Check, CreditCard, Download, Layers, Mail, MessageCircle, Minus, Plus, Printer, QrCode, Scissors, ShoppingBag, Trash2, UserRound, X } from "lucide-react";
 import { ComprovanteSalaoCard } from "@/components/salao/ComprovanteSalao";
-import { SalaoAPI, type AgendamentoSalao, type CabecalhoRecibo, type ClienteSalao, type ComprovanteSalao, type FormaPagamentoSalao, type LocalRecebimentoSalao, type PapelSalao, type ProdutoSalao, type VendaSalao } from "@/lib/salao-api";
+import { SalaoAPI, type AgendamentoSalao, type CabecalhoRecibo, type ClienteSalao, type ComprovanteSalao, type FormaPagamentoSalao, type LocalRecebimentoSalao, type PapelSalao, type ProdutoSalao, type SessaoCaixaSalao, type VendaSalao } from "@/lib/salao-api";
 
 type ItemCarrinho = { produto: number; nome: string; preco: string; saldo: number; quantidade: number };
 type Linha = { id: string; forma: string; valor: string };
@@ -158,8 +158,17 @@ export default function CaixaPdvPage() {
   const [cabecalho, setCabecalho] = useState<CabecalhoRecibo | null>(null);
   const [oficial, setOficial] = useState<ComprovanteSalao | null>(null);
   const [buscaRecibo, setBuscaRecibo] = useState("");
-  const [dataRecibo, setDataRecibo] = useState("");
+  const [inicioRecibo, setInicioRecibo] = useState("");
+  const [fimRecibo, setFimRecibo] = useState("");
+  const [operadorRecibo, setOperadorRecibo] = useState("");
+  const [situacaoRecibo, setSituacaoRecibo] = useState("");
+  const [tipoRecibo, setTipoRecibo] = useState("");
   const [historico, setHistorico] = useState<{ numero: number; quando: string; cliente: string; valor: string; operador: string; cancelado: boolean }[]>([]);
+  const [sessao, setSessao] = useState<SessaoCaixaSalao | null>(null);
+  const [saldoInicial, setSaldoInicial] = useState("");
+  const [contado, setContado] = useState("");
+  const [valorCaixa, setValorCaixa] = useState("");
+  const [motivoCaixa, setMotivoCaixa] = useState("");
   const [busca, setBusca] = useState("");
   const [fila, setFila] = useState<AgendamentoSalao[]>([]);
   const [clientes, setClientes] = useState<ClienteSalao[]>([]);
@@ -210,8 +219,17 @@ export default function CaixaPdvPage() {
     SalaoAPI.produtos().then(setProdutos).catch(() => undefined);
     SalaoAPI.clientes().then(setClientes).catch(() => undefined);
     SalaoAPI.formas().then((lista) => { if (lista.length) setCatalogo(lista); }).catch(() => undefined);
+    SalaoAPI.sessaoCaixa().then(setSessao).catch(() => undefined);
     carregar();
   }, []);
+
+  function filtroRecibo() {
+    return { q: buscaRecibo, inicio: inicioRecibo, fim: fimRecibo, operador: operadorRecibo, situacao: situacaoRecibo, tipo: tipoRecibo };
+  }
+
+  function buscarRecibos() {
+    void SalaoAPI.comprovantes(filtroRecibo()).then(setHistorico).catch((exc: Error) => setErro(exc.message));
+  }
 
   const visiveis = useMemo(() => {
     const termo = busca.trim().toLowerCase();
@@ -545,14 +563,46 @@ export default function CaixaPdvPage() {
           <p className="text-sm text-[#8a6e74]">Recebimento de atendimentos e venda de produtos</p>
         </div>
         <div className="flex flex-wrap items-center gap-2 text-sm">
-          <span className="rounded-full bg-[#e7f6ee] px-3 py-1 font-medium text-[#1f8a4c]">{abertura ? "Caixa aberto" : "Caixa sem sessão"}</span>
-          <span className="rounded-full bg-white px-3 py-1 text-[#5c3d45]">Abertura: {abertura || "na primeira venda"}</span>
+          <span className="rounded-full bg-[#e7f6ee] px-3 py-1 font-medium text-[#1f8a4c]">{sessao?.exige_abertura ? (sessao.aberta ? "Caixa aberto" : "Caixa fechado") : abertura ? "Caixa aberto" : "Caixa sem sessão"}</span>
+          <span className="rounded-full bg-white px-3 py-1 text-[#5c3d45]">{sessao?.exige_abertura ? (sessao.aberta ? `Abertura: ${sessao.aberta.aberta_em}` : "Abra o caixa para receber") : `Abertura: ${abertura || "na primeira venda"}`}</span>
           <span className="ml-1 flex items-center gap-2 rounded-full bg-white px-2 py-1 pr-3">
             <span className="grid h-8 w-8 place-items-center rounded-full bg-[#7a3044] text-xs font-semibold text-white">{iniciais(operador || "Caixa")}</span>
             <span className="font-medium">{operador || "Caixa"}</span>
           </span>
         </div>
       </header>
+
+      {sessao?.exige_abertura ? (
+        <section className="rounded-3xl bg-white p-4 text-sm">
+          {sessao.aberta ? (
+            <div className="space-y-3">
+              <p>Saldo inicial {reais(lerReais(sessao.aberta.saldo_inicial))} · Dinheiro {reais(lerReais(sessao.aberta.dinheiro))} · Suprimentos {reais(lerReais(sessao.aberta.suprimentos))} · Sangrias {reais(lerReais(sessao.aberta.sangrias))} · Esperado na gaveta {reais(lerReais(sessao.aberta.esperado))}</p>
+              <div className="flex flex-wrap gap-2">
+                <input value={valorCaixa} onChange={(evento) => setValorCaixa(evento.target.value)} placeholder="Valor" className="w-28 rounded-xl border border-[#eadfe2] px-3 py-2" />
+                <input value={motivoCaixa} onChange={(evento) => setMotivoCaixa(evento.target.value)} placeholder="Motivo" className="min-w-40 flex-1 rounded-xl border border-[#eadfe2] px-3 py-2" />
+                <button type="button" className="rounded-xl bg-[#f6eef0] px-3 py-2" onClick={() => void SalaoAPI.movimentoCaixa("sangria", valorCaixa, motivoCaixa).then((aberta) => { setSessao({ ...sessao, aberta }); setValorCaixa(""); setMotivoCaixa(""); }).catch((exc: Error) => setErro(exc.message))}>Sangria</button>
+                <button type="button" className="rounded-xl bg-[#f6eef0] px-3 py-2" onClick={() => void SalaoAPI.movimentoCaixa("suprimento", valorCaixa, motivoCaixa).then((aberta) => { setSessao({ ...sessao, aberta }); setValorCaixa(""); setMotivoCaixa(""); }).catch((exc: Error) => setErro(exc.message))}>Suprimento</button>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <input value={contado} onChange={(evento) => setContado(evento.target.value)} placeholder="Dinheiro contado" className="w-40 rounded-xl border border-[#eadfe2] px-3 py-2" />
+                <button type="button" className="rounded-xl bg-[#7a3044] px-3 py-2 text-white" onClick={() => void SalaoAPI.fecharCaixa(contado, "").then(() => SalaoAPI.sessaoCaixa().then(setSessao)).catch((exc: Error) => setErro(exc.message))}>Fechar caixa</button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-wrap items-center gap-2">
+              <input value={saldoInicial} onChange={(evento) => setSaldoInicial(evento.target.value)} placeholder="Saldo inicial" className="w-40 rounded-xl border border-[#eadfe2] px-3 py-2" />
+              <button type="button" className="rounded-xl bg-[#7a3044] px-3 py-2 text-white" onClick={() => void SalaoAPI.abrirCaixa(saldoInicial || "0").then(() => SalaoAPI.sessaoCaixa().then(setSessao)).catch((exc: Error) => setErro(exc.message))}>Abrir caixa</button>
+            </div>
+          )}
+          {sessao.historico.length > 0 ? (
+            <ul className="mt-3 space-y-1 text-xs text-[#8a6e74]">
+              {sessao.historico.slice(0, 4).map((item) => (
+                <li key={item.id}>Fechado {item.fechada_em} · {item.operador_fechamento || item.operador} · contado {reais(lerReais(item.dinheiro_contado || "0"))} · diferença {reais(lerReais(item.diferenca || "0"))}</li>
+              ))}
+            </ul>
+          ) : null}
+        </section>
+      ) : null}
 
       <div className="grid items-start gap-4 xl:grid-cols-[300px_minmax(0,1fr)_320px]">
         <section className="rounded-3xl bg-white p-4">
@@ -563,17 +613,34 @@ export default function CaixaPdvPage() {
             <button type="button" onClick={() => { setAba("produtos"); setBusca(""); }} className={`rounded-xl px-3 py-2 text-sm font-medium ${aba === "produtos" ? "bg-[#7a3044] text-white" : "bg-[#f6eef0] text-[#5c3d45]"}`}>
               Venda de produtos
             </button>
-            <button type="button" onClick={() => { setAba("comprovantes"); void SalaoAPI.comprovantes(buscaRecibo, dataRecibo).then(setHistorico).catch((exc: Error) => setErro(exc.message)); }} className={`col-span-2 rounded-xl px-3 py-2 text-sm font-medium ${aba === "comprovantes" ? "bg-[#7a3044] text-white" : "bg-[#f6eef0] text-[#5c3d45]"}`}>
+            <button type="button" onClick={() => { setAba("comprovantes"); buscarRecibos(); }} className={`col-span-2 rounded-xl px-3 py-2 text-sm font-medium ${aba === "comprovantes" ? "bg-[#7a3044] text-white" : "bg-[#f6eef0] text-[#5c3d45]"}`}>
               Comprovantes
             </button>
           </div>
-          <input value={busca} onChange={(evento) => setBusca(evento.target.value)} placeholder={aba === "atendimentos" ? "Buscar cliente ou atendimento..." : "Nome ou código de barras"} className="mt-3 w-full rounded-xl border border-[#eadfe2] px-3 py-2 text-sm" />
+          {aba !== "comprovantes" ? <input value={busca} onChange={(evento) => setBusca(evento.target.value)} placeholder={aba === "atendimentos" ? "Buscar cliente ou atendimento..." : "Nome ou código de barras"} className="mt-3 w-full rounded-xl border border-[#eadfe2] px-3 py-2 text-sm" /> : null}
           {aba === "atendimentos" ? <p className="mt-2 text-xs text-[#8a6e74]">Pode marcar vários atendimentos do mesmo cliente.</p> : null}
           {aba === "comprovantes" ? (
             <div className="mt-3 space-y-2">
-              <input value={buscaRecibo} onChange={(evento) => setBuscaRecibo(evento.target.value)} placeholder="Cliente ou número" className="w-full rounded-xl border border-[#eadfe2] px-3 py-2 text-sm" />
-              <input type="date" value={dataRecibo} onChange={(evento) => setDataRecibo(evento.target.value)} className="w-full rounded-xl border border-[#eadfe2] px-3 py-2 text-sm" />
-              <button type="button" className="text-sm text-[#7a3044]" onClick={() => void SalaoAPI.comprovantes(buscaRecibo, dataRecibo).then(setHistorico).catch((exc: Error) => setErro(exc.message))}>Buscar</button>
+              <input value={buscaRecibo} onChange={(evento) => setBuscaRecibo(evento.target.value)} placeholder="Buscar por cliente ou número do comprovante" className="w-full rounded-xl border border-[#eadfe2] px-3 py-2 text-sm" />
+              <div className="grid grid-cols-2 gap-2">
+                <input type="date" value={inicioRecibo} onChange={(evento) => setInicioRecibo(evento.target.value)} aria-label="Data inicial" className="w-full rounded-xl border border-[#eadfe2] px-3 py-2 text-sm" />
+                <input type="date" value={fimRecibo} onChange={(evento) => setFimRecibo(evento.target.value)} aria-label="Data final" className="w-full rounded-xl border border-[#eadfe2] px-3 py-2 text-sm" />
+              </div>
+              <input value={operadorRecibo} onChange={(evento) => setOperadorRecibo(evento.target.value)} placeholder="Operador" className="w-full rounded-xl border border-[#eadfe2] px-3 py-2 text-sm" />
+              <div className="grid grid-cols-2 gap-2">
+                <select value={situacaoRecibo} onChange={(evento) => setSituacaoRecibo(evento.target.value)} aria-label="Situação" className="rounded-xl border border-[#eadfe2] px-3 py-2 text-sm">
+                  <option value="">Válido e cancelado</option>
+                  <option value="valido">Válido</option>
+                  <option value="cancelado">Cancelado</option>
+                </select>
+                <select value={tipoRecibo} onChange={(evento) => setTipoRecibo(evento.target.value)} aria-label="Tipo" className="rounded-xl border border-[#eadfe2] px-3 py-2 text-sm">
+                  <option value="">Serviços, produtos ou misto</option>
+                  <option value="servicos">Serviços</option>
+                  <option value="produtos">Produtos</option>
+                  <option value="misto">Misto</option>
+                </select>
+              </div>
+              <button type="button" className="text-sm text-[#7a3044]" onClick={buscarRecibos}>Buscar</button>
               {historico.map((item) => (
                 <button key={item.numero} type="button" onClick={() => void SalaoAPI.venda(item.numero).then((venda) => { setOficial(deVenda(venda, cabecalho)); setSucesso(null); })} className="block w-full rounded-2xl border border-[#f0e4e7] px-3 py-2 text-left text-sm">
                   <span className="block font-medium">Nº {String(item.numero).padStart(6, "0")} · {item.cliente}</span>
@@ -710,7 +777,7 @@ export default function CaixaPdvPage() {
 
           {selecionados.length > 0 && local === "agenda" ? <p className="mt-3 text-sm text-[#8a6e74]">Neste salão o serviço é recebido na agenda.</p> : null}
           {erro ? <p className="mt-3 text-sm text-red-700">{erro}</p> : null}
-          <button type="button" onClick={confirmar} disabled={salvando || !temConteudo || valorNegativo || formaRepetida || (formaRapida === "multiplas" && total > 0 && Math.abs(falta) > 0.009) || (selecionados.length > 0 && local === "agenda")} className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-[#7a3044] px-4 py-3 text-sm font-semibold text-white disabled:opacity-60">
+          <button type="button" onClick={confirmar} disabled={salvando || !temConteudo || valorNegativo || formaRepetida || (formaRapida === "multiplas" && total > 0 && Math.abs(falta) > 0.009) || (selecionados.length > 0 && local === "agenda") || Boolean(sessao?.exige_abertura && !sessao.aberta)} className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-[#7a3044] px-4 py-3 text-sm font-semibold text-white disabled:opacity-60">
             <Check size={16} />
             {salvando ? "Registrando…" : "Confirmar recebimento"}
           </button>
@@ -735,7 +802,7 @@ export default function CaixaPdvPage() {
               }} />
               {oficial?.numero ? (
                 <div className="mt-3 flex flex-wrap gap-3 text-xs">
-                  {oficial.operador ? <span className="text-[#8a6e74]">Operador: {oficial.operador}</span> : null}
+                  {oficial.operador && oficial.operador.trim().toLocaleLowerCase() !== (cabecalho?.nome || "").trim().toLocaleLowerCase() ? <span className="text-[#8a6e74]">Operador: {oficial.operador}</span> : null}
                   <button type="button" className="text-[#7a3044]" onClick={() => void imprimirNumero(oficial.numero as number)}>Reimprimir</button>
                   <button type="button" className="text-[#7a3044]" onClick={() => void SalaoAPI.baixarRecibo(oficial.numero as number).catch((exc: Error) => setErro(exc.message))}>Baixar PDF</button>
                   <button type="button" className="text-[#7a3044]" onClick={() => void SalaoAPI.enviarRecibo(oficial.numero as number, "email").then((resposta) => { setAvisoEntrega(resposta.message); setAvisoOk(true); }).catch((exc: Error) => { setAvisoEntrega(exc.message); setAvisoOk(false); })}>E-mail</button>

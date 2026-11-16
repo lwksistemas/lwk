@@ -64,7 +64,9 @@ def _cabecalho_recibo(loja) -> dict:
 def _funcionamento(config, loja, prof, user):
     modelo = config.modelo if config.modelo in MODELOS else "recepcionista"
     local = config.local_recebimento if config.local_recebimento in LOCAIS else "caixa"
-    nome = (user.get_full_name() or "").strip() or user.get_username()
+    from .sessao_service import nome_do_operador
+
+    nome = nome_do_operador(user, loja)
     return {
         "modelo": modelo,
         "local_recebimento": local,
@@ -803,7 +805,7 @@ class FormaPagamentoDetailView(APIView):
 
 
 class RecebimentoDetailView(GetObjectMixin, APIView):
-    permission_classes = [IsAuthenticated, IsSalaoMembro]
+    permission_classes = [IsAuthenticated, IsSalaoAdmin]
     model_class = Recebimento
     not_found_message = "Recebimento não encontrado."
 
@@ -814,9 +816,91 @@ class RecebimentoDetailView(GetObjectMixin, APIView):
         if not recebimento.is_active:
             return _erro(self.not_found_message, status.HTTP_404_NOT_FOUND)
         from .estoque_service import estornar_operacao
+        from .sessao_service import nome_do_operador
 
-        estornar_operacao(recebimento)
+        loja, _prof = contexto_salao(request)
+        try:
+            estornar_operacao(
+                recebimento,
+                nome_do_operador(request.user, loja),
+                (request.data.get("motivo") if hasattr(request, "data") else "") or "Cancelamento autorizado pelo administrador",
+            )
+        except ValueError as exc:
+            return _erro(str(exc))
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class SessaoCaixaView(APIView):
+    permission_classes = [IsAuthenticated, IsSalaoMembro]
+
+    def get(self, request):
+        from .sessao_service import painel_caixa
+
+        config = _config()
+        return Response(painel_caixa(config.modelo if config.modelo in MODELOS else "recepcionista"))
+
+
+def _caixa_operavel(request):
+    loja, prof = contexto_salao(request)
+    config = _config()
+    papel = papel_salao(loja, prof, request.user, config.modelo if config.modelo in MODELOS else "recepcionista")
+    if papel == "profissional":
+        return None, _erro("O profissional não opera a abertura do caixa.", status.HTTP_403_FORBIDDEN)
+    return loja, None
+
+
+class SessaoAbrirView(APIView):
+    permission_classes = [IsAuthenticated, IsSalaoMembro]
+
+    def post(self, request):
+        from .sessao_service import abrir_caixa, nome_do_operador
+
+        loja, erro = _caixa_operavel(request)
+        if erro:
+            return erro
+        try:
+            return Response(abrir_caixa(nome_do_operador(request.user, loja), request.data.get("saldo_inicial")), status=status.HTTP_201_CREATED)
+        except ValueError as exc:
+            return _erro(str(exc))
+
+
+class SessaoFecharView(APIView):
+    permission_classes = [IsAuthenticated, IsSalaoMembro]
+
+    def post(self, request):
+        from .sessao_service import fechar_caixa, nome_do_operador
+
+        loja, erro = _caixa_operavel(request)
+        if erro:
+            return erro
+        try:
+            return Response(fechar_caixa(
+                nome_do_operador(request.user, loja),
+                request.data.get("dinheiro_contado"),
+                request.data.get("observacao") or "",
+            ))
+        except ValueError as exc:
+            return _erro(str(exc))
+
+
+class SessaoMovimentoView(APIView):
+    permission_classes = [IsAuthenticated, IsSalaoMembro]
+
+    def post(self, request):
+        from .sessao_service import lancar_movimento, nome_do_operador
+
+        loja, erro = _caixa_operavel(request)
+        if erro:
+            return erro
+        try:
+            return Response(lancar_movimento(
+                nome_do_operador(request.user, loja),
+                (request.data.get("tipo") or "").strip(),
+                request.data.get("valor"),
+                request.data.get("motivo") or "",
+            ), status=status.HTTP_201_CREATED)
+        except ValueError as exc:
+            return _erro(str(exc))
 
 
 class CaixaView(APIView):
@@ -881,8 +965,18 @@ class CaixaView(APIView):
                 codigo = parte["forma"]
                 forma = por_forma.setdefault(codigo, {"forma": codigo, "nome": nomes_forma.get(codigo, codigo), "total": Decimal("0")})
                 forma["total"] += Decimal(str(parte["valor"]))
+        servicos = sum((item.valor for item in itens), Decimal("0"))
+        produtos = sum((venda.valor_produtos for venda in vendas), Decimal("0"))
+        descontos = sum((venda.desconto for venda in Venda.objects.filter(is_active=True, created_at__gte=inicio, created_at__lt=fim)), Decimal("0"))
+        ligados = set(Venda.objects.filter(created_at__gte=inicio, created_at__lt=fim).exclude(recebimento_id=None).values_list("recebimento_id", flat=True))
+        for item in itens:
+            if item.venda_id is None and item.id not in ligados:
+                descontos += item.desconto
         return Response({
             "total": _dinheiro(total),
+            "servicos": _dinheiro(servicos),
+            "produtos": _dinheiro(produtos),
+            "descontos": _dinheiro(descontos),
             "quantidade": len(itens) + sum(1 for venda in vendas if venda.recebimento_id is None),
             "por_forma": [{**item, "total": _dinheiro(item["total"])} for item in por_forma.values()],
             "comissoes": [

@@ -279,6 +279,58 @@ class MensagemSalaoTest(unittest.TestCase):
         self.assertEqual(regras_de(None)["lembrete_horas"], 24)
 
 
+class CaixaFechamentoTest(unittest.TestCase):
+    def test_saldo_esperado_desconta_sangria_e_soma_suprimento(self):
+        from salao_cabeleireiro.sessao_service import diferenca_caixa, precisa_abrir_caixa, saldo_esperado
+
+        self.assertEqual(saldo_esperado("100.00", "40.00", "20.00", "15.00"), Decimal("145.00"))
+        self.assertEqual(diferenca_caixa("140.00", "145.00"), Decimal("-5.00"))
+        self.assertEqual(precisa_abrir_caixa("recepcionista", False), "Abra o caixa antes de receber.")
+        self.assertIsNone(precisa_abrir_caixa("recepcionista", True))
+        self.assertIsNone(precisa_abrir_caixa("autonomo", False))
+
+    def test_operador_nao_repete_o_nome_do_salao(self):
+        from salao_cabeleireiro.sessao_service import nome_do_operador
+
+        class Usuario:
+            def get_full_name(self):
+                return "Salão Teste"
+
+            def get_username(self):
+                return "salao-teste"
+
+        class Loja:
+            nome = "Salão Teste"
+
+        self.assertEqual(nome_do_operador(Usuario(), Loja()), "salao-teste")
+
+    def test_recibo_cancelado_mostra_o_valor_original(self):
+        from salao_cabeleireiro.comprovante_layout import html_comprovante, rotulo_total
+
+        dados = {
+            "numero": 7,
+            "quando": "16/11/2026 às 15:37",
+            "cliente": "Luiz",
+            "valor": "90.00",
+            "cancelado": True,
+            "cancelado_em": "16/11/2026 às 16:00",
+            "cancelado_por": "salao-teste",
+            "motivo": "Cliente desistiu",
+            "estorno": "Sem produto nesta operação",
+            "servicos": [{"nome": "Corte", "profissional": "Febio", "total": "90.00"}],
+            "produtos": [],
+            "formas": [{"nome": "Dinheiro", "valor": "90.00"}],
+            "salao": {"nome": "Salão Teste", "cor": "#3175bf"},
+        }
+        html = html_comprovante(dados)
+        self.assertEqual(rotulo_total(dados), "Valor original")
+        self.assertIn("CANCELADO", html)
+        self.assertIn("Valor original", html)
+        self.assertIn("Pagamento cancelado", html)
+        self.assertIn("Cliente desistiu", html)
+        self.assertNotIn("Total pago", html)
+
+
 class PainelSalaoTest(unittest.TestCase):
     def test_so_os_tres_paineis(self):
         self.assertTrue(painel_valido("operacao"))

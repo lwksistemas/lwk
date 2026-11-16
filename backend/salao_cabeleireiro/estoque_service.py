@@ -99,7 +99,7 @@ def _baixar(produto, quantidade, venda):
     )
 
 
-def registrar_venda(dados, agendamentos, papel: str, local: str, origem: str, operador: str = "") -> Venda:
+def registrar_venda(dados, agendamentos, papel: str, local: str, origem: str, operador: str = "", exige_sessao: bool = False) -> Venda:
     """Um pagamento pode quitar vários serviços do mesmo cliente. Produto entra no mesmo recibo."""
     agendamentos = list(agendamentos or [])
     pedidos = agrupar_pedidos(dados.get("itens") or dados.get("produtos"))
@@ -176,6 +176,8 @@ def registrar_venda(dados, agendamentos, papel: str, local: str, origem: str, op
         primeiro = agendamentos[0] if agendamentos else None
         sessao = SessaoCaixa.objects.select_for_update().filter(is_active=True).order_by("-id").first()
         if sessao is None:
+            if exige_sessao:
+                raise ValueError("Abra o caixa antes de receber.")
             sessao = gravar(SessaoCaixa, operador_nome=(operador or "")[:160])
         ultimo = Venda.objects.select_for_update().order_by("-numero").first()
         venda = gravar(
@@ -221,7 +223,7 @@ def registrar_venda(dados, agendamentos, papel: str, local: str, origem: str, op
         return venda
 
 
-def estornar_operacao(recebimento):
+def estornar_operacao(recebimento, operador: str = "", motivo: str = ""):
     """Um pagamento com vários serviços se desfaz por inteiro, junto com o estoque."""
     if recebimento is None or not recebimento.is_active:
         return
@@ -238,6 +240,9 @@ def estornar_operacao(recebimento):
             Recebimento.objects.filter(is_active=True).filter(
                 Q(pk=recebimento.pk) | Q(venda=venda) | Q(pk=venda.recebimento_id)
             ).update(is_active=False)
+            from .sessao_service import aplicar_cancelamento
+
+            aplicar_cancelamento(venda, operador, motivo or "Cancelamento do recebimento")
             return
         recebimento.is_active = False
         recebimento.save(update_fields=["is_active"])

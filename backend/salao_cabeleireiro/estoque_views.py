@@ -158,13 +158,36 @@ class VendaListView(APIView):
         qs = Venda.objects.all().order_by("-numero")
         termo = (request.query_params.get("q") or "").strip()
         dia = parse_date((request.query_params.get("data") or "").strip())
+        inicio_dia = parse_date((request.query_params.get("inicio") or "").strip())
+        fim_dia = parse_date((request.query_params.get("fim") or "").strip())
+        operador = (request.query_params.get("operador") or "").strip()
+        situacao = (request.query_params.get("situacao") or "").strip()
+        tipo = (request.query_params.get("tipo") or "").strip()
         if termo.isdigit():
             qs = qs.filter(numero=int(termo))
         elif termo:
             qs = qs.filter(cliente_nome__icontains=termo)
+        if operador:
+            qs = qs.filter(operador_nome__icontains=operador)
+        if situacao == "cancelado":
+            qs = qs.filter(is_active=False)
+        elif situacao == "valido":
+            qs = qs.filter(is_active=True)
+        if tipo == "servicos":
+            qs = qs.filter(valor_servico__gt=0, valor_produtos=0)
+        elif tipo == "produtos":
+            qs = qs.filter(valor_produtos__gt=0, valor_servico=0)
+        elif tipo == "misto":
+            qs = qs.filter(valor_servico__gt=0, valor_produtos__gt=0)
         if dia is not None:
-            inicio = timezone.make_aware(datetime(dia.year, dia.month, dia.day))
-            qs = qs.filter(created_at__gte=inicio, created_at__lt=inicio + timedelta(days=1))
+            inicio_dia = dia
+            fim_dia = dia
+        if inicio_dia is not None:
+            inicio = timezone.make_aware(datetime(inicio_dia.year, inicio_dia.month, inicio_dia.day))
+            qs = qs.filter(created_at__gte=inicio)
+        if fim_dia is not None:
+            fim = timezone.make_aware(datetime(fim_dia.year, fim_dia.month, fim_dia.day)) + timedelta(days=1)
+            qs = qs.filter(created_at__lt=fim)
         return Response([
             {
                 "numero": item.numero,
@@ -173,6 +196,7 @@ class VendaListView(APIView):
                 "valor": f"{quantia(item.valor):.2f}",
                 "operador": item.operador_nome or "",
                 "cancelado": not item.is_active,
+                "tipo": "misto" if item.valor_servico > 0 and item.valor_produtos > 0 else "produtos" if item.valor_produtos > 0 else "servicos",
             }
             for item in qs[:80]
         ])
@@ -196,7 +220,9 @@ class VendaCreateView(APIView):
         loja, prof = contexto_salao(request)
         try:
             usuario = request.user
-            operador = (usuario.get_full_name() or "").strip() or usuario.get_username()
+            from .sessao_service import nome_do_operador
+
+            operador = nome_do_operador(usuario, loja)
             venda = registrar_venda(
                 request.data,
                 agendamentos,
@@ -204,6 +230,7 @@ class VendaCreateView(APIView):
                 config.local_recebimento,
                 origem,
                 operador,
+                config.modelo == "recepcionista",
             )
         except PermissionError as exc:
             return _erro(str(exc), status.HTTP_403_FORBIDDEN)
@@ -228,6 +255,40 @@ def _venda_numero(numero):
     from .models import Venda
 
     return Venda.objects.filter(numero=numero).prefetch_related("itens").first()
+
+
+class VendaCancelarView(APIView):
+    permission_classes = [IsAuthenticated, IsSalaoAdmin]
+
+    def post(self, request, numero):
+        from .estoque_service import estornar_operacao
+        from .models import Recebimento, Venda
+        from .sessao_service import nome_do_operador
+
+        venda = Venda.objects.filter(numero=numero).first()
+        if venda is None or not venda.is_active:
+            return _erro("Comprovante não encontrado.", status.HTTP_404_NOT_FOUND)
+        motivo = (request.data.get("motivo") or "").strip()
+        if len(motivo) < 3:
+            return _erro("Informe o motivo do cancelamento.")
+        loja, _prof = contexto_salao(request)
+        operador = nome_do_operador(request.user, loja)
+        recibo = Recebimento.objects.filter(venda=venda, is_active=True).order_by("id").first()
+        if recibo is None and venda.recebimento_id:
+            recibo = venda.recebimento
+        try:
+            if recibo is not None and recibo.is_active:
+                estornar_operacao(recibo, operador, motivo)
+            else:
+                from .estoque_service import estornar_venda
+                from .sessao_service import aplicar_cancelamento
+
+                estornar_venda(venda)
+                aplicar_cancelamento(venda, operador, motivo)
+        except ValueError as exc:
+            return _erro(str(exc))
+        venda.refresh_from_db()
+        return Response(publico_venda(venda))
 
 
 class VendaHtmlView(APIView):

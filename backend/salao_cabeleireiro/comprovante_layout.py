@@ -133,11 +133,54 @@ def congelar_venda(venda, recibos, itens) -> dict:
     }
 
 
+def _com_cancelamento(venda, dados: dict) -> dict:
+    saida = dict(dados)
+    saida["cancelado"] = not venda.is_active
+    if getattr(venda, "cancelado_em", None):
+        saida["cancelado_em"] = timezone.localtime(venda.cancelado_em).strftime("%d/%m/%Y às %H:%M")
+    if getattr(venda, "cancelado_por", ""):
+        saida["cancelado_por"] = venda.cancelado_por
+    if getattr(venda, "motivo_cancelamento", ""):
+        saida["motivo"] = venda.motivo_cancelamento
+    if not venda.is_active:
+        from .sessao_service import texto_estorno
+
+        saida["estorno"] = texto_estorno(venda)
+    return saida
+
+
+def operador_visivel(dados: dict) -> str:
+    nome = (dados.get("operador") or "").strip()
+    salao = ((dados.get("salao") or {}).get("nome") or "").strip()
+    if not nome or nome.casefold() == salao.casefold():
+        return ""
+    return nome
+
+
+def rotulo_total(dados: dict) -> str:
+    return "Valor original" if dados.get("cancelado") else "Total pago"
+
+
+def texto_cancelamento(dados: dict) -> str:
+    if not dados.get("cancelado"):
+        return ""
+    partes = ["Pagamento cancelado"]
+    if dados.get("cancelado_em"):
+        partes.append(f"em {dados['cancelado_em']}")
+    if dados.get("cancelado_por"):
+        partes.append(f"por {dados['cancelado_por']}")
+    if dados.get("motivo"):
+        partes.append(f"Motivo: {dados['motivo']}")
+    if dados.get("estorno"):
+        partes.append(dados["estorno"])
+    return partes[0] if len(partes) == 1 else f"{partes[0]}. {' '.join(partes[1:])}"
+
+
 def comprovante_da_venda(venda) -> dict:
     """A segunda via lê o que foi gravado na venda. Recibo antigo monta os valores já salvos."""
     gravado = venda.comprovante if isinstance(getattr(venda, "comprovante", None), dict) else {}
     if gravado.get("numero"):
-        return {**gravado, "cancelado": not venda.is_active}
+        return _com_cancelamento(venda, gravado)
     from .models import Recebimento
 
     recibos = list(
@@ -145,7 +188,7 @@ def comprovante_da_venda(venda) -> dict:
     )
     if not recibos and venda.recebimento_id:
         recibos = [venda.recebimento]
-    return {
+    return _com_cancelamento(venda, {
         "numero": venda.numero,
         "quando": timezone.localtime(venda.created_at).strftime("%d/%m/%Y às %H:%M"),
         "cliente": venda.cliente_nome or "Consumidor",
@@ -167,7 +210,7 @@ def comprovante_da_venda(venda) -> dict:
         ],
         "formas": _formas(venda.partes),
         "salao": cabecalho_atual(),
-    }
+    })
 
 
 def html_comprovante(dados: dict) -> str:
@@ -227,7 +270,11 @@ def html_comprovante(dados: dict) -> str:
     numero_txt = f"{int(numero):06d}" if numero else "Prévia"
     aviso = ""
     if dados.get("cancelado"):
-        aviso = '<p style="margin:8px 0;text-align:center;font-weight:700;color:#9f1239">CANCELADO</p>'
+        detalhe = html.escape(texto_cancelamento(dados))
+        aviso = (
+            '<p style="margin:8px 0;text-align:center;font-weight:700;color:#9f1239">CANCELADO</p>'
+            f'<p style="margin:0 0 8px;text-align:center;font-family:sans-serif;font-size:11px;color:#9f1239">{detalhe}</p>'
+        )
     subtitulo_html = f'<div style="letter-spacing:.14em;font-size:11px;color:{cor}">{subtitulo.upper()}</div>' if subtitulo else ""
     return f"""<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Comprovante {numero_txt}</title>
 <style>
@@ -250,9 +297,9 @@ body{{margin:0;background:#f6f1f2;font-family:Georgia,serif;color:#2a1c20}}
 <div style="margin-top:12px;background:{cor};color:#fff;text-align:center;padding:8px 6px;font-family:sans-serif;font-weight:700;letter-spacing:.04em">COMPROVANTE DE PAGAMENTO<br>(NÃO FISCAL)</div>
 {aviso}
 <div style="display:flex;justify-content:space-between;gap:8px;margin-top:10px;font-family:sans-serif;font-size:12px"><span>Nº {numero_txt}</span><span>{html.escape(dados.get("quando") or "")}</span></div>
-<div style="margin-top:8px;border:1px solid #f0e4e7;border-radius:8px;padding:8px;font-family:sans-serif;font-size:13px">Cliente: <strong>{html.escape(dados.get("cliente") or "Consumidor")}</strong></div>
+<div style="margin-top:8px;border:1px solid #f0e4e7;border-radius:8px;padding:8px;font-family:sans-serif;font-size:13px">Cliente: <strong>{html.escape(dados.get("cliente") or "Consumidor")}</strong>{f'<div style="margin-top:4px;font-size:12px;color:#5c3d45">Operador: {html.escape(operador_visivel(dados))}</div>' if operador_visivel(dados) else ""}</div>
 <table style="width:100%;border-collapse:collapse;margin-top:8px;font-family:sans-serif;font-size:13px">{''.join(linhas)}{desconto}</table>
-<div style="display:flex;justify-content:space-between;margin-top:8px;background:{cor};color:#fff;padding:8px 10px;font-family:sans-serif;font-weight:700"><span>Total pago</span><span>{_reais(dados.get("valor"))}</span></div>
+<div style="display:flex;justify-content:space-between;margin-top:8px;background:{cor};color:#fff;padding:8px 10px;font-family:sans-serif;font-weight:700"><span>{html.escape(rotulo_total(dados))}</span><span>{_reais(dados.get("valor"))}</span></div>
 <div style="margin-top:8px;font-family:sans-serif;font-size:13px"><strong>Formas de pagamento</strong><table style="width:100%;border-collapse:collapse">{formas}</table></div>
 <p style="margin-top:10px;border:1px solid #f0e4e7;border-radius:8px;padding:8px;font-family:sans-serif;font-size:11px;color:#5c3d45">Este comprovante não substitui a emissão de Nota Fiscal (NFS-e) ou Cupom Fiscal (NFC-e).</p>
 <p style="margin:14px 0 0;text-align:center;font-style:italic;color:{cor}">Obrigado pela preferência!</p>
@@ -281,10 +328,15 @@ def pdf_comprovante(dados: dict) -> bytes:
     linhas.append(("faixa", "COMPROVANTE DE PAGAMENTO (NÃO FISCAL)"))
     if dados.get("cancelado"):
         linhas.append(("alerta", "CANCELADO"))
+        detalhe = texto_cancelamento(dados)
+        if detalhe:
+            linhas.append(("miudo", detalhe))
     numero = dados.get("numero")
     numero_txt = f"{int(numero):06d}" if numero else "Prévia"
     linhas.append(("par", f"Nº {numero_txt}", dados.get("quando") or ""))
     linhas.append(("miudo", f"Cliente: {dados.get('cliente') or 'Consumidor'}"))
+    if operador_visivel(dados):
+        linhas.append(("miudo", f"Operador: {operador_visivel(dados)}"))
     if dados.get("servicos"):
         linhas.append(("secao", "SERVIÇOS"))
         for item in dados["servicos"]:
@@ -297,7 +349,7 @@ def pdf_comprovante(dados: dict) -> bytes:
             linhas.append(("item", f"{item.get('quantidade') or 1}× {item.get('nome') or 'Produto'}", _reais(item.get("total"))))
     if quantia(dados.get("desconto")) > 0:
         linhas.append(("item", "Desconto", _reais(dados.get("desconto"))))
-    linhas.append(("total", "Total pago", _reais(dados.get("valor"))))
+    linhas.append(("total", rotulo_total(dados), _reais(dados.get("valor"))))
     if dados.get("formas"):
         linhas.append(("secao", "FORMAS DE PAGAMENTO"))
         for item in dados["formas"]:

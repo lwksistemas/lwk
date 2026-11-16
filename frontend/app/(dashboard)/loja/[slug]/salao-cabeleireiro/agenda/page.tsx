@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { diaTemAtendimento } from "@/components/salao/PaineisSalao";
-import { SalaoAPI, type AgendamentoSalao, type BloqueioSalao, type ClienteSalao, type JornadaDia, type ProfissionalSalao, type ServicoSalao } from "@/lib/salao-api";
+import { SalaoAPI, type AgendamentoSalao, type BloqueioSalao, type ClienteSalao, type JornadaDia, type LocalRecebimentoSalao, type ProfissionalSalao, type ServicoSalao } from "@/lib/salao-api";
 
 const HORA_INICIO = 8;
 const HORA_FIM = 20;
@@ -78,6 +78,7 @@ export default function AgendaSalaoPage() {
   const [quitar, setQuitar] = useState(true);
   const [linhas, setLinhas] = useState<LinhaPagamento[]>([{ id: "1", forma: "dinheiro", valor: "" }]);
   const [confirmaWhatsapp, setConfirmaWhatsapp] = useState(false);
+  const [localRecebimento, setLocalRecebimento] = useState<LocalRecebimentoSalao>("caixa");
   const [jornadas, setJornadas] = useState<Record<number, JornadaDia[]>>({});
   const [aviso, setAviso] = useState("");
   const [confirmarExclusao, setConfirmarExclusao] = useState(false);
@@ -135,6 +136,9 @@ export default function AgendaSalaoPage() {
   }, [periodo.inicio, periodo.fim]);
 
   useEffect(() => { carregar(); }, [carregar]);
+  useEffect(() => {
+    SalaoAPI.config().then((dados) => setLocalRecebimento(dados.local_recebimento || "caixa")).catch(() => undefined);
+  }, []);
 
   const recarregarBloqueios = useCallback(() => {
     SalaoAPI.bloqueios().then(setBloqueios).catch(() => undefined);
@@ -303,6 +307,7 @@ export default function AgendaSalaoPage() {
     try {
       const atualizado = await SalaoAPI.receber(selecionado.id, {
         desconto: valorDesconto.toFixed(2),
+        origem: "agenda",
         formas: total > 0 ? linhas.map((linha) => ({ forma: linha.forma, valor: lerReais(linha.valor).toFixed(2) })) : [],
       });
       setSelecionado(atualizado);
@@ -617,8 +622,11 @@ export default function AgendaSalaoPage() {
             {confirmaWhatsapp && (selecionado.status === "SCHEDULED" || selecionado.status === "CONFIRMED") ? <button type="button" className="rounded-full border px-3 py-1.5 text-sm" onClick={enviarConfirmacao}>Enviar confirmação</button> : null}
             {selecionado.status === "SCHEDULED" || selecionado.status === "CONFIRMED" ? <button type="button" className="rounded-full bg-[#1f8f86] px-3 py-1.5 text-sm text-white" onClick={() => mudarStatus("IN_PROGRESS")}>Iniciar atendimento</button> : null}
             {selecionado.status === "IN_PROGRESS" ? <button type="button" className="rounded-full bg-[#1f8a4c] px-3 py-1.5 text-sm text-white" onClick={() => mudarStatus("COMPLETED")}>Finalizar</button> : null}
-            {selecionado.status === "COMPLETED" && !selecionado.recebido ? (
+            {selecionado.status === "COMPLETED" && !selecionado.recebido && localRecebimento !== "caixa" ? (
               <button type="button" className="rounded-full bg-[#7a3044] px-3 py-1.5 text-sm text-white" onClick={abrirReceber}>Receber</button>
+            ) : null}
+            {selecionado.status === "COMPLETED" && !selecionado.recebido && localRecebimento === "caixa" ? (
+              <Link href={`/loja/${slug}/salao-cabeleireiro/caixa`} className="rounded-full bg-[#7a3044] px-3 py-1.5 text-sm text-white">Receber no Caixa/PDV</Link>
             ) : null}
             {selecionado.recebido ? (
               <>

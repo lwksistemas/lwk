@@ -50,6 +50,19 @@ def interpretar_formas(dados, valor_liquido: Decimal) -> list[dict]:
     return [{"forma": forma, "valor": f"{valor_liquido:.2f}"}]
 
 
+def motivo_bloqueio_recebimento(local: str, origem: str, papel: str) -> str | None:
+    """Um atendimento quitado não é cobrado de novo. O lugar do recebimento é o da configuração."""
+    if origem == "agenda" and local == "caixa":
+        return "O recebimento deste salão fica no Caixa/PDV."
+    if origem == "caixa" and local == "agenda":
+        return "O recebimento deste salão fica na agenda."
+    if papel == "profissional" and local == "caixa":
+        return "Neste salão, o profissional não recebe. O pagamento fica no caixa."
+    if papel == "recepcionista" and origem != "caixa":
+        return "A recepção recebe no Caixa/PDV."
+    return None
+
+
 def rotulo_formas(partes, forma_unica: str) -> str:
     if not partes or len(partes) == 1:
         return ROTULOS.get(forma_unica, forma_unica)

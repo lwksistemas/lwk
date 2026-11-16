@@ -9,6 +9,7 @@ from .views import (
     ClienteDetailView,
     ClienteListCreateView,
     ConfigView,
+    FuncionamentoView,
     BloqueioDetailView,
     CaixaView,
     ComunicacaoView,
@@ -25,6 +26,7 @@ from .views import (
 
 urlpatterns = [
     path("config/", ConfigView.as_view(), name="salao-config"),
+    path("funcionamento/", FuncionamentoView.as_view(), name="salao-funcionamento"),
     path("nfse-config/", SalaoNFSeConfigView.as_view(), name="salao-nfse-config"),
     path("nfse-config/test-issnet/", SalaoNFSeTesteView.as_view(), name="salao-nfse-teste"),
     path("nfce-config/", SalaoNfceConfigView.as_view(), name="salao-nfce-config"),

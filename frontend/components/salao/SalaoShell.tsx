@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useParams, usePathname } from "next/navigation";
+import { useParams, usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Calendar, ChevronLeft, ChevronRight, LayoutDashboard, LogOut, Scissors, Settings, Users, UserRound, Wallet } from "lucide-react";
+import { Calendar, ChevronLeft, ChevronRight, LayoutDashboard, LogOut, Receipt, Scissors, Settings, Users, UserRound, Wallet } from "lucide-react";
 import { useLojaAuth } from "@/hooks/useLojaAuth";
-import { SalaoAPI, type PainelSalao } from "@/lib/salao-api";
+import { SalaoAPI, type LocalRecebimentoSalao, type PainelSalao, type PapelSalao } from "@/lib/salao-api";
 
 const ITENS = [
   { caminho: "", nome: "Visão geral", icone: LayoutDashboard },
@@ -13,7 +13,8 @@ const ITENS = [
   { caminho: "/clientes", nome: "Clientes", icone: Users },
   { caminho: "/servicos", nome: "Serviços", icone: Scissors },
   { caminho: "/profissionais", nome: "Profissionais", icone: UserRound },
-  { caminho: "/financeiro", nome: "Caixa", icone: Wallet },
+  { caminho: "/caixa", nome: "Caixa/PDV", icone: Wallet },
+  { caminho: "/financeiro", nome: "Financeiro", icone: Receipt },
   { caminho: "/configuracoes", nome: "Configurações", icone: Settings },
 ] as const;
 
@@ -26,12 +27,15 @@ const TEMAS: Record<PainelSalao, { barra: string; fundo: string; tinta: string }
 export function SalaoShell({ children }: { children: React.ReactNode }) {
   const params = useParams();
   const pathname = usePathname();
+  const router = useRouter();
   const slug = params.slug as string;
   const { handleLogout } = useLojaAuth(slug);
   const base = `/loja/${slug}/salao-cabeleireiro`;
   const [oculto, setOculto] = useState(false);
   const [painel, setPainel] = useState<PainelSalao>("operacao");
   const [cores, setCores] = useState({ menu: "", fundo: "" });
+  const [papel, setPapel] = useState<PapelSalao | "">("");
+  const [localRecebimento, setLocalRecebimento] = useState<LocalRecebimentoSalao>("caixa");
   const tema = TEMAS[painel];
   const barra = cores.menu || tema.barra;
   const fundo = cores.fundo || tema.fundo;
@@ -43,6 +47,8 @@ export function SalaoShell({ children }: { children: React.ReactNode }) {
     SalaoAPI.config().then((dados) => {
       setPainel(dados.painel);
       setCores({ menu: dados.cor_primaria || "", fundo: dados.cor_fundo_pagina || "" });
+      if (dados.papel) setPapel(dados.papel);
+      if (dados.local_recebimento) setLocalRecebimento(dados.local_recebimento);
     }).catch(() => undefined);
     function aoTrocar(evento: Event) {
       const proximo = (evento as CustomEvent<PainelSalao>).detail;
@@ -51,6 +57,20 @@ export function SalaoShell({ children }: { children: React.ReactNode }) {
     window.addEventListener("salao-painel", aoTrocar);
     return () => window.removeEventListener("salao-painel", aoTrocar);
   }, [pathname]);
+
+  useEffect(() => {
+    if (papel !== "recepcionista") return;
+    if (pathname.startsWith(`${base}/caixa`)) return;
+    router.replace(`${base}/caixa`);
+  }, [papel, pathname, base, router]);
+
+  function itemVisivel(caminho: string) {
+    if (!papel || papel === "administrador" || papel === "autonomo") return true;
+    if (papel === "recepcionista") return caminho === "/caixa";
+    if (caminho === "" || caminho === "/agenda") return true;
+    if (caminho === "/caixa") return localRecebimento !== "agenda";
+    return false;
+  }
 
   function alternarMenu() {
     const proximo = !oculto;
@@ -68,7 +88,7 @@ export function SalaoShell({ children }: { children: React.ReactNode }) {
           </button>
         </div>
         <nav className="flex flex-1 flex-col gap-1">
-          {ITENS.map(({ caminho, nome, icone: Icone }) => {
+          {ITENS.filter(({ caminho }) => itemVisivel(caminho)).map(({ caminho, nome, icone: Icone }) => {
             const href = `${base}${caminho}`;
             const ativo = caminho === "" ? pathname === base : pathname.startsWith(href);
             return (

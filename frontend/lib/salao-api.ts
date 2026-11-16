@@ -11,6 +11,9 @@ import {
 } from "@/lib/clinica-beleza-api/fetch";
 
 export type PainelSalao = "operacao" | "gestao" | "semana";
+export type ModeloSalao = "recepcionista" | "autonomo";
+export type LocalRecebimentoSalao = "caixa" | "agenda" | "ambos";
+export type PapelSalao = "administrador" | "autonomo" | "recepcionista" | "profissional";
 
 export type ClienteSalao = {
   id: number;
@@ -141,7 +144,19 @@ async function salaoFetch<T>(path: string, options: RequestInit = {}, retried = 
 }
 
 export const SalaoAPI = {
-  config: () => salaoFetch<{ painel: PainelSalao; pode_trocar: boolean; paineis: { id: PainelSalao; nome: string }[]; cor_primaria: string; cor_fundo_pagina: string }>("/config/"),
+  config: () => salaoFetch<{
+    painel: PainelSalao;
+    pode_trocar: boolean;
+    paineis: { id: PainelSalao; nome: string }[];
+    cor_primaria: string;
+    cor_fundo_pagina: string;
+    modelo: ModeloSalao;
+    local_recebimento: LocalRecebimentoSalao;
+    papel: PapelSalao;
+    operador_nome: string;
+  }>("/config/"),
+  salvarFuncionamento: (corpo: { modelo: ModeloSalao; local_recebimento: LocalRecebimentoSalao }) =>
+    salaoFetch<{ modelo: ModeloSalao; local_recebimento: LocalRecebimentoSalao; papel: PapelSalao; operador_nome: string }>("/funcionamento/", { method: "PUT", body: JSON.stringify(corpo) }),
   comunicacao: () => salaoFetch<ComunicacaoSalao>("/comunicacao/"),
   salvarComunicacao: (corpo: Pick<ComunicacaoSalao, "confirmacao" | "lembrete" | "lembrete_horas" | "reagendamento" | "cancelamento">) =>
     salaoFetch<ComunicacaoSalao>("/comunicacao/", { method: "PUT", body: JSON.stringify(corpo) }),
@@ -158,7 +173,7 @@ export const SalaoAPI = {
     salaoFetch<AgendamentoSalao>(`/agendamentos/${id}/`, { method: "PATCH", body: JSON.stringify(corpo) }),
   excluirAgendamento: (id: number) =>
     salaoFetch<AgendamentoSalao>(`/agendamentos/${id}/`, { method: "DELETE" }),
-  receber: (id: number, corpo: { desconto: string; forma?: string; formas?: { forma: string; valor: string }[] }) =>
+  receber: (id: number, corpo: { desconto: string; origem?: "agenda" | "caixa"; forma?: string; formas?: { forma: string; valor: string }[] }) =>
     salaoFetch<AgendamentoSalao>(`/agendamentos/${id}/receber/`, { method: "POST", body: JSON.stringify(corpo) }),
   estornarRecebimento: (id: number) => salaoFetch(`/recebimentos/${id}/`, { method: "DELETE" }),
   caixa: (start: string, end: string) =>

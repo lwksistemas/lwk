@@ -52,6 +52,8 @@ class SalaoConfig(models.Model):
     lembrete_horas = models.PositiveSmallIntegerField(default=24)
     enviar_reagendamento = models.BooleanField(default=False)
     enviar_cancelamento = models.BooleanField(default=False)
+    modelo = models.CharField(max_length=20, default="recepcionista")
+    local_recebimento = models.CharField(max_length=20, default="caixa")
     objects = LojaIsolationManager()
 
     def save(self, *args, **kwargs):

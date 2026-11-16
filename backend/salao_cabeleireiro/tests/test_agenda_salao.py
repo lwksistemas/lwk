@@ -3,7 +3,7 @@ from datetime import datetime, time, timedelta
 from decimal import Decimal
 
 from salao_cabeleireiro.agenda_service import avaliar_jornada, intervalos_conflitam
-from salao_cabeleireiro.caixa_service import calcular_recebimento, interpretar_formas, rotulo_formas
+from salao_cabeleireiro.caixa_service import calcular_recebimento, interpretar_formas, motivo_bloqueio_recebimento, rotulo_formas
 from salao_cabeleireiro.fiscal_service import SalaoFiscalErro, gravar_nfce
 from salao_cabeleireiro.comunicacao_service import regras_de
 from salao_cabeleireiro.mensagens import na_janela_lembrete, texto_cancelamento, texto_confirmacao
@@ -74,6 +74,13 @@ class CaixaSalaoTest(unittest.TestCase):
 
     def test_desconto_integral_nao_exige_forma(self):
         self.assertEqual(interpretar_formas({}, Decimal("0.00")), [])
+
+    def test_recepcao_recebe_no_caixa_e_nao_na_agenda(self):
+        self.assertIsNone(motivo_bloqueio_recebimento("caixa", "caixa", "recepcionista"))
+        self.assertIn("Caixa/PDV", motivo_bloqueio_recebimento("caixa", "agenda", "administrador"))
+        self.assertIn("agenda", motivo_bloqueio_recebimento("agenda", "caixa", "autonomo"))
+        self.assertIsNone(motivo_bloqueio_recebimento("ambos", "agenda", "profissional"))
+        self.assertIn("não recebe", motivo_bloqueio_recebimento("caixa", "caixa", "profissional"))
 
 
 class CupomSalaoTest(unittest.TestCase):

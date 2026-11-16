@@ -10,12 +10,12 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .agenda_service import conflito_horario, interpretar_inicio
-from .caixa_service import calcular_recebimento, interpretar_formas, quantia, rotulo_formas
+from .caixa_service import calcular_recebimento, interpretar_formas, motivo_bloqueio_recebimento, quantia, rotulo_formas
 from .comunicacao_service import avisar_mudanca, enviar_evento, regras_de, validar_regras, whatsapp_pronto
 from .catalogo import garantir_catalogo_inicial
 from .models import FORMAS_PAGAMENTO, PAINEIS, STATUS_AGENDAMENTO, STATUS_OCUPA_HORARIO, Agendamento, Bloqueio, Cliente, HorarioTrabalho, Profissional, Recebimento, SalaoConfig, Servico
 from .loja_config import cores_gravadas
-from .permissions import IsSalaoAdmin, IsSalaoMembro, contexto_salao, usuario_e_admin
+from .permissions import IsSalaoAdmin, IsSalaoMembro, contexto_salao, papel_salao, usuario_e_admin
 from .serializers import AgendamentoSerializer, ClienteSerializer, ProfissionalSerializer, ServicoSerializer, painel_valido
 
 
@@ -34,11 +34,27 @@ def _erro(mensagem, codigo=status.HTTP_400_BAD_REQUEST):
     return Response({"error": mensagem}, status=codigo)
 
 
+MODELOS = {"recepcionista", "autonomo"}
+LOCAIS = {"caixa", "agenda", "ambos"}
+
+
 def _config():
     config = SalaoConfig.objects.first()
     if config is not None:
         return config
     return SalaoConfig.objects.create(painel="operacao")
+
+
+def _funcionamento(config, loja, prof, user):
+    modelo = config.modelo if config.modelo in MODELOS else "recepcionista"
+    local = config.local_recebimento if config.local_recebimento in LOCAIS else "caixa"
+    nome = (user.get_full_name() or "").strip() or user.get_username()
+    return {
+        "modelo": modelo,
+        "local_recebimento": local,
+        "papel": papel_salao(loja, prof, user, modelo),
+        "operador_nome": nome,
+    }
 
 
 class ConfigView(APIView):
@@ -55,6 +71,7 @@ class ConfigView(APIView):
             "painel": config.painel,
             "paineis": [{"id": codigo, "nome": nome} for codigo, nome in PAINEIS],
             "pode_trocar": usuario_e_admin(loja, prof, request.user),
+            **_funcionamento(config, loja, prof, request.user),
             **cores_gravadas(loja),
         })
 
@@ -66,6 +83,24 @@ class ConfigView(APIView):
         config.painel = painel
         config.save(update_fields=["painel"])
         return Response({"painel": config.painel, "pode_trocar": True})
+
+
+class FuncionamentoView(APIView):
+    permission_classes = [IsAuthenticated, IsSalaoAdmin]
+
+    def put(self, request):
+        modelo = (request.data.get("modelo") or "").strip()
+        local = (request.data.get("local_recebimento") or "").strip()
+        if modelo not in MODELOS:
+            return _erro("Escolha o salão com recepção ou o profissional autônomo.")
+        if local not in LOCAIS:
+            return _erro("Escolha onde o pagamento é recebido.")
+        config = _config()
+        config.modelo = modelo
+        config.local_recebimento = local
+        config.save(update_fields=["modelo", "local_recebimento"])
+        loja, prof = contexto_salao(request)
+        return Response(_funcionamento(config, loja, prof, request.user))
 
 
 class ClienteListCreateView(GetObjectMixin, APIView):
@@ -656,6 +691,18 @@ class ReceberAgendamentoView(APIView):
             return _erro("Conclua o atendimento antes de receber.")
         if any(item.is_active for item in agendamento.recebimentos.all()):
             return _erro("Este atendimento já foi recebido.")
+        config = _config()
+        origem = (request.data.get("origem") or "agenda").strip()
+        if origem not in {"agenda", "caixa"}:
+            origem = "agenda"
+        loja, prof = contexto_salao(request)
+        motivo = motivo_bloqueio_recebimento(
+            config.local_recebimento,
+            origem,
+            papel_salao(loja, prof, request.user, config.modelo),
+        )
+        if motivo:
+            return _erro(motivo, status.HTTP_403_FORBIDDEN)
         try:
             desconto = quantia(request.data.get("desconto") or 0)
             valor, comissao = calcular_recebimento(

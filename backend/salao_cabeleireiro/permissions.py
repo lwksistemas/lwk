@@ -60,12 +60,37 @@ def usuario_e_admin(loja, prof, user) -> bool:
     return bool(prof) and prof.perfil == ProfissionalUsuario.PERFIL_ADMINISTRADOR
 
 
+def eh_recepcao(loja, prof, user) -> bool:
+    if usuario_e_admin(loja, prof, user):
+        return False
+    return bool(prof) and prof.perfil in {
+        ProfissionalUsuario.PERFIL_RECEPCIONISTA,
+        ProfissionalUsuario.PERFIL_RECEPCAO,
+        ProfissionalUsuario.PERFIL_CAIXA,
+    }
+
+
+def papel_salao(loja, prof, user, modelo: str) -> str:
+    if usuario_e_admin(loja, prof, user):
+        return "autonomo" if modelo == "autonomo" else "administrador"
+    if eh_recepcao(loja, prof, user):
+        return "recepcionista"
+    return "profissional"
+
+
 class IsSalaoMembro(BasePermission):
     message = "Acesso permitido apenas a usuários deste salão."
 
     def has_permission(self, request, view):
         loja, prof = contexto_salao(request)
-        return loja is not None and (prof is not None or loja.owner_id == request.user.id or request.user.is_superuser)
+        if loja is None or not (prof is not None or loja.owner_id == request.user.id or request.user.is_superuser):
+            return False
+        if request.method in ("GET", "HEAD", "OPTIONS"):
+            return True
+        if eh_recepcao(loja, prof, request.user) and view.__class__.__name__ != "ReceberAgendamentoView":
+            self.message = "A recepção usa somente o Caixa/PDV."
+            return False
+        return True
 
 
 class IsSalaoAdmin(BasePermission):

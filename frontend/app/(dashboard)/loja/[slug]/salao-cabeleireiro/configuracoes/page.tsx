@@ -20,6 +20,7 @@ const LISTA = [
   { titulo: "Configurar tela de login", descricao: "Logo, fundo e cores da tela de login do salão.", href: "login", itens: ["Logo", "Imagem de fundo", "Cores do login"] },
   { titulo: "Contato no recibo", descricao: "Telefone, e-mail, cor e logomarca do recibo.", href: "contato", itens: ["Telefone do salão", "E-mail do salão", "Cor e logomarca do recibo"] },
   { titulo: "Mensagens no WhatsApp", descricao: "Confirmação, lembrete, mudança de horário e cancelamento.", href: "#mensagens", itens: ["Confirmação de horário", "Lembrete", "Aviso de mudança e cancelamento"] },
+  { titulo: "Funcionamento do salão", descricao: "Tipo de estabelecimento, recebimentos e permissões.", href: "funcionamento", itens: ["Salão com recepção", "Profissional autônomo", "Onde o pagamento é recebido"] },
   { titulo: "Nota fiscal (NFS-e)", descricao: "Provedor e certificado da nota de serviço.", href: "nota-fiscal", itens: ["Provedor de NF", "Certificado digital", "Emissão do serviço"] },
   { titulo: "Cupom fiscal (NFC-e)", descricao: "Cupom das vendas de produto. O recibo continua.", href: "cupom-fiscal", itens: ["Regime e CSC", "Inscrição estadual", "Homologação ou produção"] },
   { titulo: "Backup", descricao: "Exportar uma cópia dos dados deste salão.", href: "backup", itens: ["Exportar backup", "Clientes, agenda e caixa"] },

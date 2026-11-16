@@ -558,6 +558,20 @@ def _dinheiro(valor) -> str:
     return f"R$ {texto}"
 
 
+def _venda_ligada(recibo):
+    """O comprovante antigo aponta da venda para o recebimento. O novo aponta nos dois sentidos."""
+    if recibo.venda_id:
+        return recibo.venda
+    ligadas = list(recibo.vendas.all())
+    return next((venda for venda in ligadas if venda.is_active), None) or (ligadas[0] if ligadas else None)
+
+
+def _dados_do_comprovante(venda):
+    if venda is None:
+        return {"numero": None, "operador": ""}
+    return {"numero": venda.numero, "operador": venda.operador_nome or ""}
+
+
 class ResumoView(APIView):
     permission_classes = [IsAuthenticated, IsSalaoMembro]
 
@@ -783,6 +797,7 @@ class CaixaView(APIView):
         itens = list(
             Recebimento.objects.filter(is_active=True, created_at__gte=inicio, created_at__lt=fim)
             .select_related("agendamento__cliente", "agendamento__servico", "profissional", "venda")
+            .prefetch_related("vendas")
             .order_by("-created_at")[:300]
         )
         total = Decimal("0")
@@ -845,8 +860,7 @@ class CaixaView(APIView):
                     "valor": _dinheiro(item.valor),
                     "comissao": _dinheiro(item.comissao_valor),
                     "agendamento": item.agendamento_id,
-                    "numero": item.venda.numero if item.venda_id else None,
-                    "operador": item.venda.operador_nome if item.venda_id else "",
+                    **_dados_do_comprovante(_venda_ligada(item)),
                     "estornado": False,
                 }
                 for item in itens
@@ -879,6 +893,7 @@ def _estornos_do_caixa(inicio, fim):
     recibos = (
         Recebimento.objects.filter(is_active=False, created_at__gte=inicio, created_at__lt=fim)
         .select_related("agendamento__cliente", "agendamento__servico", "profissional", "venda")
+        .prefetch_related("vendas")
         .order_by("-created_at")[:200]
     )
     vendas = (
@@ -893,8 +908,7 @@ def _estornos_do_caixa(inicio, fim):
             "servico": item.agendamento.servico.nome,
             "valor": _dinheiro(item.valor),
             "forma_label": rotulo_formas(item.partes, item.forma),
-            "operador": item.venda.operador_nome if item.venda_id else "",
-            "numero": item.venda.numero if item.venda_id else None,
+            **_dados_do_comprovante(_venda_ligada(item)),
         }
         for item in recibos
     ] + [

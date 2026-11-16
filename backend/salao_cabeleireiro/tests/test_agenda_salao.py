@@ -4,6 +4,7 @@ from decimal import Decimal
 
 from salao_cabeleireiro.agenda_service import avaliar_jornada, intervalos_conflitam
 from salao_cabeleireiro.caixa_service import calcular_recebimento, interpretar_formas, motivo_bloqueio_recebimento, rotulo_formas
+from salao_cabeleireiro.estoque_service import agrupar_pedidos, repartir_pagamento
 from salao_cabeleireiro.fiscal_service import SalaoFiscalErro, gravar_nfce
 from salao_cabeleireiro.comunicacao_service import regras_de
 from salao_cabeleireiro.mensagens import na_janela_lembrete, texto_cancelamento, texto_confirmacao
@@ -81,6 +82,18 @@ class CaixaSalaoTest(unittest.TestCase):
         self.assertIn("agenda", motivo_bloqueio_recebimento("agenda", "caixa", "autonomo"))
         self.assertIsNone(motivo_bloqueio_recebimento("ambos", "agenda", "profissional"))
         self.assertIn("não recebe", motivo_bloqueio_recebimento("caixa", "caixa", "profissional"))
+
+    def test_produto_e_servico_dividem_o_mesmo_pagamento(self):
+        partes = [{"forma": "dinheiro", "valor": "40.00"}, {"forma": "pix", "valor": "35.00"}]
+        servico, produto = repartir_pagamento(partes, Decimal("40.00"))
+        self.assertEqual(servico, [{"forma": "dinheiro", "valor": "40.00"}])
+        self.assertEqual(produto, [{"forma": "pix", "valor": "35.00"}])
+
+    def test_quantidade_do_mesmo_produto_soma(self):
+        pedidos = agrupar_pedidos([{"produto": 3, "quantidade": 1}, {"produto": "3", "quantidade": 2}])
+        self.assertEqual(pedidos, [{"produto": 3, "quantidade": 3}])
+        with self.assertRaises(ValueError):
+            agrupar_pedidos([{"produto": 3, "quantidade": 0}])
 
 
 class CupomSalaoTest(unittest.TestCase):

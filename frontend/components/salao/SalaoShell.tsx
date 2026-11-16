@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Calendar, ChevronLeft, ChevronRight, LayoutDashboard, LogOut, Receipt, Scissors, Settings, Users, UserRound, Wallet } from "lucide-react";
+import { Calendar, ChevronLeft, ChevronRight, LayoutDashboard, LogOut, Package, Receipt, Scissors, Settings, Users, UserRound, Wallet } from "lucide-react";
 import { useLojaAuth } from "@/hooks/useLojaAuth";
 import { SalaoAPI, type LocalRecebimentoSalao, type PainelSalao, type PapelSalao } from "@/lib/salao-api";
 
@@ -13,6 +13,7 @@ const ITENS = [
   { caminho: "/clientes", nome: "Clientes", icone: Users },
   { caminho: "/servicos", nome: "Serviços", icone: Scissors },
   { caminho: "/profissionais", nome: "Profissionais", icone: UserRound },
+  { caminho: "/estoque", nome: "Estoque", icone: Package },
   { caminho: "/caixa", nome: "Caixa/PDV", icone: Wallet },
   { caminho: "/financeiro", nome: "Financeiro", icone: Receipt },
   { caminho: "/configuracoes", nome: "Configurações", icone: Settings },

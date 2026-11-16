@@ -15,6 +15,24 @@ export type ModeloSalao = "recepcionista" | "autonomo";
 export type LocalRecebimentoSalao = "caixa" | "agenda" | "ambos";
 export type PapelSalao = "administrador" | "autonomo" | "recepcionista" | "profissional";
 
+export type ProdutoSalao = {
+  id: number;
+  nome: string;
+  codigo_barras: string;
+  preco: string;
+  saldo: number;
+  comissao_percentual: string;
+};
+
+export type VendaSalao = {
+  numero: number;
+  cliente: string;
+  valor: string;
+  forma_label: string;
+  quando: string;
+  itens: { nome: string; quantidade: number; total: string }[];
+};
+
 export type ClienteSalao = {
   id: number;
   nome: string;
@@ -173,6 +191,12 @@ export const SalaoAPI = {
     salaoFetch<AgendamentoSalao>(`/agendamentos/${id}/`, { method: "PATCH", body: JSON.stringify(corpo) }),
   excluirAgendamento: (id: number) =>
     salaoFetch<AgendamentoSalao>(`/agendamentos/${id}/`, { method: "DELETE" }),
+  produtos: (q?: string) => salaoFetch<ProdutoSalao[]>(`/produtos/${q ? `?q=${encodeURIComponent(q)}` : ""}`),
+  salvarProduto: (corpo: Record<string, unknown>, id?: number) =>
+    salaoFetch<ProdutoSalao>(id ? `/produtos/${id}/` : "/produtos/", { method: id ? "PATCH" : "POST", body: JSON.stringify(corpo) }),
+  arquivarProduto: (id: number) => salaoFetch(`/produtos/${id}/`, { method: "DELETE" }),
+  vender: (corpo: { agendamento?: number; desconto: string; origem?: "caixa" | "agenda"; formas?: { forma: string; valor: string }[]; itens?: { produto: number; quantidade: number }[] }) =>
+    salaoFetch<VendaSalao>("/vendas/", { method: "POST", body: JSON.stringify(corpo) }),
   receber: (id: number, corpo: { desconto: string; origem?: "agenda" | "caixa"; forma?: string; formas?: { forma: string; valor: string }[] }) =>
     salaoFetch<AgendamentoSalao>(`/agendamentos/${id}/receber/`, { method: "POST", body: JSON.stringify(corpo) }),
   estornarRecebimento: (id: number) => salaoFetch(`/recebimentos/${id}/`, { method: "DELETE" }),

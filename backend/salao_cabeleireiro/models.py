@@ -186,3 +186,97 @@ class Recebimento(models.Model):
             if atual:
                 self.loja_id = atual
         super().save(*args, **kwargs)
+
+
+class Produto(models.Model):
+    """Produto vendido no caixa. O saldo só muda depois que a venda é confirmada."""
+
+    loja_id = models.IntegerField(db_index=True)
+    nome = models.CharField(max_length=120)
+    codigo_barras = models.CharField(max_length=40, blank=True, default="")
+    preco = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("0"))
+    saldo = models.PositiveIntegerField(default=0)
+    comissao_percentual = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal("0"))
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    objects = LojaIsolationManager()
+
+    class Meta:
+        verbose_name = "Produto"
+        ordering = ["nome"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["loja_id", "codigo_barras"],
+                condition=~models.Q(codigo_barras="") & models.Q(is_active=True),
+                name="salao_produto_codigo_ativo",
+            ),
+        ]
+
+    def save(self, *args, **kwargs):
+        from tenants.middleware import get_current_loja_id
+
+        if not self.loja_id:
+            atual = get_current_loja_id()
+            if atual:
+                self.loja_id = atual
+        super().save(*args, **kwargs)
+
+
+class Venda(models.Model):
+    """Um recebimento do caixa. Serviço e produto ficam separados por dentro."""
+
+    loja_id = models.IntegerField(db_index=True)
+    numero = models.PositiveIntegerField()
+    agendamento = models.ForeignKey(Agendamento, null=True, blank=True, on_delete=models.PROTECT, related_name="vendas")
+    recebimento = models.ForeignKey(Recebimento, null=True, blank=True, on_delete=models.PROTECT, related_name="vendas")
+    cliente_nome = models.CharField(max_length=160, blank=True, default="")
+    valor_servico = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("0"))
+    valor_produtos = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("0"))
+    desconto = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("0"))
+    valor = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("0"))
+    forma = models.CharField(max_length=20, choices=FORMAS_PAGAMENTO, default="dinheiro")
+    partes = models.JSONField(default=list, blank=True)
+    partes_produtos = models.JSONField(default=list, blank=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    objects = LojaIsolationManager()
+
+    class Meta:
+        verbose_name = "Venda do caixa"
+        ordering = ["-created_at"]
+
+    def save(self, *args, **kwargs):
+        from tenants.middleware import get_current_loja_id
+
+        if not self.loja_id:
+            atual = get_current_loja_id()
+            if atual:
+                self.loja_id = atual
+        super().save(*args, **kwargs)
+
+
+class VendaItem(models.Model):
+    venda = models.ForeignKey(Venda, on_delete=models.CASCADE, related_name="itens")
+    produto = models.ForeignKey(Produto, on_delete=models.PROTECT, related_name="itens")
+    nome = models.CharField(max_length=120)
+    quantidade = models.PositiveIntegerField()
+    preco = models.DecimalField(max_digits=10, decimal_places=2)
+    total = models.DecimalField(max_digits=10, decimal_places=2)
+    comissao_valor = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("0"))
+    estoque_baixado = models.BooleanField(default=False)
+
+    class Meta:
+        verbose_name = "Item da venda"
+
+
+class MovimentoEstoque(models.Model):
+    produto = models.ForeignKey(Produto, on_delete=models.PROTECT, related_name="movimentos")
+    venda = models.ForeignKey(Venda, null=True, blank=True, on_delete=models.SET_NULL, related_name="movimentos")
+    tipo = models.CharField(max_length=20)
+    quantidade = models.IntegerField()
+    saldo_depois = models.PositiveIntegerField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Movimento de estoque"
+        ordering = ["-created_at"]

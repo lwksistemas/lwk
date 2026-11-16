@@ -1,6 +1,7 @@
 from django.urls import path
 
 from .loja_config import IdentidadeView, LojaInfoView
+from .estoque_views import ProdutoDetailView, ProdutoListCreateView, VendaCreateView
 from .fiscal_views import SalaoNfceConfigView, SalaoNFSeConfigView, SalaoNFSeTesteView
 from .views import (
     AgendaView,
@@ -39,6 +40,9 @@ urlpatterns = [
     path("agendamentos/<int:pk>/receber/", ReceberAgendamentoView.as_view(), name="salao-receber"),
     path("agendamentos/<int:pk>/whatsapp/", WhatsappAgendamentoView.as_view(), name="salao-whatsapp"),
     path("caixa/", CaixaView.as_view(), name="salao-caixa"),
+    path("vendas/", VendaCreateView.as_view(), name="salao-vendas"),
+    path("produtos/", ProdutoListCreateView.as_view(), name="salao-produtos"),
+    path("produtos/<int:pk>/", ProdutoDetailView.as_view(), name="salao-produto"),
     path("recebimentos/<int:pk>/", RecebimentoDetailView.as_view(), name="salao-recebimento"),
     path("clientes/", ClienteListCreateView.as_view(), name="salao-clientes"),
     path("clientes/<int:pk>/", ClienteDetailView.as_view(), name="salao-cliente"),

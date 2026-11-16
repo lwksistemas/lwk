@@ -13,7 +13,7 @@ from .agenda_service import conflito_horario, interpretar_inicio
 from .caixa_service import calcular_recebimento, interpretar_formas, motivo_bloqueio_recebimento, quantia, rotulo_formas
 from .comunicacao_service import avisar_mudanca, enviar_evento, regras_de, validar_regras, whatsapp_pronto
 from .catalogo import garantir_catalogo_inicial
-from .models import FORMAS_PAGAMENTO, PAINEIS, STATUS_AGENDAMENTO, STATUS_OCUPA_HORARIO, Agendamento, Bloqueio, Cliente, HorarioTrabalho, Profissional, Recebimento, SalaoConfig, Servico
+from .models import FORMAS_PAGAMENTO, PAINEIS, STATUS_AGENDAMENTO, STATUS_OCUPA_HORARIO, Agendamento, Bloqueio, Cliente, HorarioTrabalho, Profissional, Recebimento, SalaoConfig, Servico, Venda
 from .loja_config import cores_gravadas
 from .permissions import IsSalaoAdmin, IsSalaoMembro, contexto_salao, papel_salao, usuario_e_admin
 from .serializers import AgendamentoSerializer, ClienteSerializer, ProfissionalSerializer, ServicoSerializer, painel_valido
@@ -739,6 +739,12 @@ class RecebimentoDetailView(GetObjectMixin, APIView):
             return erro
         if not recebimento.is_active:
             return _erro(self.not_found_message, status.HTTP_404_NOT_FOUND)
+        from .estoque_service import estornar_venda
+        from .models import Venda
+
+        venda = Venda.objects.filter(recebimento=recebimento, is_active=True).first()
+        if venda is not None:
+            estornar_venda(venda)
         recebimento.is_active = False
         recebimento.save(update_fields=["is_active"])
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -783,9 +789,30 @@ class CaixaView(APIView):
             comissao["quantidade"] += 1
             comissao["recebido"] += item.valor
             comissao["comissao"] += item.comissao_valor
+        vendas = list(
+            Venda.objects.filter(is_active=True, created_at__gte=inicio, created_at__lt=fim, valor_produtos__gt=0)
+            .select_related("recebimento__profissional")
+            .prefetch_related("itens")
+            .order_by("-created_at")[:300]
+        )
+        for venda in vendas:
+            total += venda.valor_produtos
+            if venda.recebimento_id:
+                profissional = venda.recebimento.profissional
+                comissao = por_profissional.setdefault(profissional.id, {
+                    "nome": profissional.nome,
+                    "quantidade": 0,
+                    "recebido": Decimal("0"),
+                    "comissao": Decimal("0"),
+                })
+                comissao["comissao"] += sum((item.comissao_valor for item in venda.itens.all()), Decimal("0"))
+            for parte in venda.partes_produtos or []:
+                codigo = parte["forma"]
+                forma = por_forma.setdefault(codigo, {"forma": codigo, "nome": dict(FORMAS_PAGAMENTO).get(codigo, codigo), "total": Decimal("0")})
+                forma["total"] += Decimal(str(parte["valor"]))
         return Response({
             "total": _dinheiro(total),
-            "quantidade": len(itens),
+            "quantidade": len(itens) + sum(1 for venda in vendas if venda.recebimento_id is None),
             "por_forma": [{**item, "total": _dinheiro(item["total"])} for item in por_forma.values()],
             "comissoes": [
                 {**item, "recebido": _dinheiro(item["recebido"]), "comissao": _dinheiro(item["comissao"])}
@@ -806,6 +833,21 @@ class CaixaView(APIView):
                     "agendamento": item.agendamento_id,
                 }
                 for item in itens
+            ] + [
+                {
+                    "id": venda.id,
+                    "quando": timezone.localtime(venda.created_at).strftime("%d/%m %H:%M"),
+                    "cliente": venda.cliente_nome or "Consumidor",
+                    "servico": ", ".join(f"{item.quantidade} {item.nome}" for item in venda.itens.all()) or "Produto",
+                    "profissional": "",
+                    "forma": venda.forma,
+                    "forma_label": rotulo_formas(venda.partes_produtos, venda.forma),
+                    "desconto": "R$ 0,00",
+                    "valor": _dinheiro(venda.valor_produtos),
+                    "comissao": "R$ 0,00",
+                    "agendamento": venda.agendamento_id,
+                }
+                for venda in vendas
             ],
         })
 

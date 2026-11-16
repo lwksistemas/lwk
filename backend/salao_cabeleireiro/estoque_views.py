@@ -158,15 +158,30 @@ class VendaCreateView(APIView):
             origem = "caixa"
         loja, prof = contexto_salao(request)
         try:
+            usuario = request.user
+            operador = (usuario.get_full_name() or "").strip() or usuario.get_username()
             venda = registrar_venda(
                 request.data,
                 agendamentos,
                 papel_salao(loja, prof, request.user, config.modelo),
                 config.local_recebimento,
                 origem,
+                operador,
             )
         except PermissionError as exc:
             return _erro(str(exc), status.HTTP_403_FORBIDDEN)
         except ValueError as exc:
             return _erro(str(exc))
         return Response(publico_venda(venda), status=status.HTTP_201_CREATED)
+
+
+class VendaDetailView(APIView):
+    permission_classes = [IsAuthenticated, IsSalaoMembro]
+
+    def get(self, request, numero):
+        from .models import Venda
+
+        venda = Venda.objects.filter(numero=numero).prefetch_related("itens").first()
+        if venda is None:
+            return _erro("Comprovante não encontrado.", status.HTTP_404_NOT_FOUND)
+        return Response(publico_venda(venda))

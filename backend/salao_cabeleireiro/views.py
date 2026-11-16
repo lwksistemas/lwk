@@ -45,6 +45,15 @@ def _config():
     return SalaoConfig.objects.create(painel="operacao")
 
 
+def _abertura_do_caixa() -> str:
+    from .models import SessaoCaixa
+
+    sessao = SessaoCaixa.objects.filter(is_active=True).order_by("-aberta_em").first()
+    if sessao is None:
+        return ""
+    return timezone.localtime(sessao.aberta_em).strftime("%d/%m/%Y %H:%M")
+
+
 def _funcionamento(config, loja, prof, user):
     modelo = config.modelo if config.modelo in MODELOS else "recepcionista"
     local = config.local_recebimento if config.local_recebimento in LOCAIS else "caixa"
@@ -54,6 +63,7 @@ def _funcionamento(config, loja, prof, user):
         "local_recebimento": local,
         "papel": papel_salao(loja, prof, user, modelo),
         "operador_nome": nome,
+        "caixa_abertura": _abertura_do_caixa(),
     }
 
 
@@ -772,7 +782,7 @@ class CaixaView(APIView):
             fim = inicio + timedelta(days=1)
         itens = list(
             Recebimento.objects.filter(is_active=True, created_at__gte=inicio, created_at__lt=fim)
-            .select_related("agendamento__cliente", "agendamento__servico", "profissional")
+            .select_related("agendamento__cliente", "agendamento__servico", "profissional", "venda")
             .order_by("-created_at")[:300]
         )
         total = Decimal("0")
@@ -835,6 +845,9 @@ class CaixaView(APIView):
                     "valor": _dinheiro(item.valor),
                     "comissao": _dinheiro(item.comissao_valor),
                     "agendamento": item.agendamento_id,
+                    "numero": item.venda.numero if item.venda_id else None,
+                    "operador": item.venda.operador_nome if item.venda_id else "",
+                    "estornado": False,
                 }
                 for item in itens
             ] + [
@@ -850,10 +863,53 @@ class CaixaView(APIView):
                     "valor": _dinheiro(venda.valor_produtos),
                     "comissao": "R$ 0,00",
                     "agendamento": venda.agendamento_id,
+                    "numero": venda.numero,
+                    "operador": venda.operador_nome,
+                    "estornado": False,
                 }
                 for venda in vendas
             ],
+            "estornos": _estornos_do_caixa(inicio, fim),
         })
+
+
+def _estornos_do_caixa(inicio, fim):
+    from .models import Venda
+
+    recibos = (
+        Recebimento.objects.filter(is_active=False, created_at__gte=inicio, created_at__lt=fim)
+        .select_related("agendamento__cliente", "agendamento__servico", "profissional", "venda")
+        .order_by("-created_at")[:200]
+    )
+    vendas = (
+        Venda.objects.filter(is_active=False, created_at__gte=inicio, created_at__lt=fim, recebimento__isnull=True)
+        .order_by("-created_at")[:200]
+    )
+    return [
+        {
+            "id": item.id,
+            "quando": timezone.localtime(item.created_at).strftime("%d/%m %H:%M"),
+            "cliente": item.agendamento.cliente.nome,
+            "servico": item.agendamento.servico.nome,
+            "valor": _dinheiro(item.valor),
+            "forma_label": rotulo_formas(item.partes, item.forma),
+            "operador": item.venda.operador_nome if item.venda_id else "",
+            "numero": item.venda.numero if item.venda_id else None,
+        }
+        for item in recibos
+    ] + [
+        {
+            "id": venda.id,
+            "quando": timezone.localtime(venda.created_at).strftime("%d/%m %H:%M"),
+            "cliente": venda.cliente_nome or "Consumidor",
+            "servico": "Produto",
+            "valor": _dinheiro(venda.valor_produtos),
+            "forma_label": rotulo_formas(venda.partes, venda.forma),
+            "operador": venda.operador_nome,
+            "numero": venda.numero,
+        }
+        for venda in vendas
+    ]
 
 
 class ComunicacaoView(APIView):

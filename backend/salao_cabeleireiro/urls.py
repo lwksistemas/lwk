@@ -1,7 +1,7 @@
 from django.urls import path
 
 from .loja_config import IdentidadeView, LojaInfoView
-from .estoque_views import ProdutoDetailView, ProdutoListCreateView, VendaCreateView
+from .estoque_views import ProdutoDetailView, ProdutoListCreateView, VendaCreateView, VendaDetailView
 from .nfe_entrada_views import (
     ImportarXmlView,
     NfeConfirmarView,
@@ -49,6 +49,7 @@ urlpatterns = [
     path("agendamentos/<int:pk>/whatsapp/", WhatsappAgendamentoView.as_view(), name="salao-whatsapp"),
     path("caixa/", CaixaView.as_view(), name="salao-caixa"),
     path("vendas/", VendaCreateView.as_view(), name="salao-vendas"),
+    path("vendas/<int:numero>/", VendaDetailView.as_view(), name="salao-venda"),
     path("produtos/", ProdutoListCreateView.as_view(), name="salao-produtos"),
     path("produtos/<int:pk>/", ProdutoDetailView.as_view(), name="salao-produto"),
     path("estoque/importar-xml/", ImportarXmlView.as_view(), name="salao-importar-xml"),

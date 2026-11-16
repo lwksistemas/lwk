@@ -81,6 +81,15 @@ class CaixaSalaoTest(unittest.TestCase):
         partes = interpretar_formas({"forma": "pix"}, Decimal("40.00"))
         self.assertEqual(partes, [{"forma": "pix", "valor": "40.00"}])
 
+    def test_forma_repetida_ou_negativa_nao_entra(self):
+        with self.assertRaises(ValueError):
+            interpretar_formas(
+                {"formas": [{"forma": "pix", "valor": "10.00"}, {"forma": "pix", "valor": "30.00"}]},
+                Decimal("40.00"),
+            )
+        with self.assertRaises(ValueError):
+            interpretar_formas({"formas": [{"forma": "dinheiro", "valor": "-5.00"}]}, Decimal("40.00"))
+
     def test_duas_formas_precisam_fechar_o_total(self):
         partes = interpretar_formas(
             {"formas": [{"forma": "dinheiro", "valor": "15.00"}, {"forma": "pix", "valor": "25.00"}]},

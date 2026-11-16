@@ -23,6 +23,47 @@ export default function FinanceiroSalaoPage() {
   const [caixa, setCaixa] = useState<CaixaSalao | null>(null);
   const [erro, setErro] = useState("");
 
+  async function reimprimir(numero: number) {
+    try {
+      const venda = await SalaoAPI.venda(numero);
+      const linhas = [
+        "COMPROVANTE DE PAGAMENTO (NÃO FISCAL)",
+        `Nº ${String(venda.numero).padStart(6, "0")} · ${venda.quando}`,
+        `Cliente: ${venda.cliente}`,
+        ...(venda.servicos || []).map((item) => `${item.nome} — ${item.total}${item.profissional ? ` (${item.profissional})` : ""}`),
+        ...(venda.itens || []).map((item) => `${item.quantidade}× ${item.nome} — ${item.total}`),
+        `Total pago: ${venda.valor}`,
+        `Forma de pagamento: ${venda.forma_label}`,
+        venda.operador ? `Operador: ${venda.operador}` : "",
+        venda.estornado ? "Este recebimento foi estornado." : "",
+      ].filter(Boolean);
+      const html = `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Comprovante ${venda.numero}</title></head><body style="font-family:sans-serif;max-width:360px;margin:24px auto;font-size:14px">${linhas.map((linha) => `<p>${linha.replace(/&/g, "&amp;").replace(/</g, "&lt;")}</p>`).join("")}</body></html>`;
+      const quadro = document.createElement("iframe");
+      quadro.style.position = "fixed";
+      quadro.style.width = "0";
+      quadro.style.height = "0";
+      quadro.style.border = "0";
+      document.body.appendChild(quadro);
+      const documento = quadro.contentDocument;
+      const janela = quadro.contentWindow;
+      if (!documento || !janela) {
+        quadro.remove();
+        setErro("Não foi possível preparar a impressão.");
+        return;
+      }
+      documento.open();
+      documento.write(html);
+      documento.close();
+      window.setTimeout(() => {
+        janela.focus();
+        janela.print();
+        window.setTimeout(() => quadro.remove(), 1000);
+      }, 50);
+    } catch (exc) {
+      setErro(exc instanceof Error ? exc.message : "Não foi possível reimprimir.");
+    }
+  }
+
   useEffect(() => {
     const faixa = periodo(modo);
     SalaoAPI.caixa(faixa.inicio, faixa.fim)
@@ -65,12 +106,29 @@ export default function FinanceiroSalaoPage() {
                 <span className="text-[#8a6e74]">{item.quando}</span>
                 <span className="min-w-0">
                   <span className="block truncate">{item.cliente} · {item.servico}</span>
-                  <small className="text-[#8a6e74]">{item.profissional} · {item.forma_label}{item.desconto !== "R$ 0,00" ? ` · desconto ${item.desconto}` : ""}</small>
+                  <small className="text-[#8a6e74]">{item.profissional}{item.operador ? ` · operador ${item.operador}` : ""} · {item.forma_label}{item.desconto !== "R$ 0,00" ? ` · desconto ${item.desconto}` : ""}{item.numero ? ` · comprovante ${String(item.numero).padStart(6, "0")}` : ""}</small>
                 </span>
-                <span>{item.valor}</span>
+                <span className="text-right">
+                  <span className="block">{item.valor}</span>
+                  {item.numero ? <button type="button" className="text-xs text-[#7a3044]" onClick={() => reimprimir(item.numero as number)}>Reimprimir</button> : null}
+                </span>
               </li>
             ))}
           </ul>
+          {(caixa?.estornos?.length || 0) > 0 ? (
+            <div className="mt-4">
+              <h2 className="mb-2 text-sm font-medium">Estornos</h2>
+              <ul>
+                {caixa?.estornos?.map((item) => (
+                  <li key={`estorno-${item.id}-${item.numero || 0}`} className="grid gap-1 border-t border-[#f0e4e6] py-2 text-sm text-[#8a6e74] sm:grid-cols-[88px_minmax(0,1fr)_auto]">
+                    <span>{item.quando}</span>
+                    <span>{item.cliente} · {item.servico} · {item.forma_label}{item.operador ? ` · ${item.operador}` : ""}</span>
+                    <span>{item.valor}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
         </section>
         <section className="rounded-3xl border border-[#f0e4e6] bg-white p-4">
           <h2 className="mb-2 text-sm font-medium">Comissões</h2>

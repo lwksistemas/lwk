@@ -60,6 +60,8 @@ export type VendaSalao = {
   cliente: string;
   valor: string;
   desconto?: string;
+  operador?: string;
+  estornado?: boolean;
   forma_label: string;
   quando: string;
   servicos?: { nome: string; profissional: string; total: string }[];
@@ -175,6 +177,19 @@ export type CaixaSalao = {
     valor: string;
     comissao: string;
     agendamento: number;
+    numero?: number | null;
+    operador?: string;
+    estornado?: boolean;
+  }[];
+  estornos?: {
+    id: number;
+    quando: string;
+    cliente: string;
+    servico: string;
+    valor: string;
+    forma_label: string;
+    operador: string;
+    numero: number | null;
   }[];
 };
 
@@ -219,6 +234,7 @@ export const SalaoAPI = {
     local_recebimento: LocalRecebimentoSalao;
     papel: PapelSalao;
     operador_nome: string;
+    caixa_abertura?: string;
   }>("/config/"),
   salvarFuncionamento: (corpo: { modelo: ModeloSalao; local_recebimento: LocalRecebimentoSalao }) =>
     salaoFetch<{ modelo: ModeloSalao; local_recebimento: LocalRecebimentoSalao; papel: PapelSalao; operador_nome: string }>("/funcionamento/", { method: "PUT", body: JSON.stringify(corpo) }),
@@ -255,6 +271,7 @@ export const SalaoAPI = {
   ignorarNota: (id: number) => salaoFetch<{ pendentes: NotaPendenteSalao[] }>(`/estoque/nfe-pendentes/${id}/ignorar/`, { method: "POST", body: "{}" }),
   vender: (corpo: { agendamento?: number; agendamentos?: number[]; desconto: string; origem?: "caixa" | "agenda"; formas?: { forma: string; valor: string }[]; itens?: { produto: number; quantidade: number }[]; nfse?: boolean; nfce?: boolean }) =>
     salaoFetch<VendaSalao>("/vendas/", { method: "POST", body: JSON.stringify(corpo) }),
+  venda: (numero: number) => salaoFetch<VendaSalao>(`/vendas/${numero}/`),
   receber: (id: number, corpo: { desconto: string; origem?: "agenda" | "caixa"; forma?: string; formas?: { forma: string; valor: string }[] }) =>
     salaoFetch<AgendamentoSalao>(`/agendamentos/${id}/receber/`, { method: "POST", body: JSON.stringify(corpo) }),
   estornarRecebimento: (id: number) => salaoFetch(`/recebimentos/${id}/`, { method: "DELETE" }),

@@ -35,8 +35,12 @@ def interpretar_formas(dados, valor_liquido: Decimal) -> list[dict]:
             if forma not in FORMAS:
                 raise ValueError("Escolha dinheiro, Pix, débito ou crédito.")
             parte = quantia(item.get("valor"))
+            if parte < 0:
+                raise ValueError("O valor da forma de pagamento não pode ser negativo.")
             if parte <= 0:
                 raise ValueError("Informe o valor de cada forma de pagamento.")
+            if any(atual["forma"] == forma for atual in partes):
+                raise ValueError("Use cada forma de pagamento uma vez.")
             partes.append({"forma": forma, "valor": f"{parte:.2f}"})
         soma = sum((quantia(item["valor"]) for item in partes), Decimal("0"))
         if soma != valor_liquido:

@@ -263,6 +263,14 @@ class Venda(models.Model):
     forma = models.CharField(max_length=20, choices=FORMAS_PAGAMENTO, default="dinheiro")
     partes = models.JSONField(default=list, blank=True)
     partes_produtos = models.JSONField(default=list, blank=True)
+    operador_nome = models.CharField(max_length=160, blank=True, default="")
+    sessao = models.ForeignKey(
+        "SessaoCaixa",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="vendas",
+    )
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     objects = LojaIsolationManager()
@@ -270,6 +278,29 @@ class Venda(models.Model):
     class Meta:
         verbose_name = "Venda do caixa"
         ordering = ["-created_at"]
+
+    def save(self, *args, **kwargs):
+        from tenants.middleware import get_current_loja_id
+
+        if not self.loja_id:
+            atual = get_current_loja_id()
+            if atual:
+                self.loja_id = atual
+        super().save(*args, **kwargs)
+
+
+class SessaoCaixa(models.Model):
+    """Uma abertura do caixa. A venda fica ligada a ela."""
+
+    loja_id = models.IntegerField(db_index=True)
+    operador_nome = models.CharField(max_length=160, blank=True, default="")
+    aberta_em = models.DateTimeField(auto_now_add=True)
+    is_active = models.BooleanField(default=True)
+    objects = LojaIsolationManager()
+
+    class Meta:
+        verbose_name = "Sessão do caixa"
+        ordering = ["-aberta_em"]
 
     def save(self, *args, **kwargs):
         from tenants.middleware import get_current_loja_id

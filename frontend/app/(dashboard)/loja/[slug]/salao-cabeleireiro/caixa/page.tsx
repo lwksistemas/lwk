@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { Banknote, Check, CreditCard, Layers, Mail, MessageCircle, Minus, Plus, Printer, QrCode, Scissors, ShoppingBag, Trash2, UserRound, X } from "lucide-react";
+import { Banknote, Check, CreditCard, Download, Layers, Mail, MessageCircle, Minus, Plus, Printer, QrCode, Scissors, ShoppingBag, Trash2, UserRound, X } from "lucide-react";
 import { SalaoAPI, type AgendamentoSalao, type ClienteSalao, type LocalRecebimentoSalao, type PapelSalao, type ProdutoSalao } from "@/lib/salao-api";
 
 type ItemCarrinho = { produto: number; nome: string; preco: string; saldo: number; quantidade: number };
@@ -66,6 +66,14 @@ type ReciboPronto = {
   tipo: "servicos" | "produtos" | "misto";
 };
 
+function situacaoDocumento(chave: keyof DocumentosRecibo, tipo: ReciboPronto["tipo"] | "vazio", marcado: boolean, pago: boolean) {
+  const aplicavel = chave === "comprovante" || (chave === "nfse" && tipo === "servicos") || (chave === "nfce" && tipo === "produtos");
+  if (!aplicavel || tipo === "vazio") return "Não aplicável";
+  if (!marcado) return "Não solicitado";
+  if (chave === "comprovante" && pago) return "Emitido";
+  return "Pendente de emissão";
+}
+
 function textoDocumento(chave: keyof DocumentosRecibo, tipo: ReciboPronto["tipo"] | "vazio") {
   if (chave === "comprovante") return "Resumo do pagamento. Serve para serviço, produto ou os dois juntos.";
   if (chave === "nfse") {
@@ -106,6 +114,40 @@ function textoRecibo(recibo: ReciboPronto, loja: string) {
   return linhas.join("\n");
 }
 
+function baixarPdfRecibo(recibo: ReciboPronto, loja: string) {
+  const escapar = (texto: string) => texto.replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)");
+  const comandos = textoRecibo(recibo, loja).split("\n").slice(0, 42).map((linha, indice) => {
+    const segura = escapar(linha).replace(/[^\x00-\xff]/g, "?");
+    return `BT /F1 10 Tf 36 ${800 - indice * 14} Td (${segura}) Tj ET`;
+  }).join("\n");
+  const objetos = [
+    "1 0 obj<< /Type /Catalog /Pages 2 0 R >>endobj",
+    "2 0 obj<< /Type /Pages /Kids [3 0 R] /Count 1 >>endobj",
+    "3 0 obj<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R /Resources<< /Font<< /F1 5 0 R >> >> >>endobj",
+    `4 0 obj<< /Length ${comandos.length} >>stream\n${comandos}\nendstream endobj`,
+    "5 0 obj<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>endobj",
+  ];
+  let pdf = "%PDF-1.4\n";
+  const offsets = [0];
+  objetos.forEach((objeto) => {
+    offsets.push(pdf.length);
+    pdf += `${objeto}\n`;
+  });
+  const xref = pdf.length;
+  pdf += `xref\n0 ${objetos.length + 1}\n0000000000 65535 f \n`;
+  offsets.slice(1).forEach((offset) => {
+    pdf += `${String(offset).padStart(10, "0")} 00000 n \n`;
+  });
+  pdf += `trailer<< /Size ${objetos.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`;
+  const bytes = Uint8Array.from(pdf, (caractere) => caractere.charCodeAt(0) & 255);
+  const url = URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `comprovante-${String(recibo.numero).padStart(6, "0")}.pdf`;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
 export default function CaixaPdvPage() {
   const slug = (useParams()?.slug as string) ?? "";
   const [aba, setAba] = useState<"atendimentos" | "produtos">("atendimentos");
@@ -122,6 +164,8 @@ export default function CaixaPdvPage() {
   const [local, setLocal] = useState<LocalRecebimentoSalao>("caixa");
   const [papel, setPapel] = useState<PapelSalao | "">("");
   const [operador, setOperador] = useState("");
+  const [abertura, setAbertura] = useState("");
+  const [previaAberta, setPreviaAberta] = useState(true);
   const [erro, setErro] = useState("");
   const [salvando, setSalvando] = useState(false);
   const [sucesso, setSucesso] = useState<ReciboPronto | null>(null);
@@ -147,6 +191,7 @@ export default function CaixaPdvPage() {
     SalaoAPI.config().then((dados) => {
       setLocal(dados.local_recebimento || "caixa");
       setOperador(dados.operador_nome || "");
+      setAbertura(dados.caixa_abertura || "");
       setPapel(dados.papel || "");
     }).catch(() => undefined);
     SalaoAPI.produtos().then(setProdutos).catch(() => undefined);
@@ -179,11 +224,13 @@ export default function CaixaPdvPage() {
   const totalProdutos = Math.round(carrinho.reduce((acc, item) => acc + lerReais(item.preco) * item.quantidade, 0) * 100) / 100;
   const subtotal = Math.round((preco + totalProdutos) * 100) / 100;
   const total = Math.round((preco - valorDesconto + totalProdutos) * 100) / 100;
-  const soma = Math.round(linhas.reduce((acc, linha) => acc + lerReais(linha.valor), 0) * 100) / 100;
+  const soma = Math.round(linhas.reduce((acc, linha) => acc + Math.max(0, lerReais(linha.valor)), 0) * 100) / 100;
+  const falta = Math.round((total - soma) * 100) / 100;
+  const formaRepetida = linhas.filter((linha) => lerReais(linha.valor) > 0).some((linha, indice, lista) => lista.findIndex((item) => item.forma === linha.forma) !== indice);
+  const valorNegativo = linhas.some((linha) => lerReais(linha.valor) < 0) || lerReais(entregue) < 0;
   const valorRecebido = entregue === "" ? total : lerReais(entregue);
   const troco = formaRapida === "dinheiro" && valorRecebido > total ? Math.round((valorRecebido - total) * 100) / 100 : 0;
   const hoje = new Date();
-  const dataCabecalho = hoje.toLocaleDateString("pt-BR");
   const formaLabel = formaRapida === "multiplas"
     ? linhas.map((linha) => ROTULO[linha.forma] || linha.forma).join(" e ")
     : ROTULO[formaRapida];
@@ -258,9 +305,28 @@ export default function CaixaPdvPage() {
       setErro("O desconto não pode passar do valor do serviço.");
       return;
     }
-    if (formaRapida === "multiplas" && total > 0 && Math.abs(soma - total) > 0.009) {
-      setErro(`A soma das formas precisa fechar ${reais(total)}.`);
+    if (valorNegativo) {
+      setErro("O valor da forma de pagamento não pode ser negativo.");
       return;
+    }
+    if (formaRapida === "multiplas" && formaRepetida) {
+      setErro("Use cada forma de pagamento uma vez.");
+      return;
+    }
+    if (formaRapida === "multiplas" && total > 0 && Math.abs(soma - total) > 0.009) {
+      setErro(`A soma das formas precisa fechar ${reais(total)}. Pagamento parcial não está habilitado.`);
+      return;
+    }
+    if (formaRapida !== "multiplas" && entregue !== "") {
+      const recebido = lerReais(entregue);
+      if (formaRapida === "dinheiro" && recebido + 0.009 < total) {
+        setErro(`Falta ${reais(total - recebido)} para fechar o total.`);
+        return;
+      }
+      if (formaRapida !== "dinheiro" && Math.abs(recebido - total) > 0.009) {
+        setErro("Essa forma precisa receber o total. O troco fica só no dinheiro.");
+        return;
+      }
     }
     setErro("");
     setSalvando(true);
@@ -297,6 +363,7 @@ export default function CaixaPdvPage() {
         ],
       });
       setEscolhidos([]);
+      setAbertura((atualAbertura) => atualAbertura || venda.quando);
       setCarrinho([]);
       setDesconto("");
       setEntregue("");
@@ -393,9 +460,8 @@ export default function CaixaPdvPage() {
           <p className="text-sm text-[#8a6e74]">Recebimento de atendimentos e venda de produtos</p>
         </div>
         <div className="flex flex-wrap items-center gap-2 text-sm">
-          <span className="rounded-full bg-[#e7f6ee] px-3 py-1 font-medium text-[#1f8a4c]">Caixa aberto</span>
-          <span className="rounded-full bg-white px-3 py-1 text-[#5c3d45]">Operador: {operador || "Caixa"}</span>
-          <span className="rounded-full bg-white px-3 py-1 text-[#5c3d45]">Abertura: {dataCabecalho}</span>
+          <span className="rounded-full bg-[#e7f6ee] px-3 py-1 font-medium text-[#1f8a4c]">{abertura ? "Caixa aberto" : "Caixa sem sessão"}</span>
+          <span className="rounded-full bg-white px-3 py-1 text-[#5c3d45]">Abertura: {abertura || "na primeira venda"}</span>
           <span className="ml-1 flex items-center gap-2 rounded-full bg-white px-2 py-1 pr-3">
             <span className="grid h-8 w-8 place-items-center rounded-full bg-[#7a3044] text-xs font-semibold text-white">{iniciais(operador || "Caixa")}</span>
             <span className="font-medium">{operador || "Caixa"}</span>
@@ -524,7 +590,10 @@ export default function CaixaPdvPage() {
                     <input value={linha.valor} onChange={(evento) => setLinhas(linhas.map((item) => item.id === linha.id ? { ...item, valor: evento.target.value } : item))} className="rounded-xl border border-[#eadfe2] px-3 py-2 text-sm" />
                   </div>
                 ))}
-                <button type="button" className="text-sm text-[#7a3044]" onClick={() => setLinhas([...linhas, { id: String(Date.now()), forma: "pix", valor: "" }])}>Adicionar forma</button>
+                <button type="button" className="text-sm text-[#7a3044]" onClick={() => setLinhas([...linhas, { id: String(Date.now()), forma: linhas.some((linha) => linha.forma === "pix") ? "debito" : "pix", valor: "" }])}>Adicionar forma</button>
+                <p className="text-sm text-[#5c3d45]">Distribuído: {reais(soma)}</p>
+                <p className={`text-sm ${Math.abs(falta) < 0.009 ? "text-[#1f8a4c]" : "text-red-700"}`}>{falta > 0.009 ? `Falta distribuir ${reais(falta)}` : falta < -0.009 ? `Passou ${reais(Math.abs(falta))} do total` : "A soma fecha o total."}</p>
+                <p className="text-xs text-[#8a6e74]">Pagamento parcial não está habilitado. Cada forma entra uma vez, sem valor negativo.</p>
               </div>
             ) : (
               <div className="mt-3 grid grid-cols-2 gap-3">
@@ -540,7 +609,7 @@ export default function CaixaPdvPage() {
 
           {selecionados.length > 0 && local === "agenda" ? <p className="mt-3 text-sm text-[#8a6e74]">Neste salão o serviço é recebido na agenda.</p> : null}
           {erro ? <p className="mt-3 text-sm text-red-700">{erro}</p> : null}
-          <button type="button" onClick={confirmar} disabled={salvando || !temConteudo || (selecionados.length > 0 && local === "agenda")} className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-[#7a3044] px-4 py-3 text-sm font-semibold text-white disabled:opacity-60">
+          <button type="button" onClick={confirmar} disabled={salvando || !temConteudo || valorNegativo || formaRepetida || (formaRapida === "multiplas" && total > 0 && Math.abs(falta) > 0.009) || (selecionados.length > 0 && local === "agenda")} className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-[#7a3044] px-4 py-3 text-sm font-semibold text-white disabled:opacity-60">
             <Check size={16} />
             {salvando ? "Registrando…" : "Confirmar recebimento"}
           </button>
@@ -569,6 +638,7 @@ export default function CaixaPdvPage() {
                   <span>
                     <span className="block font-medium">{titulo}</span>
                     <span className="block text-[#8a6e74]">{textoDocumento(chave, tipoOperacao)}</span>
+                    <span className="block text-xs text-[#5c3d45]">{situacaoDocumento(chave, tipoOperacao, documentos[chave], false)}</span>
                   </span>
                   <input type="checkbox" checked={liberado && documentos[chave]} disabled={!liberado || (chave === "comprovante" && tipoOperacao === "misto")} onChange={(evento) => setDocumentos({ ...documentos, [chave]: evento.target.checked })} className="mt-1 h-4 w-4 accent-[#7a3044]" />
                 </label>
@@ -576,8 +646,11 @@ export default function CaixaPdvPage() {
             })}
           </div>
           <div className="rounded-3xl bg-white p-4 text-sm">
-            <p className="font-medium">Prévia do comprovante</p>
-            <div className="mt-3 rounded-2xl border border-[#f0e4e7] p-4 text-center">
+            <div className="flex items-center justify-between gap-2">
+              <p className="font-medium">Prévia do comprovante</p>
+              <button type="button" className="text-xs text-[#7a3044]" onClick={() => setPreviaAberta((aberta) => !aberta)}>{previaAberta ? "Recolher" : "Mostrar"}</button>
+            </div>
+            {previaAberta ? <div className="mt-3 rounded-2xl border border-[#f0e4e7] p-4 text-center">
               <p className="font-semibold">{operador || "Salão"}</p>
               <p className="mt-2 text-xs tracking-wide">COMPROVANTE DE PAGAMENTO</p>
               <p className="text-xs text-[#8a6e74]">(NÃO FISCAL)</p>
@@ -594,10 +667,10 @@ export default function CaixaPdvPage() {
                   </div>
                 ))}
               </div>
-              <p className="mt-3 flex justify-between border-t border-[#f0e4e7] pt-2 font-semibold"><span>Total pago</span><span>{reais(sucesso ? lerReais(sucesso.valor) : total)}</span></p>
+              <p className="mt-3 flex justify-between border-t border-[#f0e4e7] pt-2 font-semibold"><span>{sucesso ? "Total pago" : "Total a receber"}</span><span>{reais(sucesso ? lerReais(sucesso.valor) : total)}</span></p>
               <p className="mt-2 text-left text-xs">Forma de pagamento: {sucesso?.forma || formaLabel}</p>
               <p className="mt-3 text-left text-[11px] text-[#8a6e74]">Este comprovante não substitui a emissão de Nota Fiscal (NFS-e) ou Cupom Fiscal (NFC-e).</p>
-            </div>
+            </div> : null}
           </div>
         </section>
       </div>
@@ -630,30 +703,33 @@ export default function CaixaPdvPage() {
                       <span>
                         <span className="block font-medium">{titulo}</span>
                         <span className="block text-[#8a6e74]">{textoDocumento(chave, sucesso.tipo)}</span>
+                        <span className="block text-xs text-[#5c3d45]">{situacaoDocumento(chave, sucesso.tipo, sucesso.documentos[chave], true)}</span>
                       </span>
                       <input type="checkbox" checked={liberado && sucesso.documentos[chave]} disabled={!liberado || (chave === "comprovante" && sucesso.tipo === "misto")} onChange={(evento) => marcarDocumento(chave, evento.target.checked)} className="mt-1 h-4 w-4 accent-[#7a3044]" />
                     </label>
                   );
                 })}
-                {sucesso.documentos.nfse || sucesso.documentos.nfce ? (
-                  <p className="mt-3 text-xs text-[#8a6e74]">A nota de serviço e o cupom fiscal não são emitidos neste caixa. O cliente recebe o comprovante não fiscal.</p>
-                ) : null}
+                <p className="mt-3 text-xs text-[#8a6e74]">A NFS-e e a NFC-e não são emitidas neste caixa. Se ficarem pendentes, não são enviadas ao cliente. O comprovante não fiscal não substitui essa nota.</p>
               </div>
               <p className="text-sm text-[#5c3d45]">Envie o recibo de pagamento para o cliente:</p>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 <button type="button" onClick={() => imprimirRecibo(sucesso)} className="flex flex-col items-center gap-2 rounded-xl border border-[#eadfe2] p-4 hover:bg-[#f6eef0]">
                   <Printer size={24} />
                   <span className="text-xs font-medium">Imprimir</span>
                 </button>
+                <button type="button" onClick={() => { if (exigirComprovante(sucesso)) baixarPdfRecibo(sucesso, operador); }} className="flex flex-col items-center gap-2 rounded-xl border border-[#eadfe2] p-4 hover:bg-[#f6eef0]">
+                  <Download size={24} />
+                  <span className="text-xs font-medium">Baixar PDF</span>
+                </button>
                 <button type="button" onClick={() => enviarEmail(sucesso)} disabled={!sucesso.email} className="flex flex-col items-center gap-2 rounded-xl border border-[#eadfe2] p-4 hover:bg-[#f6eef0] disabled:opacity-40">
                   <Mail size={24} />
-                  <span className="text-xs font-medium">Email</span>
-                  <span className="text-center text-[11px] text-[#8a6e74]">{sucesso.email ? "Enviar o comprovante" : "Cliente sem e-mail"}</span>
+                  <span className="text-xs font-medium">Enviar por e-mail</span>
+                  <span className="text-center text-[11px] text-[#8a6e74]">{sucesso.email ? "Abre o e-mail do computador" : "Cliente sem e-mail"}</span>
                 </button>
                 <button type="button" onClick={() => enviarWhatsapp(sucesso)} disabled={!numeroWhatsapp(sucesso.telefone)} className="flex flex-col items-center gap-2 rounded-xl border border-[#eadfe2] p-4 hover:bg-[#f6eef0] disabled:opacity-40">
                   <MessageCircle size={24} />
-                  <span className="text-xs font-medium">WhatsApp</span>
-                  <span className="text-center text-[11px] text-[#8a6e74]">{numeroWhatsapp(sucesso.telefone) ? "Abrir a conversa" : "Cliente sem telefone"}</span>
+                  <span className="text-xs font-medium">Enviar por WhatsApp</span>
+                  <span className="text-center text-[11px] text-[#8a6e74]">{numeroWhatsapp(sucesso.telefone) ? "Abre a conversa para você enviar. Não usa o envio automático." : "Cliente sem telefone"}</span>
                 </button>
               </div>
               {avisoEntrega ? <p className="text-sm text-red-700">{avisoEntrega}</p> : null}

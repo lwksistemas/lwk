@@ -37,7 +37,7 @@ from .caixa_service import (
     rotulo_formas,
     validar_documentos,
 )
-from .models import MovimentoEstoque, Produto, Recebimento, Venda, VendaItem
+from .models import MovimentoEstoque, Produto, Recebimento, SessaoCaixa, Venda, VendaItem
 
 
 def agrupar_pedidos(brutos) -> list[dict]:
@@ -99,7 +99,7 @@ def _baixar(produto, quantidade, venda):
     )
 
 
-def registrar_venda(dados, agendamentos, papel: str, local: str, origem: str) -> Venda:
+def registrar_venda(dados, agendamentos, papel: str, local: str, origem: str, operador: str = "") -> Venda:
     """Um pagamento pode quitar vários serviços do mesmo cliente. Produto entra no mesmo recibo."""
     agendamentos = list(agendamentos or [])
     pedidos = agrupar_pedidos(dados.get("itens") or dados.get("produtos"))
@@ -172,12 +172,17 @@ def registrar_venda(dados, agendamentos, papel: str, local: str, origem: str) ->
             ))
         recebimento = recebimentos[0] if recebimentos else None
         primeiro = agendamentos[0] if agendamentos else None
+        sessao = SessaoCaixa.objects.select_for_update().filter(is_active=True).order_by("-id").first()
+        if sessao is None:
+            sessao = gravar(SessaoCaixa, operador_nome=(operador or "")[:160])
         ultimo = Venda.objects.select_for_update().order_by("-numero").first()
         venda = gravar(
             Venda,
             numero=(ultimo.numero if ultimo else 0) + 1,
             agendamento=primeiro,
             recebimento=recebimento,
+            operador_nome=(operador or "")[:160],
+            sessao=sessao,
             cliente_nome=primeiro.cliente.nome if primeiro is not None else (dados.get("cliente_nome") or "")[:160],
             valor_servico=valor_servico,
             valor_produtos=valor_produtos,
@@ -260,7 +265,7 @@ def estornar_venda(venda: Venda):
 
 def publico_venda(venda: Venda) -> dict:
     recibos = list(
-        Recebimento.objects.filter(venda=venda, is_active=True).select_related("agendamento__servico", "profissional")
+        Recebimento.objects.filter(venda=venda).select_related("agendamento__servico", "profissional")
     )
     if not recibos and venda.recebimento_id:
         recibos = [venda.recebimento]
@@ -269,6 +274,8 @@ def publico_venda(venda: Venda) -> dict:
         "cliente": venda.cliente_nome or "Consumidor",
         "valor": f"{quantia(venda.valor):.2f}",
         "desconto": f"{quantia(venda.desconto):.2f}",
+        "operador": venda.operador_nome,
+        "estornado": not venda.is_active,
         "forma_label": rotulo_formas(venda.partes, venda.forma),
         "quando": timezone.localtime(venda.created_at).strftime("%d/%m/%Y %H:%M"),
         "servicos": [

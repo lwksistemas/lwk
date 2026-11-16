@@ -1,3 +1,4 @@
+import re
 from decimal import Decimal
 
 from rest_framework import serializers
@@ -6,10 +7,41 @@ from .caixa_service import rotulo_formas
 from .models import PAINEIS, Agendamento, Cliente, Profissional, Servico
 
 
+def cpf_valido(digitos: str) -> bool:
+    if len(digitos) != 11 or digitos == digitos[0] * 11:
+        return False
+    for tamanho in (9, 10):
+        soma = sum(int(digitos[indice]) * ((tamanho + 1) - indice) for indice in range(tamanho))
+        resto = (soma * 10) % 11
+        if resto == 10:
+            resto = 0
+        if resto != int(digitos[tamanho]):
+            return False
+    return True
+
+
 class ClienteSerializer(serializers.ModelSerializer):
     class Meta:
         model = Cliente
-        fields = ["id", "nome", "telefone", "email", "data_nascimento", "observacoes", "is_active"]
+        fields = [
+            "id",
+            "nome",
+            "telefone",
+            "email",
+            "cpf",
+            "data_nascimento",
+            "cep",
+            "logradouro",
+            "numero",
+            "complemento",
+            "bairro",
+            "cidade",
+            "estado",
+            "endereco",
+            "observacoes",
+            "is_active",
+        ]
+        read_only_fields = ["endereco"]
 
     def validate_nome(self, valor):
         nome = (valor or "").strip()
@@ -22,6 +54,57 @@ class ClienteSerializer(serializers.ModelSerializer):
         if len(telefone) < 8:
             raise serializers.ValidationError("Informe o telefone do cliente.")
         return telefone
+
+    def validate_cpf(self, valor):
+        digitos = re.sub(r"\D", "", valor or "")
+        if not digitos:
+            return ""
+        if not cpf_valido(digitos):
+            raise serializers.ValidationError("Informe um CPF válido.")
+        consulta = Cliente.objects.filter(is_active=True).exclude(cpf__isnull=True).exclude(cpf="")
+        if self.instance is not None:
+            consulta = consulta.exclude(pk=self.instance.pk)
+        for outro in consulta.only("id", "cpf"):
+            if re.sub(r"\D", "", outro.cpf or "") == digitos:
+                raise serializers.ValidationError("Já existe um cliente com este CPF.")
+        return digitos
+
+    def validate_cep(self, valor):
+        digitos = re.sub(r"\D", "", valor or "")
+        if digitos and len(digitos) != 8:
+            raise serializers.ValidationError("Informe o CEP com 8 números.")
+        return digitos
+
+    def validate_estado(self, valor):
+        uf = (valor or "").strip().upper()
+        if uf and (len(uf) != 2 or not uf.isalpha()):
+            raise serializers.ValidationError("Informe a sigla do estado.")
+        return uf
+
+    def _montar_endereco(self, dados):
+        cep = dados.get("cep") or ""
+        if len(cep) == 8:
+            cep = f"{cep[:5]}-{cep[5:]}"
+        partes = [
+            (dados.get("logradouro") or "").strip(),
+            f"Nº {(dados.get('numero') or '').strip()}" if (dados.get("numero") or "").strip() else "",
+            (dados.get("complemento") or "").strip(),
+            (dados.get("bairro") or "").strip(),
+            f"CEP {cep}" if cep else "",
+        ]
+        return ", ".join(parte for parte in partes if parte)
+
+    def create(self, validated_data):
+        validated_data["endereco"] = self._montar_endereco(validated_data)
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        campos = ("cep", "logradouro", "numero", "complemento", "bairro")
+        if any(campo in validated_data for campo in campos):
+            atual = {campo: getattr(instance, campo, "") for campo in campos}
+            atual.update(validated_data)
+            validated_data["endereco"] = self._montar_endereco(atual)
+        return super().update(instance, validated_data)
 
 
 class ProfissionalSerializer(serializers.ModelSerializer):

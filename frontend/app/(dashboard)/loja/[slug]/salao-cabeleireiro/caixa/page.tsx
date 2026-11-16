@@ -5,21 +5,23 @@ import { useParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Banknote, Check, CreditCard, Download, Layers, Mail, MessageCircle, Minus, Plus, Printer, QrCode, Scissors, ShoppingBag, Trash2, UserRound, X } from "lucide-react";
 import { ComprovanteSalaoCard } from "@/components/salao/ComprovanteSalao";
-import { SalaoAPI, type AgendamentoSalao, type CabecalhoRecibo, type ClienteSalao, type ComprovanteSalao, type LocalRecebimentoSalao, type PapelSalao, type ProdutoSalao, type VendaSalao } from "@/lib/salao-api";
+import { SalaoAPI, type AgendamentoSalao, type CabecalhoRecibo, type ClienteSalao, type ComprovanteSalao, type FormaPagamentoSalao, type LocalRecebimentoSalao, type PapelSalao, type ProdutoSalao, type VendaSalao } from "@/lib/salao-api";
 
 type ItemCarrinho = { produto: number; nome: string; preco: string; saldo: number; quantidade: number };
 type Linha = { id: string; forma: string; valor: string };
-type FormaRapida = "dinheiro" | "pix" | "debito" | "credito" | "multiplas";
-
-const FORMAS: { id: FormaRapida; nome: string; icone: typeof Banknote }[] = [
-  { id: "dinheiro", nome: "Dinheiro", icone: Banknote },
-  { id: "pix", nome: "Pix", icone: QrCode },
-  { id: "debito", nome: "Débito", icone: CreditCard },
-  { id: "credito", nome: "Crédito", icone: CreditCard },
-  { id: "multiplas", nome: "Múltiplas", icone: Layers },
+const FORMAS_PADRAO: FormaPagamentoSalao[] = [
+  { id: 0, codigo: "dinheiro", nome: "Dinheiro", ativo: true },
+  { id: 0, codigo: "pix", nome: "Pix", ativo: true },
+  { id: 0, codigo: "debito", nome: "Débito", ativo: true },
+  { id: 0, codigo: "credito", nome: "Crédito", ativo: true },
 ];
 
-const ROTULO: Record<string, string> = { dinheiro: "Dinheiro", pix: "Pix", debito: "Débito", credito: "Crédito" };
+function iconeDaForma(codigo: string) {
+  if (codigo === "dinheiro") return Banknote;
+  if (codigo === "pix") return QrCode;
+  if (codigo === "multiplas") return Layers;
+  return CreditCard;
+}
 
 function lerReais(texto: string) {
   const numero = Number(String(texto).replace(",", "."));
@@ -165,7 +167,8 @@ export default function CaixaPdvPage() {
   const [carrinho, setCarrinho] = useState<ItemCarrinho[]>([]);
   const [escolhidos, setEscolhidos] = useState<number[]>([]);
   const [desconto, setDesconto] = useState("");
-  const [formaRapida, setFormaRapida] = useState<FormaRapida>("dinheiro");
+  const [catalogo, setCatalogo] = useState<FormaPagamentoSalao[]>(FORMAS_PADRAO);
+  const [formaRapida, setFormaRapida] = useState("dinheiro");
   const [linhas, setLinhas] = useState<Linha[]>([{ id: "1", forma: "dinheiro", valor: "" }]);
   const [entregue, setEntregue] = useState("");
   const [local, setLocal] = useState<LocalRecebimentoSalao>("caixa");
@@ -206,6 +209,7 @@ export default function CaixaPdvPage() {
     }).catch(() => undefined);
     SalaoAPI.produtos().then(setProdutos).catch(() => undefined);
     SalaoAPI.clientes().then(setClientes).catch(() => undefined);
+    SalaoAPI.formas().then((lista) => { if (lista.length) setCatalogo(lista); }).catch(() => undefined);
     carregar();
   }, []);
 
@@ -241,9 +245,10 @@ export default function CaixaPdvPage() {
   const valorRecebido = entregue === "" ? total : lerReais(entregue);
   const troco = formaRapida === "dinheiro" && valorRecebido > total ? Math.round((valorRecebido - total) * 100) / 100 : 0;
   const hoje = new Date();
+  const rotulo = useMemo(() => Object.fromEntries(catalogo.map((item) => [item.codigo, item.nome])), [catalogo]);
   const formaLabel = formaRapida === "multiplas"
-    ? linhas.map((linha) => ROTULO[linha.forma] || linha.forma).join(" e ")
-    : ROTULO[formaRapida];
+    ? linhas.map((linha) => rotulo[linha.forma] || linha.forma).join(" e ")
+    : rotulo[formaRapida] || formaRapida;
 
   useEffect(() => {
     if (formaRapida === "multiplas") return;
@@ -258,13 +263,15 @@ export default function CaixaPdvPage() {
     }));
   }, [tipoOperacao]);
 
-  function escolherForma(proxima: FormaRapida) {
+  function escolherForma(proxima: string) {
     setFormaRapida(proxima);
     setEntregue("");
     if (proxima === "multiplas") {
+      const primeira = catalogo[0]?.codigo || "dinheiro";
+      const segunda = catalogo.find((item) => item.codigo !== primeira)?.codigo || primeira;
       setLinhas([
-        { id: "1", forma: "dinheiro", valor: total > 0 ? total.toFixed(2) : "" },
-        { id: "2", forma: "pix", valor: "" },
+        { id: "1", forma: primeira, valor: total > 0 ? total.toFixed(2) : "" },
+        { id: "2", forma: segunda, valor: "" },
       ]);
     }
   }
@@ -379,8 +386,9 @@ export default function CaixaPdvPage() {
       setCarrinho([]);
       setDesconto("");
       setEntregue("");
-      setFormaRapida("dinheiro");
-      setLinhas([{ id: "1", forma: "dinheiro", valor: "" }]);
+      const primeira = catalogo[0]?.codigo || "dinheiro";
+      setFormaRapida(primeira);
+      setLinhas([{ id: "1", forma: primeira, valor: "" }]);
       await carregar();
       await SalaoAPI.produtos().then(setProdutos).catch(() => undefined);
     } catch (exc) {
@@ -661,9 +669,9 @@ export default function CaixaPdvPage() {
 
           <div className="mt-4">
             <p className="text-sm font-medium">Forma de pagamento</p>
-            <div className="mt-2 grid grid-cols-5 gap-2">
-              {FORMAS.map((forma) => {
-                const Icone = forma.icone;
+            <div className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-5">
+              {[...catalogo.map((item) => ({ id: item.codigo, nome: item.nome })), { id: "multiplas", nome: "Múltiplas" }].map((forma) => {
+                const Icone = iconeDaForma(forma.id);
                 const ativa = formaRapida === forma.id;
                 return (
                   <button key={forma.id} type="button" onClick={() => escolherForma(forma.id)} className={`flex flex-col items-center gap-1 rounded-2xl border px-2 py-3 text-xs font-medium ${ativa ? "border-[#7a3044] bg-[#fdecef] text-[#7a3044]" : "border-[#f0e4e7] text-[#5c3d45]"}`}>
@@ -678,12 +686,12 @@ export default function CaixaPdvPage() {
                 {linhas.map((linha) => (
                   <div key={linha.id} className="grid grid-cols-[1fr_8rem] gap-2">
                     <select value={linha.forma} onChange={(evento) => setLinhas(linhas.map((item) => item.id === linha.id ? { ...item, forma: evento.target.value } : item))} className="rounded-xl border border-[#eadfe2] px-3 py-2 text-sm">
-                      {FORMAS.filter((forma) => forma.id !== "multiplas").map((forma) => <option key={forma.id} value={forma.id}>{forma.nome}</option>)}
+                      {catalogo.map((forma) => <option key={forma.codigo} value={forma.codigo}>{forma.nome}</option>)}
                     </select>
                     <input value={linha.valor} onChange={(evento) => setLinhas(linhas.map((item) => item.id === linha.id ? { ...item, valor: evento.target.value } : item))} className="rounded-xl border border-[#eadfe2] px-3 py-2 text-sm" />
                   </div>
                 ))}
-                <button type="button" className="text-sm text-[#7a3044]" onClick={() => setLinhas([...linhas, { id: String(Date.now()), forma: linhas.some((linha) => linha.forma === "pix") ? "debito" : "pix", valor: "" }])}>Adicionar forma</button>
+                <button type="button" className="text-sm text-[#7a3044]" onClick={() => setLinhas([...linhas, { id: String(Date.now()), forma: catalogo.find((item) => !linhas.some((linha) => linha.forma === item.codigo))?.codigo || catalogo[0]?.codigo || "dinheiro", valor: "" }])}>Adicionar forma</button>
                 <p className="text-sm text-[#5c3d45]">Distribuído: {reais(soma)}</p>
                 <p className={`text-sm ${Math.abs(falta) < 0.009 ? "text-[#1f8a4c]" : "text-red-700"}`}>{falta > 0.009 ? `Falta distribuir ${reais(falta)}` : falta < -0.009 ? `Passou ${reais(Math.abs(falta))} do total` : "A soma fecha o total."}</p>
                 <p className="text-xs text-[#8a6e74]">Pagamento parcial não está habilitado. Cada forma entra uma vez, sem valor negativo.</p>
@@ -722,7 +730,7 @@ export default function CaixaPdvPage() {
                 desconto: valorDesconto.toFixed(2),
                 servicos: selecionados.map((item) => ({ nome: item.servico_nome, profissional: item.profissional_nome, total: item.preco })),
                 produtos: carrinho.map((item) => ({ nome: item.nome, quantidade: item.quantidade, total: (lerReais(item.preco) * item.quantidade).toFixed(2) })),
-                formas: (formaRapida === "multiplas" ? linhas : [{ id: "1", forma: formaRapida, valor: String(total) }]).filter((linha) => lerReais(linha.valor) > 0).map((linha) => ({ nome: ROTULO[linha.forma] || linha.forma, valor: lerReais(linha.valor).toFixed(2) })),
+                formas: (formaRapida === "multiplas" ? linhas : [{ id: "1", forma: formaRapida, valor: String(total) }]).filter((linha) => lerReais(linha.valor) > 0).map((linha) => ({ nome: rotulo[linha.forma] || linha.forma, valor: lerReais(linha.valor).toFixed(2) })),
                 salao: cabecalho || undefined,
               }} />
               {oficial?.numero ? (

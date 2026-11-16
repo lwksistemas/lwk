@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { SalaoAPI, type CaixaSalao } from "@/lib/salao-api";
+import { SalaoAPI, type CaixaSalao, type FormaPagamentoSalao } from "@/lib/salao-api";
 
 function periodo(modo: "hoje" | "mes") {
   const agora = new Date();
@@ -22,6 +22,53 @@ export default function FinanceiroSalaoPage() {
   const [modo, setModo] = useState<"hoje" | "mes">("hoje");
   const [caixa, setCaixa] = useState<CaixaSalao | null>(null);
   const [erro, setErro] = useState("");
+  const [formas, setFormas] = useState<FormaPagamentoSalao[]>([]);
+  const [nomeForma, setNomeForma] = useState("");
+  const [editando, setEditando] = useState<number | null>(null);
+  const [confirmar, setConfirmar] = useState<number | null>(null);
+  const [nomeEdicao, setNomeEdicao] = useState("");
+  const [avisoForma, setAvisoForma] = useState("");
+
+  function carregarFormas() {
+    SalaoAPI.formas().then(setFormas).catch((exc: Error) => setErro(exc.message));
+  }
+
+  async function criarForma(evento: React.FormEvent) {
+    evento.preventDefault();
+    setErro("");
+    setAvisoForma("");
+    try {
+      await SalaoAPI.criarForma(nomeForma);
+      setNomeForma("");
+      carregarFormas();
+    } catch (exc) {
+      setErro(exc instanceof Error ? exc.message : "Não foi possível criar a forma.");
+    }
+  }
+
+  async function salvarNome(id: number) {
+    setErro("");
+    setAvisoForma("");
+    try {
+      await SalaoAPI.renomearForma(id, nomeEdicao);
+      setEditando(null);
+      carregarFormas();
+    } catch (exc) {
+      setErro(exc instanceof Error ? exc.message : "Não foi possível editar a forma.");
+    }
+  }
+
+  async function excluirForma(id: number) {
+    setErro("");
+    setAvisoForma("");
+    try {
+      const resposta = await SalaoAPI.excluirForma(id);
+      setAvisoForma(resposta.message);
+      carregarFormas();
+    } catch (exc) {
+      setErro(exc instanceof Error ? exc.message : "Não foi possível excluir a forma.");
+    }
+  }
 
   async function reimprimir(numero: number) {
     try {
@@ -65,6 +112,10 @@ export default function FinanceiroSalaoPage() {
   }
 
   useEffect(() => {
+    carregarFormas();
+  }, []);
+
+  useEffect(() => {
     const faixa = periodo(modo);
     SalaoAPI.caixa(faixa.inicio, faixa.fim)
       .then(setCaixa)
@@ -84,6 +135,42 @@ export default function FinanceiroSalaoPage() {
         </div>
       </div>
       {erro ? <p className="mb-3 text-sm text-red-700">{erro}</p> : null}
+      <section className="mb-4 rounded-3xl border border-[#f0e4e6] bg-white p-4">
+        <h2 className="text-sm font-medium">Formas de pagamento</h2>
+        <p className="mt-1 text-xs text-[#8a6e74]">O caixa usa estas formas. Excluir uma forma já recebida tira ela dos próximos pagamentos e mantém o histórico.</p>
+        <form className="mt-3 flex flex-wrap gap-2" onSubmit={criarForma}>
+          <input value={nomeForma} onChange={(evento) => setNomeForma(evento.target.value)} placeholder="Nova forma" className="min-w-40 flex-1 rounded-xl border border-[#eadfe2] px-3 py-2 text-sm" />
+          <button type="submit" className="rounded-full bg-[#7a3044] px-4 py-2 text-sm text-white">Adicionar</button>
+        </form>
+        {avisoForma ? <p className="mt-2 text-sm text-[#1f8a4c]">{avisoForma}</p> : null}
+        <ul className="mt-3">
+          {formas.map((item) => (
+            <li key={item.id} className="flex flex-wrap items-center justify-between gap-2 border-t border-[#f0e4e6] py-2 text-sm">
+              {editando === item.id ? (
+                <input value={nomeEdicao} onChange={(evento) => setNomeEdicao(evento.target.value)} className="min-w-40 flex-1 rounded-xl border border-[#eadfe2] px-3 py-1.5" />
+              ) : <span>{item.nome}</span>}
+              <span className="flex gap-3">
+                {editando === item.id ? (
+                  <>
+                    <button type="button" className="text-[#7a3044]" onClick={() => salvarNome(item.id)}>Salvar</button>
+                    <button type="button" className="text-[#8a6e74]" onClick={() => setEditando(null)}>Cancelar</button>
+                  </>
+                ) : (
+                  <>
+                    <button type="button" className="text-[#7a3044]" onClick={() => { setEditando(item.id); setNomeEdicao(item.nome); setConfirmar(null); }}>Editar</button>
+                    {confirmar === item.id ? (
+                      <>
+                        <button type="button" className="text-red-700" onClick={() => excluirForma(item.id)}>Confirmar exclusão</button>
+                        <button type="button" className="text-[#8a6e74]" onClick={() => setConfirmar(null)}>Cancelar</button>
+                      </>
+                    ) : <button type="button" className="text-red-700" onClick={() => setConfirmar(item.id)}>Excluir</button>}
+                  </>
+                )}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </section>
       <div className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <article className="rounded-3xl border border-[#f0e4e6] bg-white p-4">
           <p className="text-sm text-[#8a6e74]">Recebido</p>

@@ -42,6 +42,33 @@ FORMAS_PAGAMENTO = (
 )
 
 
+class FormaPagamento(models.Model):
+    """Forma usada no caixa. O código fica no recebimento; o nome pode mudar."""
+
+    loja_id = models.IntegerField(db_index=True)
+    codigo = models.CharField(max_length=40)
+    nome = models.CharField(max_length=40)
+    ativo = models.BooleanField(default=True)
+    ordem = models.PositiveSmallIntegerField(default=10)
+    objects = LojaIsolationManager()
+
+    class Meta:
+        verbose_name = "Forma de pagamento"
+        ordering = ["ordem", "nome"]
+        constraints = [
+            models.UniqueConstraint(fields=["loja_id", "codigo"], name="salao_forma_pagamento_loja"),
+        ]
+
+    def save(self, *args, **kwargs):
+        from tenants.middleware import get_current_loja_id
+
+        if not self.loja_id:
+            atual = get_current_loja_id()
+            if atual:
+                self.loja_id = atual
+        super().save(*args, **kwargs)
+
+
 class SalaoConfig(models.Model):
     """Painel escolhido pelo administrador. Vale para a loja inteira."""
 
@@ -70,6 +97,12 @@ class SalaoConfig(models.Model):
 
 
 class Cliente(ClienteBase):
+    cep = models.CharField(max_length=8, blank=True, default="")
+    logradouro = models.CharField(max_length=160, blank=True, default="")
+    numero = models.CharField(max_length=20, blank=True, default="")
+    complemento = models.CharField(max_length=80, blank=True, default="")
+    bairro = models.CharField(max_length=80, blank=True, default="")
+
     class Meta:
         verbose_name = "Cliente"
         ordering = ["nome"]
@@ -176,7 +209,7 @@ class Recebimento(models.Model):
     valor_servico = models.DecimalField(max_digits=10, decimal_places=2)
     desconto = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("0"))
     valor = models.DecimalField(max_digits=10, decimal_places=2)
-    forma = models.CharField(max_length=20, choices=FORMAS_PAGAMENTO)
+    forma = models.CharField(max_length=40)
     partes = models.JSONField(default=list, blank=True)
     comissao_percentual = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal("0"))
     comissao_valor = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("0"))
@@ -260,7 +293,7 @@ class Venda(models.Model):
     valor_produtos = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("0"))
     desconto = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("0"))
     valor = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("0"))
-    forma = models.CharField(max_length=20, choices=FORMAS_PAGAMENTO, default="dinheiro")
+    forma = models.CharField(max_length=40, default="dinheiro")
     partes = models.JSONField(default=list, blank=True)
     partes_produtos = models.JSONField(default=list, blank=True)
     operador_nome = models.CharField(max_length=160, blank=True, default="")

@@ -99,7 +99,23 @@ export type ClienteSalao = {
   nome: string;
   telefone: string;
   email?: string | null;
+  cpf?: string | null;
   data_nascimento?: string | null;
+  cep?: string;
+  logradouro?: string;
+  numero?: string;
+  complemento?: string;
+  bairro?: string;
+  cidade?: string | null;
+  estado?: string | null;
+  endereco?: string | null;
+};
+
+export type FormaPagamentoSalao = {
+  id: number;
+  codigo: string;
+  nome: string;
+  ativo: boolean;
 };
 
 export type ComissaoProcedimentoSalao = {
@@ -329,6 +345,13 @@ export const SalaoAPI = {
   estornarRecebimento: (id: number) => salaoFetch(`/recebimentos/${id}/`, { method: "DELETE" }),
   caixa: (start: string, end: string) =>
     salaoFetch<CaixaSalao>(`/caixa/?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`),
+  formas: () => salaoFetch<FormaPagamentoSalao[]>("/formas-pagamento/"),
+  criarForma: (nome: string) =>
+    salaoFetch<FormaPagamentoSalao>("/formas-pagamento/", { method: "POST", body: JSON.stringify({ nome }) }),
+  renomearForma: (id: number, nome: string) =>
+    salaoFetch<FormaPagamentoSalao>(`/formas-pagamento/${id}/`, { method: "PATCH", body: JSON.stringify({ nome }) }),
+  excluirForma: (id: number) =>
+    salaoFetch<{ message: string }>(`/formas-pagamento/${id}/`, { method: "DELETE" }),
   clientes: () => salaoFetch<ClienteSalao[]>("/clientes/"),
   salvarCliente: (corpo: Record<string, unknown>, id?: number) =>
     salaoFetch<ClienteSalao>(id ? `/clientes/${id}/` : "/clientes/", {

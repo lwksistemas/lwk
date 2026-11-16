@@ -18,7 +18,8 @@ from salao_cabeleireiro.recibo_envio import enviar_comprovante, texto_do_comprov
 from salao_cabeleireiro.fiscal_service import SalaoFiscalErro, gravar_nfce
 from salao_cabeleireiro.comunicacao_service import regras_de
 from salao_cabeleireiro.mensagens import na_janela_lembrete, texto_cancelamento, texto_confirmacao
-from salao_cabeleireiro.serializers import painel_valido
+from salao_cabeleireiro.formas_service import codigo_da_forma
+from salao_cabeleireiro.serializers import cpf_valido, painel_valido
 
 
 class IntervaloAgendaTest(unittest.TestCase):
@@ -104,6 +105,18 @@ class CaixaSalaoTest(unittest.TestCase):
 
     def test_desconto_integral_nao_exige_forma(self):
         self.assertEqual(interpretar_formas({}, Decimal("0.00")), [])
+
+    def test_forma_cadastrada_entra_e_a_de_fora_nao(self):
+        partes = interpretar_formas({"forma": "vale"}, Decimal("10.00"), {"vale"})
+        self.assertEqual(partes, [{"forma": "vale", "valor": "10.00"}])
+        with self.assertRaises(ValueError):
+            interpretar_formas({"forma": "vale"}, Decimal("10.00"))
+        self.assertEqual(codigo_da_forma("Vale Refeição"), "valerefeicao")
+
+    def test_cpf_do_cliente_confere_os_digitos(self):
+        self.assertTrue(cpf_valido("39053344705"))
+        self.assertFalse(cpf_valido("11111111111"))
+        self.assertFalse(cpf_valido("39053344700"))
 
     def test_recepcao_recebe_no_caixa_e_nao_na_agenda(self):
         self.assertIsNone(motivo_bloqueio_recebimento("caixa", "caixa", "recepcionista"))

@@ -5,7 +5,7 @@ from io import BytesIO
 
 from django.utils import timezone
 
-from .caixa_service import ROTULOS, quantia
+from .caixa_service import quantia
 
 
 def _texto(valor) -> str:
@@ -91,12 +91,16 @@ def cabecalho_atual() -> dict:
 
 
 def _formas(partes) -> list[dict]:
+    from .formas_service import rotulos_conhecidos
+
+    nomes = rotulos_conhecidos()
     linhas = []
     for parte in partes or []:
         if not isinstance(parte, dict):
             continue
+        codigo = parte.get("forma") or ""
         linhas.append({
-            "nome": ROTULOS.get(parte.get("forma"), parte.get("forma") or ""),
+            "nome": nomes.get(codigo, codigo),
             "valor": f"{quantia(parte.get('valor')):.2f}",
         })
     return linhas

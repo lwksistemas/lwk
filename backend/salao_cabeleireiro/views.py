@@ -11,9 +11,10 @@ from rest_framework.views import APIView
 
 from .agenda_service import conflito_horario, interpretar_inicio
 from .caixa_service import comissao_do_atendimento, gravar_comissoes, interpretar_formas, motivo_bloqueio_recebimento, quantia, rotulo_formas
+from .formas_service import codigos_ativos, criar_forma, excluir_forma, listar_formas, renomear_forma, rotulos_conhecidos
 from .comunicacao_service import avisar_mudanca, enviar_evento, regras_de, validar_regras, whatsapp_pronto
 from .catalogo import garantir_catalogo_inicial
-from .models import FORMAS_PAGAMENTO, PAINEIS, STATUS_AGENDAMENTO, STATUS_OCUPA_HORARIO, Agendamento, Bloqueio, Cliente, HorarioTrabalho, Profissional, Recebimento, SalaoConfig, Servico, Venda
+from .models import PAINEIS, STATUS_AGENDAMENTO, STATUS_OCUPA_HORARIO, Agendamento, Bloqueio, Cliente, HorarioTrabalho, Profissional, Recebimento, SalaoConfig, Servico, Venda
 from .loja_config import cores_gravadas
 from .permissions import IsSalaoAdmin, IsSalaoMembro, contexto_salao, papel_salao, usuario_e_admin
 from .serializers import AgendamentoSerializer, ClienteSerializer, ProfissionalSerializer, ServicoSerializer, painel_valido
@@ -128,7 +129,7 @@ class ClienteListCreateView(GetObjectMixin, APIView):
         qs = Cliente.objects.filter(is_active=True).order_by("nome")
         busca = (request.query_params.get("q") or "").strip()
         if busca:
-            qs = qs.filter(Q(nome__icontains=busca) | Q(telefone__icontains=busca))
+            qs = qs.filter(Q(nome__icontains=busca) | Q(telefone__icontains=busca) | Q(cpf__icontains=busca))
         return Response(ClienteSerializer(qs[:200], many=True).data)
 
     def post(self, request):
@@ -750,7 +751,7 @@ class ReceberAgendamentoView(APIView):
                 agendamento.servico.preco,
                 desconto,
             )
-            partes = interpretar_formas(request.data, valor)
+            partes = interpretar_formas(request.data, valor, codigos_ativos())
         except ValueError as exc:
             return _erro(str(exc))
         Recebimento.objects.create(
@@ -766,6 +767,39 @@ class ReceberAgendamentoView(APIView):
             observacao=(request.data.get("observacao") or "")[:200],
         )
         return Response(AgendamentoSerializer(_agendamento_completo(pk)).data, status=status.HTTP_201_CREATED)
+
+
+class FormaPagamentoListCreateView(APIView):
+    def get_permissions(self):
+        if self.request.method == "GET":
+            return [IsAuthenticated(), IsSalaoMembro()]
+        return [IsAuthenticated(), IsSalaoAdmin()]
+
+    def get(self, request):
+        return Response(listar_formas())
+
+    def post(self, request):
+        try:
+            return Response(criar_forma(request.data.get("nome")), status=status.HTTP_201_CREATED)
+        except ValueError as exc:
+            return _erro(str(exc))
+
+
+class FormaPagamentoDetailView(APIView):
+    permission_classes = [IsAuthenticated, IsSalaoAdmin]
+
+    def patch(self, request, pk):
+        try:
+            return Response(renomear_forma(pk, request.data.get("nome")))
+        except ValueError as exc:
+            return _erro(str(exc), status.HTTP_404_NOT_FOUND if "não encontrada" in str(exc) else status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, pk):
+        try:
+            return Response({"message": excluir_forma(pk)})
+        except ValueError as exc:
+            codigo = status.HTTP_404_NOT_FOUND if "não encontrada" in str(exc) else status.HTTP_400_BAD_REQUEST
+            return _erro(str(exc), codigo)
 
 
 class RecebimentoDetailView(GetObjectMixin, APIView):
@@ -810,11 +844,12 @@ class CaixaView(APIView):
         total = Decimal("0")
         por_forma = {}
         por_profissional = {}
+        nomes_forma = rotulos_conhecidos()
         for item in itens:
             total += item.valor
             for parte in item.partes or [{"forma": item.forma, "valor": item.valor}]:
                 codigo = parte["forma"]
-                forma = por_forma.setdefault(codigo, {"forma": codigo, "nome": dict(FORMAS_PAGAMENTO).get(codigo, codigo), "total": Decimal("0")})
+                forma = por_forma.setdefault(codigo, {"forma": codigo, "nome": nomes_forma.get(codigo, codigo), "total": Decimal("0")})
                 forma["total"] += Decimal(str(parte["valor"]))
             comissao = por_profissional.setdefault(item.profissional_id, {
                 "nome": item.profissional.nome,
@@ -844,7 +879,7 @@ class CaixaView(APIView):
                 comissao["comissao"] += sum((item.comissao_valor for item in venda.itens.all()), Decimal("0"))
             for parte in venda.partes_produtos or []:
                 codigo = parte["forma"]
-                forma = por_forma.setdefault(codigo, {"forma": codigo, "nome": dict(FORMAS_PAGAMENTO).get(codigo, codigo), "total": Decimal("0")})
+                forma = por_forma.setdefault(codigo, {"forma": codigo, "nome": nomes_forma.get(codigo, codigo), "total": Decimal("0")})
                 forma["total"] += Decimal(str(parte["valor"]))
         return Response({
             "total": _dinheiro(total),

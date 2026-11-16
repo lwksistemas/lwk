@@ -151,7 +151,9 @@ def registrar_venda(dados, agendamentos, papel: str, local: str, origem: str, op
             Decimal("0"),
         ).quantize(Decimal("0.01"))
         total = (valor_servico + valor_produtos).quantize(Decimal("0.01"))
-        partes = interpretar_formas(dados, total)
+        from .formas_service import codigos_ativos
+
+        partes = interpretar_formas(dados, total, codigos_ativos())
         partes_servico, partes_produtos = repartir_pagamento(partes, valor_servico)
         fatias = fatiar_partes(partes_servico, [item[2] for item in recibos_previstos])
         recebimentos = []

@@ -5,7 +5,7 @@ import { useParams, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { STATUS_PADRAO, useStatusSalao } from "@/components/salao/cores-salao";
 import { diaTemAtendimento } from "@/components/salao/PaineisSalao";
-import { SalaoAPI, type AgendamentoSalao, type BloqueioSalao, type ClienteSalao, type JornadaDia, type LocalRecebimentoSalao, type ProfissionalSalao, type ServicoSalao } from "@/lib/salao-api";
+import { SalaoAPI, type AgendamentoSalao, type BloqueioSalao, type ClienteSalao, type FormaPagamentoSalao, type JornadaDia, type LocalRecebimentoSalao, type ProfissionalSalao, type ServicoSalao } from "@/lib/salao-api";
 
 const HORA_INICIO = 8;
 const HORA_FIM = 20;
@@ -17,12 +17,12 @@ function dois(valor: number) {
 
 type LinhaPagamento = { id: string; forma: string; valor: string };
 
-const FORMAS_SALAO = [
-  ["dinheiro", "Dinheiro"],
-  ["pix", "Pix"],
-  ["debito", "Débito"],
-  ["credito", "Crédito"],
-] as const;
+const FORMAS_PADRAO: FormaPagamentoSalao[] = [
+  { id: 0, codigo: "dinheiro", nome: "Dinheiro", ativo: true },
+  { id: 0, codigo: "pix", nome: "Pix", ativo: true },
+  { id: 0, codigo: "debito", nome: "Débito", ativo: true },
+  { id: 0, codigo: "credito", nome: "Crédito", ativo: true },
+];
 
 function lerReais(texto: string) {
   const numero = Number(String(texto).replace(",", "."));
@@ -70,6 +70,7 @@ export default function AgendaSalaoPage() {
   const [desconto, setDesconto] = useState("");
   const [receberAberto, setReceberAberto] = useState(false);
   const [quitar, setQuitar] = useState(true);
+  const [formasPagamento, setFormasPagamento] = useState<FormaPagamentoSalao[]>(FORMAS_PADRAO);
   const [linhas, setLinhas] = useState<LinhaPagamento[]>([{ id: "1", forma: "dinheiro", valor: "" }]);
   const [confirmaWhatsapp, setConfirmaWhatsapp] = useState(false);
   const [localRecebimento, setLocalRecebimento] = useState<LocalRecebimentoSalao>("caixa");
@@ -130,6 +131,9 @@ export default function AgendaSalaoPage() {
   }, [periodo.inicio, periodo.fim]);
 
   useEffect(() => { carregar(); }, [carregar]);
+  useEffect(() => {
+    SalaoAPI.formas().then((lista) => { if (lista.length) setFormasPagamento(lista); }).catch(() => undefined);
+  }, []);
   useEffect(() => {
     SalaoAPI.config().then((dados) => setLocalRecebimento(dados.local_recebimento || "caixa")).catch(() => undefined);
   }, []);
@@ -752,7 +756,7 @@ function ModalReceber({
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <p className="text-xs font-semibold uppercase text-gray-500">Formas de pagamento</p>
-                  <button type="button" className="text-sm font-medium text-[#7a3044]" onClick={() => aoLinhas([...linhas, { id: String(Date.now()), forma: "pix", valor: "" }])}>+ Adicionar forma</button>
+                  <button type="button" className="text-sm font-medium text-[#7a3044]" onClick={() => aoLinhas([...linhas, { id: String(Date.now()), forma: formasPagamento.find((item) => !linhas.some((linha) => linha.forma === item.codigo))?.codigo || formasPagamento[0]?.codigo || "dinheiro", valor: "" }])}>+ Adicionar forma</button>
                 </div>
                 {linhas.map((linha, indice) => (
                   <div key={linha.id} className="space-y-2 rounded-lg border p-3">
@@ -763,7 +767,7 @@ function ModalReceber({
                     <div className="grid gap-2 sm:grid-cols-2">
                       <label className="text-xs font-medium">Forma
                         <select className="mt-1 w-full rounded-lg border px-3 py-2 text-sm" value={linha.forma} onChange={(evento) => aoLinhas(linhas.map((item) => item.id === linha.id ? { ...item, forma: evento.target.value } : item))}>
-                          {FORMAS_SALAO.map(([valor, nome]) => <option key={valor} value={valor}>{nome}</option>)}
+                          {formasPagamento.map((forma) => <option key={forma.codigo} value={forma.codigo}>{forma.nome}</option>)}
                         </select>
                       </label>
                       <label className="text-xs font-medium">Valor (R$)

@@ -1,10 +1,26 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import { SalaoAPI, type ClienteSalao } from "@/lib/salao-api";
+import { consultaCep } from "@/lib/consulta-cep";
+import { formatCep, formatCpf } from "@/lib/format-br";
 
 const CAMPO = "w-full rounded-lg border px-2 py-2";
-const VAZIO = { nome: "", telefone: "", email: "", data_nascimento: "" };
+const UFS = ["AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO"];
+const VAZIO = {
+  nome: "",
+  telefone: "",
+  email: "",
+  cpf: "",
+  data_nascimento: "",
+  cep: "",
+  logradouro: "",
+  numero: "",
+  complemento: "",
+  bairro: "",
+  cidade: "",
+  estado: "",
+};
 
 export default function ClientesSalaoPage() {
   const [lista, setLista] = useState<ClienteSalao[]>([]);
@@ -12,6 +28,7 @@ export default function ClientesSalaoPage() {
   const [form, setForm] = useState(VAZIO);
   const [aberto, setAberto] = useState(false);
   const [erro, setErro] = useState("");
+  const [buscandoCep, setBuscandoCep] = useState(false);
 
   function carregar() {
     SalaoAPI.clientes().then(setLista).catch((exc: Error) => setErro(exc.message));
@@ -32,7 +49,15 @@ export default function ClientesSalaoPage() {
       nome: item.nome,
       telefone: item.telefone,
       email: item.email || "",
+      cpf: formatCpf(item.cpf || ""),
       data_nascimento: item.data_nascimento || "",
+      cep: formatCep(item.cep || ""),
+      logradouro: item.logradouro || "",
+      numero: item.numero || "",
+      complemento: item.complemento || "",
+      bairro: item.bairro || "",
+      cidade: item.cidade || "",
+      estado: item.estado || "",
     });
     setAberto(true);
   }
@@ -52,11 +77,37 @@ export default function ClientesSalaoPage() {
         ...form,
         email: form.email || null,
         data_nascimento: form.data_nascimento || null,
+        cpf: form.cpf || "",
+        cidade: form.cidade || "",
+        estado: form.estado || "",
       }, escolhido ?? undefined);
       fechar();
       carregar();
     } catch (exc) {
       setErro(exc instanceof Error ? exc.message : "Não foi possível salvar.");
+    }
+  }
+
+  async function buscarCep() {
+    const digitos = form.cep.replace(/\D/g, "");
+    if (digitos.length !== 8) return;
+    setBuscandoCep(true);
+    try {
+      const endereco = await consultaCep(digitos);
+      if (!endereco) {
+        setErro("CEP não encontrado.");
+        return;
+      }
+      setErro("");
+      setForm((atual) => ({
+        ...atual,
+        logradouro: endereco.logradouro || atual.logradouro,
+        bairro: endereco.bairro || atual.bairro,
+        cidade: endereco.cidade || atual.cidade,
+        estado: endereco.uf || atual.estado,
+      }));
+    } finally {
+      setBuscandoCep(false);
     }
   }
 
@@ -76,7 +127,7 @@ export default function ClientesSalaoPage() {
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold sm:text-3xl">Clientes</h1>
-          <p className="text-sm text-[#8a6e74]">O aniversário entra no painel do mês quando a data está preenchida.</p>
+          <p className="text-sm text-[#8a6e74]">CPF e endereço completo entram na NFS-e e na NFC-e. O cliente pode ser salvo antes de preencher os dois.</p>
         </div>
         <button type="button" className="rounded-full bg-[#7a3044] px-4 py-2 text-sm text-white" onClick={novo}>Adicionar cliente</button>
       </div>
@@ -88,7 +139,7 @@ export default function ClientesSalaoPage() {
             <button type="button" className="flex h-full w-full items-start justify-between gap-3 rounded-3xl border border-[#f0e4e6] bg-white px-4 py-3 text-left hover:bg-[#fbf6f4]" onClick={() => abrir(item)}>
               <span>
                 <span className="block font-medium">{item.nome}</span>
-                <span className="mt-0.5 block text-sm text-[#8a6e74]">{item.email || "Sem e-mail"}</span>
+                <span className="mt-0.5 block text-sm text-[#8a6e74]">{[item.cpf ? formatCpf(item.cpf) : "", item.cidade, item.email].filter(Boolean).join(" · ") || "Sem e-mail"}</span>
               </span>
               <span className="shrink-0 text-sm text-[#8a6e74]">{item.telefone}</span>
             </button>
@@ -112,6 +163,39 @@ export default function ClientesSalaoPage() {
               </label>
               <label className="text-sm">Aniversário
                 <input type="date" className={`mt-1 ${CAMPO}`} value={form.data_nascimento} onChange={(evento) => setForm({ ...form, data_nascimento: evento.target.value })} />
+              </label>
+              <label className="text-sm sm:col-span-2">CPF
+                <input className={`mt-1 ${CAMPO}`} inputMode="numeric" value={form.cpf} onChange={(evento) => setForm({ ...form, cpf: formatCpf(evento.target.value) })} placeholder="000.000.000-00" />
+              </label>
+            </div>
+            <p className="mb-2 mt-4 text-sm font-medium">Endereço</p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <label className="text-sm">CEP
+                <span className="mt-1 flex gap-2">
+                  <input className={CAMPO} inputMode="numeric" value={form.cep} onChange={(evento) => setForm({ ...form, cep: formatCep(evento.target.value) })} onBlur={buscarCep} placeholder="00000-000" />
+                  <button type="button" className="shrink-0 rounded-lg border px-3 text-sm" onClick={buscarCep} disabled={buscandoCep}>{buscandoCep ? "..." : "Buscar"}</button>
+                </span>
+              </label>
+              <label className="text-sm">Logradouro
+                <input className={`mt-1 ${CAMPO}`} value={form.logradouro} onChange={(evento) => setForm({ ...form, logradouro: evento.target.value })} />
+              </label>
+              <label className="text-sm">Número
+                <input className={`mt-1 ${CAMPO}`} value={form.numero} onChange={(evento) => setForm({ ...form, numero: evento.target.value })} />
+              </label>
+              <label className="text-sm">Complemento
+                <input className={`mt-1 ${CAMPO}`} value={form.complemento} onChange={(evento) => setForm({ ...form, complemento: evento.target.value })} />
+              </label>
+              <label className="text-sm">Bairro
+                <input className={`mt-1 ${CAMPO}`} value={form.bairro} onChange={(evento) => setForm({ ...form, bairro: evento.target.value })} />
+              </label>
+              <label className="text-sm">Cidade
+                <input className={`mt-1 ${CAMPO}`} value={form.cidade} onChange={(evento) => setForm({ ...form, cidade: evento.target.value })} />
+              </label>
+              <label className="text-sm">Estado
+                <select className={`mt-1 ${CAMPO}`} value={form.estado} onChange={(evento) => setForm({ ...form, estado: evento.target.value })}>
+                  <option value="">—</option>
+                  {UFS.map((uf) => <option key={uf} value={uf}>{uf}</option>)}
+                </select>
               </label>
             </div>
             <div className="mt-4 flex flex-wrap items-center justify-end gap-2">

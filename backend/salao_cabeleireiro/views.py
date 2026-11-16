@@ -54,6 +54,12 @@ def _abertura_do_caixa() -> str:
     return timezone.localtime(sessao.aberta_em).strftime("%d/%m/%Y %H:%M")
 
 
+def _cabecalho_recibo(loja) -> dict:
+    from .comprovante_layout import cabecalho_da_loja
+
+    return cabecalho_da_loja(loja)
+
+
 def _funcionamento(config, loja, prof, user):
     modelo = config.modelo if config.modelo in MODELOS else "recepcionista"
     local = config.local_recebimento if config.local_recebimento in LOCAIS else "caixa"
@@ -64,6 +70,7 @@ def _funcionamento(config, loja, prof, user):
         "papel": papel_salao(loja, prof, user, modelo),
         "operador_nome": nome,
         "caixa_abertura": _abertura_do_caixa(),
+        "recibo": _cabecalho_recibo(loja),
     }
 
 

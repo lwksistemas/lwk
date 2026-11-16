@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Banknote, Check, CreditCard, Download, Layers, Mail, MessageCircle, Minus, Plus, Printer, QrCode, Scissors, ShoppingBag, Trash2, UserRound, X } from "lucide-react";
-import { SalaoAPI, type AgendamentoSalao, type ClienteSalao, type LocalRecebimentoSalao, type PapelSalao, type ProdutoSalao } from "@/lib/salao-api";
+import { ComprovanteSalaoCard } from "@/components/salao/ComprovanteSalao";
+import { SalaoAPI, type AgendamentoSalao, type CabecalhoRecibo, type ClienteSalao, type ComprovanteSalao, type LocalRecebimentoSalao, type PapelSalao, type ProdutoSalao, type VendaSalao } from "@/lib/salao-api";
 
 type ItemCarrinho = { produto: number; nome: string; preco: string; saldo: number; quantidade: number };
 type Linha = { id: string; forma: string; valor: string };
@@ -150,7 +151,13 @@ function baixarPdfRecibo(recibo: ReciboPronto, loja: string) {
 
 export default function CaixaPdvPage() {
   const slug = (useParams()?.slug as string) ?? "";
-  const [aba, setAba] = useState<"atendimentos" | "produtos">("atendimentos");
+  const [aba, setAba] = useState<"atendimentos" | "produtos" | "comprovantes">("atendimentos");
+  const trava = useRef(false);
+  const [cabecalho, setCabecalho] = useState<CabecalhoRecibo | null>(null);
+  const [oficial, setOficial] = useState<ComprovanteSalao | null>(null);
+  const [buscaRecibo, setBuscaRecibo] = useState("");
+  const [dataRecibo, setDataRecibo] = useState("");
+  const [historico, setHistorico] = useState<{ numero: number; quando: string; cliente: string; valor: string; operador: string; cancelado: boolean }[]>([]);
   const [busca, setBusca] = useState("");
   const [fila, setFila] = useState<AgendamentoSalao[]>([]);
   const [clientes, setClientes] = useState<ClienteSalao[]>([]);
@@ -195,6 +202,7 @@ export default function CaixaPdvPage() {
       setOperador(dados.operador_nome || "");
       setAbertura(dados.caixa_abertura || "");
       setPapel(dados.papel || "");
+      if (dados.recibo) setCabecalho(dados.recibo);
     }).catch(() => undefined);
     SalaoAPI.produtos().then(setProdutos).catch(() => undefined);
     SalaoAPI.clientes().then(setClientes).catch(() => undefined);
@@ -302,7 +310,7 @@ export default function CaixaPdvPage() {
   }
 
   async function confirmar() {
-    if (salvando || (!atual && carrinho.length === 0) || (atual && local === "agenda")) return;
+    if (trava.current || salvando || (!atual && carrinho.length === 0) || (atual && local === "agenda")) return;
     if (atual && lerReais(desconto) > preco) {
       setErro("O desconto não pode passar do valor do serviço.");
       return;
@@ -331,6 +339,7 @@ export default function CaixaPdvPage() {
       }
     }
     setErro("");
+    trava.current = true;
     setSalvando(true);
     try {
       const venda = await SalaoAPI.vender({
@@ -364,18 +373,39 @@ export default function CaixaPdvPage() {
           ...(venda.itens || []).map((item) => ({ nome: `${item.quantidade}× ${item.nome}`, detalhe: "", total: item.total })),
         ],
       });
+      setOficial(deVenda(venda, cabecalho));
       setEscolhidos([]);
       setAbertura((atualAbertura) => atualAbertura || venda.quando);
       setCarrinho([]);
       setDesconto("");
       setEntregue("");
+      setFormaRapida("dinheiro");
+      setLinhas([{ id: "1", forma: "dinheiro", valor: "" }]);
       await carregar();
       await SalaoAPI.produtos().then(setProdutos).catch(() => undefined);
     } catch (exc) {
       setErro(exc instanceof Error ? exc.message : "Não foi possível receber.");
     } finally {
+      trava.current = false;
       setSalvando(false);
     }
+  }
+
+  function deVenda(venda: VendaSalao, loja: CabecalhoRecibo | null): ComprovanteSalao {
+    if (venda.comprovante?.numero) return { ...venda.comprovante, salao: venda.comprovante.salao || loja || undefined, cancelado: Boolean(venda.estornado) };
+    return {
+      numero: venda.numero,
+      quando: venda.quando,
+      cliente: venda.cliente,
+      operador: venda.operador,
+      valor: venda.valor,
+      desconto: venda.desconto,
+      cancelado: Boolean(venda.estornado),
+      servicos: venda.servicos,
+      produtos: venda.itens,
+      formas: venda.formas,
+      salao: loja || undefined,
+    };
   }
 
   const temConteudo = selecionados.length > 0 || carrinho.length > 0;
@@ -388,6 +418,7 @@ export default function CaixaPdvPage() {
 
   function fecharRecibo() {
     setSucesso(null);
+    setOficial(null);
     setAvisoEntrega("");
     setAvisoOk(false);
     setEnviando(null);
@@ -410,6 +441,40 @@ export default function CaixaPdvPage() {
     setAvisoEntrega("Marque o comprovante não fiscal. A nota de serviço e o cupom fiscal não são emitidos neste caixa.");
     setAvisoOk(false);
     return false;
+  }
+
+  async function imprimirNumero(numero: number) {
+    try {
+      const html = await SalaoAPI.htmlRecibo(numero);
+      const quadro = document.createElement("iframe");
+      quadro.setAttribute("title", "Impressão do comprovante");
+      quadro.style.position = "fixed";
+      quadro.style.right = "0";
+      quadro.style.bottom = "0";
+      quadro.style.width = "0";
+      quadro.style.height = "0";
+      quadro.style.border = "0";
+      document.body.appendChild(quadro);
+      const documento = quadro.contentDocument;
+      const janela = quadro.contentWindow;
+      if (!documento || !janela) {
+        quadro.remove();
+        setAvisoEntrega("Não foi possível preparar a impressão.");
+        setAvisoOk(false);
+        return;
+      }
+      documento.open();
+      documento.write(html);
+      documento.close();
+      window.setTimeout(() => {
+        janela.focus();
+        janela.print();
+        window.setTimeout(() => quadro.remove(), 1000);
+      }, 50);
+    } catch (exc) {
+      setAvisoEntrega(exc instanceof Error ? exc.message : "Não foi possível preparar a impressão.");
+      setAvisoOk(false);
+    }
   }
 
   function imprimirRecibo(recibo: ReciboPronto) {
@@ -490,10 +555,26 @@ export default function CaixaPdvPage() {
             <button type="button" onClick={() => { setAba("produtos"); setBusca(""); }} className={`rounded-xl px-3 py-2 text-sm font-medium ${aba === "produtos" ? "bg-[#7a3044] text-white" : "bg-[#f6eef0] text-[#5c3d45]"}`}>
               Venda de produtos
             </button>
+            <button type="button" onClick={() => { setAba("comprovantes"); void SalaoAPI.comprovantes(buscaRecibo, dataRecibo).then(setHistorico).catch((exc: Error) => setErro(exc.message)); }} className={`col-span-2 rounded-xl px-3 py-2 text-sm font-medium ${aba === "comprovantes" ? "bg-[#7a3044] text-white" : "bg-[#f6eef0] text-[#5c3d45]"}`}>
+              Comprovantes
+            </button>
           </div>
           <input value={busca} onChange={(evento) => setBusca(evento.target.value)} placeholder={aba === "atendimentos" ? "Buscar cliente ou atendimento..." : "Nome ou código de barras"} className="mt-3 w-full rounded-xl border border-[#eadfe2] px-3 py-2 text-sm" />
           {aba === "atendimentos" ? <p className="mt-2 text-xs text-[#8a6e74]">Pode marcar vários atendimentos do mesmo cliente.</p> : null}
-          <div className="mt-3 space-y-2">
+          {aba === "comprovantes" ? (
+            <div className="mt-3 space-y-2">
+              <input value={buscaRecibo} onChange={(evento) => setBuscaRecibo(evento.target.value)} placeholder="Cliente ou número" className="w-full rounded-xl border border-[#eadfe2] px-3 py-2 text-sm" />
+              <input type="date" value={dataRecibo} onChange={(evento) => setDataRecibo(evento.target.value)} className="w-full rounded-xl border border-[#eadfe2] px-3 py-2 text-sm" />
+              <button type="button" className="text-sm text-[#7a3044]" onClick={() => void SalaoAPI.comprovantes(buscaRecibo, dataRecibo).then(setHistorico).catch((exc: Error) => setErro(exc.message))}>Buscar</button>
+              {historico.map((item) => (
+                <button key={item.numero} type="button" onClick={() => void SalaoAPI.venda(item.numero).then((venda) => { setOficial(deVenda(venda, cabecalho)); setSucesso(null); })} className="block w-full rounded-2xl border border-[#f0e4e7] px-3 py-2 text-left text-sm">
+                  <span className="block font-medium">Nº {String(item.numero).padStart(6, "0")} · {item.cliente}</span>
+                  <span className="block text-xs text-[#8a6e74]">{item.quando} · {reais(lerReais(item.valor))}{item.operador ? ` · ${item.operador}` : ""}{item.cancelado ? " · cancelado" : ""}</span>
+                </button>
+              ))}
+            </div>
+          ) : null}
+          <div className={`mt-3 space-y-2 ${aba === "comprovantes" ? "hidden" : ""}`}>
             {aba === "atendimentos" ? visiveis.map((item) => (
               <button key={item.id} type="button" onClick={() => selecionar(item)} className={`flex w-full items-center justify-between gap-3 rounded-2xl border px-3 py-3 text-left ${escolhidos.includes(item.id) ? "border-[#f3c3cf] bg-[#fdecef]" : "border-[#f0e4e7]"}`}>
                 <span>
@@ -662,26 +743,27 @@ export default function CaixaPdvPage() {
               <p className="font-medium">Prévia do comprovante</p>
               <button type="button" className="text-xs text-[#7a3044]" onClick={() => setPreviaAberta((aberta) => !aberta)}>{previaAberta ? "Recolher" : "Mostrar"}</button>
             </div>
-            {previaAberta ? <div className="mt-3 rounded-2xl border border-[#f0e4e7] p-4 text-center">
-              <p className="font-semibold">{operador || "Salão"}</p>
-              <p className="mt-2 text-xs tracking-wide">COMPROVANTE DE PAGAMENTO</p>
-              <p className="text-xs text-[#8a6e74]">(NÃO FISCAL)</p>
-              <div className="mt-3 flex justify-between text-left text-xs text-[#8a6e74]">
-                <span>{sucesso ? `Nº ${String(sucesso.numero).padStart(6, "0")}` : "Prévia"}</span>
-                <span>{sucesso?.quando || hoje.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}</span>
-              </div>
-              <p className="mt-2 text-left text-xs">Cliente: {atual?.cliente_nome || sucesso?.cliente || "—"}</p>
-              <div className="mt-3 space-y-1 text-left text-xs">
-                {linhasPrevia.map((linha) => (
-                  <div key={linha.nome}>
-                    <p className="flex justify-between gap-2"><span>{linha.nome}</span><span>{reais(lerReais(linha.total))}</span></p>
-                    {linha.detalhe ? <p className="text-[#8a6e74]">{linha.detalhe}</p> : null}
-                  </div>
-                ))}
-              </div>
-              <p className="mt-3 flex justify-between border-t border-[#f0e4e7] pt-2 font-semibold"><span>{sucesso ? "Total pago" : "Total a receber"}</span><span>{reais(sucesso ? lerReais(sucesso.valor) : total)}</span></p>
-              <p className="mt-2 text-left text-xs">Forma de pagamento: {sucesso?.forma || formaLabel}</p>
-              <p className="mt-3 text-left text-[11px] text-[#8a6e74]">Este comprovante não substitui a emissão de Nota Fiscal (NFS-e) ou Cupom Fiscal (NFC-e).</p>
+            {previaAberta ? <div className="mt-3 overflow-x-auto">
+              <ComprovanteSalaoCard dados={oficial || {
+                quando: hoje.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }),
+                cliente: atual?.cliente_nome || "—",
+                valor: total.toFixed(2),
+                desconto: valorDesconto.toFixed(2),
+                servicos: selecionados.map((item) => ({ nome: item.servico_nome, profissional: item.profissional_nome, total: item.preco })),
+                produtos: carrinho.map((item) => ({ nome: item.nome, quantidade: item.quantidade, total: (lerReais(item.preco) * item.quantidade).toFixed(2) })),
+                formas: (formaRapida === "multiplas" ? linhas : [{ id: "1", forma: formaRapida, valor: String(total) }]).filter((linha) => lerReais(linha.valor) > 0).map((linha) => ({ nome: ROTULO[linha.forma] || linha.forma, valor: lerReais(linha.valor).toFixed(2) })),
+                salao: cabecalho || undefined,
+              }} />
+              {oficial?.numero ? (
+                <div className="mt-3 flex flex-wrap gap-3 text-xs">
+                  {oficial.operador ? <span className="text-[#8a6e74]">Operador: {oficial.operador}</span> : null}
+                  <button type="button" className="text-[#7a3044]" onClick={() => void imprimirNumero(oficial.numero as number)}>Reimprimir</button>
+                  <button type="button" className="text-[#7a3044]" onClick={() => void SalaoAPI.baixarRecibo(oficial.numero as number).catch((exc: Error) => setErro(exc.message))}>Baixar PDF</button>
+                  <button type="button" className="text-[#7a3044]" onClick={() => void SalaoAPI.enviarRecibo(oficial.numero as number, "email").then((resposta) => { setAvisoEntrega(resposta.message); setAvisoOk(true); }).catch((exc: Error) => { setAvisoEntrega(exc.message); setAvisoOk(false); })}>E-mail</button>
+                  <button type="button" className="text-[#7a3044]" onClick={() => void SalaoAPI.enviarRecibo(oficial.numero as number, "whatsapp").then((resposta) => { setAvisoEntrega(resposta.message); setAvisoOk(true); }).catch((exc: Error) => { setAvisoEntrega(exc.message); setAvisoOk(false); })}>WhatsApp</button>
+                </div>
+              ) : null}
+              {oficial?.numero && avisoEntrega ? <p className={`mt-2 text-xs ${avisoOk ? "text-green-700" : "text-red-700"}`}>{avisoEntrega}</p> : null}
             </div> : null}
           </div>
         </section>
@@ -690,17 +772,17 @@ export default function CaixaPdvPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-2xl rounded-2xl bg-white shadow-xl">
             <div className="flex items-center justify-between border-b border-[#f0e4e7] p-4">
-              <h2 className="text-lg font-bold text-green-700">✓ Pagamento registrado</h2>
+              <h2 className="text-lg font-bold text-green-700">Pagamento registrado com sucesso</h2>
               <button type="button" onClick={fecharRecibo} aria-label="Fechar" className="rounded-lg p-2 hover:bg-[#f6eef0]"><X size={18} /></button>
             </div>
             <div className="space-y-4 p-6">
               <div className="space-y-1 rounded-lg bg-green-50 p-4 text-sm">
                 <p><strong>Cliente:</strong> {sucesso.cliente}</p>
-                {sucesso.linhas.filter((linha) => linha.detalhe).map((linha) => <p key={linha.nome}><strong>{linha.detalhe}</strong></p>)}
-                <p><strong>Valor:</strong> {reais(lerReais(sucesso.valor))}</p>
-                <p><strong>Valor recebido nesta operação:</strong> {reais(lerReais(sucesso.valor))}</p>
-                <p><strong>Formas nesta operação:</strong> {sucesso.forma}</p>
-                <p className="pt-1 text-xs text-[#8a6e74]">O recibo impresso, o WhatsApp e o e-mail listam as formas e o total pago. Comprovante {String(sucesso.numero).padStart(6, "0")} · {sucesso.quando}</p>
+                <p><strong>Comprovante:</strong> {String(sucesso.numero).padStart(6, "0")}</p>
+                {sucesso.linhas.map((linha) => <p key={linha.nome}>{linha.nome}{linha.detalhe ? ` · ${linha.detalhe}` : ""} · {reais(lerReais(linha.total))}</p>)}
+                <p><strong>Total pago:</strong> {reais(lerReais(sucesso.valor))}</p>
+                <p><strong>Formas de pagamento:</strong> {sucesso.forma}</p>
+                <p><strong>Data e horário:</strong> {sucesso.quando}</p>
               </div>
               <div>
                 <p className="text-sm font-medium">Documentos para o cliente</p>
@@ -725,11 +807,11 @@ export default function CaixaPdvPage() {
               </div>
               <p className="text-sm text-[#5c3d45]">Envie o recibo de pagamento para o cliente:</p>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                <button type="button" onClick={() => imprimirRecibo(sucesso)} className="flex flex-col items-center gap-2 rounded-xl border border-[#eadfe2] p-4 hover:bg-[#f6eef0]">
+                <button type="button" onClick={() => void imprimirNumero(sucesso.numero)} className="flex flex-col items-center gap-2 rounded-xl border border-[#eadfe2] p-4 hover:bg-[#f6eef0]">
                   <Printer size={24} />
                   <span className="text-xs font-medium">Imprimir</span>
                 </button>
-                <button type="button" onClick={() => { if (exigirComprovante(sucesso)) baixarPdfRecibo(sucesso, operador); }} className="flex flex-col items-center gap-2 rounded-xl border border-[#eadfe2] p-4 hover:bg-[#f6eef0]">
+                <button type="button" onClick={() => { if (exigirComprovante(sucesso)) void SalaoAPI.baixarRecibo(sucesso.numero).catch((exc: Error) => { setAvisoEntrega(exc.message); setAvisoOk(false); }); }} className="flex flex-col items-center gap-2 rounded-xl border border-[#eadfe2] p-4 hover:bg-[#f6eef0]">
                   <Download size={24} />
                   <span className="text-xs font-medium">Baixar PDF</span>
                 </button>

@@ -55,6 +55,30 @@ export type PreviewXmlSalao = {
   produtos: ItemXmlSalao[];
 };
 
+export type CabecalhoRecibo = {
+  nome: string;
+  subtitulo: string;
+  endereco: string;
+  telefone: string;
+  email: string;
+  logo: string;
+  cor: string;
+};
+
+export type ComprovanteSalao = {
+  numero?: number | null;
+  quando: string;
+  cliente: string;
+  operador?: string;
+  desconto?: string;
+  valor: string;
+  cancelado?: boolean;
+  servicos?: { nome: string; profissional?: string; total: string }[];
+  produtos?: { nome: string; quantidade?: number; total: string }[];
+  formas?: { nome: string; valor: string }[];
+  salao?: CabecalhoRecibo;
+};
+
 export type VendaSalao = {
   numero: number;
   cliente: string;
@@ -66,6 +90,8 @@ export type VendaSalao = {
   quando: string;
   servicos?: { nome: string; profissional: string; total: string }[];
   itens: { nome: string; quantidade: number; total: string }[];
+  formas?: { nome: string; valor: string }[];
+  comprovante?: ComprovanteSalao;
 };
 
 export type ClienteSalao = {
@@ -235,6 +261,7 @@ export const SalaoAPI = {
     papel: PapelSalao;
     operador_nome: string;
     caixa_abertura?: string;
+    recibo?: CabecalhoRecibo;
   }>("/config/"),
   salvarFuncionamento: (corpo: { modelo: ModeloSalao; local_recebimento: LocalRecebimentoSalao }) =>
     salaoFetch<{ modelo: ModeloSalao; local_recebimento: LocalRecebimentoSalao; papel: PapelSalao; operador_nome: string }>("/funcionamento/", { method: "PUT", body: JSON.stringify(corpo) }),
@@ -272,6 +299,29 @@ export const SalaoAPI = {
   vender: (corpo: { agendamento?: number; agendamentos?: number[]; desconto: string; origem?: "caixa" | "agenda"; formas?: { forma: string; valor: string }[]; itens?: { produto: number; quantidade: number }[]; nfse?: boolean; nfce?: boolean }) =>
     salaoFetch<VendaSalao>("/vendas/", { method: "POST", body: JSON.stringify(corpo) }),
   venda: (numero: number) => salaoFetch<VendaSalao>(`/vendas/${numero}/`),
+  comprovantes: (q = "", data = "") => salaoFetch<{ numero: number; quando: string; cliente: string; valor: string; operador: string; cancelado: boolean }[]>(`/vendas/?q=${encodeURIComponent(q)}&data=${encodeURIComponent(data)}`),
+  htmlRecibo: async (numero: number) => {
+    const resposta = await fetch(`${getApiBaseUrl()}/salao-cabeleireiro/vendas/${numero}/html/`, {
+      credentials: USE_JWT_HTTPONLY_COOKIES ? "include" : "same-origin",
+      headers: getClinicaBelezaHeadersWithLoja(),
+    });
+    if (!resposta.ok) throw new Error("Não foi possível abrir o comprovante.");
+    return resposta.text();
+  },
+  baixarRecibo: async (numero: number) => {
+    const resposta = await fetch(`${getApiBaseUrl()}/salao-cabeleireiro/vendas/${numero}/pdf/`, {
+      credentials: USE_JWT_HTTPONLY_COOKIES ? "include" : "same-origin",
+      headers: getClinicaBelezaHeadersWithLoja(),
+    });
+    if (!resposta.ok) throw new Error("Não foi possível baixar o PDF.");
+    const arquivo = await resposta.blob();
+    const url = URL.createObjectURL(arquivo);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `comprovante-${String(numero).padStart(6, "0")}.pdf`;
+    link.click();
+    URL.revokeObjectURL(url);
+  },
   enviarRecibo: (numero: number, canal: "email" | "whatsapp") =>
     salaoFetch<{ success: boolean; message: string }>(`/vendas/${numero}/enviar/`, { method: "POST", body: JSON.stringify({ canal }) }),
   receber: (id: number, corpo: { desconto: string; origem?: "agenda" | "caixa"; forma?: string; formas?: { forma: string; valor: string }[] }) =>

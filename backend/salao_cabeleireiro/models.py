@@ -264,6 +264,7 @@ class Venda(models.Model):
     partes = models.JSONField(default=list, blank=True)
     partes_produtos = models.JSONField(default=list, blank=True)
     operador_nome = models.CharField(max_length=160, blank=True, default="")
+    comprovante = models.JSONField(default=dict, blank=True)
     sessao = models.ForeignKey(
         "SessaoCaixa",
         null=True,

@@ -1,7 +1,16 @@
 from django.urls import path
 
 from .loja_config import IdentidadeView, LojaInfoView
-from .estoque_views import ProdutoDetailView, ProdutoListCreateView, VendaCreateView, VendaDetailView, VendaEnviarView
+from .estoque_views import (
+    ProdutoDetailView,
+    ProdutoListCreateView,
+    VendaCreateView,
+    VendaDetailView,
+    VendaEnviarView,
+    VendaHtmlView,
+    VendaPdfView,
+)
+from .recibo_publico import ReciboPublicoView
 from .nfe_entrada_views import (
     ImportarXmlView,
     NfeConfirmarView,
@@ -50,7 +59,10 @@ urlpatterns = [
     path("caixa/", CaixaView.as_view(), name="salao-caixa"),
     path("vendas/", VendaCreateView.as_view(), name="salao-vendas"),
     path("vendas/<int:numero>/", VendaDetailView.as_view(), name="salao-venda"),
+    path("vendas/<int:numero>/html/", VendaHtmlView.as_view(), name="salao-venda-html"),
+    path("vendas/<int:numero>/pdf/", VendaPdfView.as_view(), name="salao-venda-pdf"),
     path("vendas/<int:numero>/enviar/", VendaEnviarView.as_view(), name="salao-venda-enviar"),
+    path("recibos/<str:token>/", ReciboPublicoView.as_view(), name="salao-recibo-publico"),
     path("produtos/", ProdutoListCreateView.as_view(), name="salao-produtos"),
     path("produtos/<int:pk>/", ProdutoDetailView.as_view(), name="salao-produto"),
     path("estoque/importar-xml/", ImportarXmlView.as_view(), name="salao-importar-xml"),

@@ -211,6 +211,11 @@ def registrar_venda(dados, agendamentos, papel: str, local: str, origem: str, op
                 estoque_baixado=True,
             )
             _baixar(produto, pedido["quantidade"], venda)
+        from .comprovante_layout import congelar_venda
+
+        itens = list(venda.itens.all())
+        venda.comprovante = congelar_venda(venda, recebimentos, itens)
+        venda.save(update_fields=["comprovante"])
         return venda
 
 
@@ -269,6 +274,9 @@ def publico_venda(venda: Venda) -> dict:
     )
     if not recibos and venda.recebimento_id:
         recibos = [venda.recebimento]
+    from .comprovante_layout import comprovante_da_venda
+
+    comprovante = comprovante_da_venda(venda)
     return {
         "numero": venda.numero,
         "cliente": venda.cliente_nome or "Consumidor",
@@ -290,6 +298,8 @@ def publico_venda(venda: Venda) -> dict:
             {"nome": item.nome, "quantidade": item.quantidade, "total": f"{quantia(item.total):.2f}"}
             for item in venda.itens.all()
         ],
+        "formas": comprovante.get("formas") or [],
+        "comprovante": comprovante,
     }
 
 

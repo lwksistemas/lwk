@@ -1,11 +1,9 @@
 """O caixa envia o comprovante pelo e-mail e pelo WhatsApp da loja."""
-import html
 import logging
 
 from django.db.models import Q
 
 from .caixa_service import quantia
-from .estoque_service import publico_venda
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +29,12 @@ def texto_do_comprovante(dados: dict, loja_nome: str) -> str:
     if quantia(dados.get("desconto")) > 0:
         linhas.append(f"Desconto: {reais(dados.get('desconto'))}")
     linhas.append(f"Total pago: {reais(dados.get('valor'))}")
-    linhas.append(f"Forma de pagamento: {dados.get('forma_label') or ''}")
+    formas = dados.get("formas") or []
+    if formas:
+        linhas.append("Formas de pagamento:")
+        linhas.extend(f"{item.get('nome') or ''}: {reais(item.get('valor'))}" for item in formas)
+    else:
+        linhas.append(f"Forma de pagamento: {dados.get('forma_label') or ''}")
     linhas.append("Este comprovante não substitui a emissão de Nota Fiscal (NFS-e) ou Cupom Fiscal (NFC-e).")
     return "\n".join(linhas)
 
@@ -70,20 +73,22 @@ def enviar_comprovante(venda, canal: str, *, user=None) -> tuple[bool, str]:
         return False, "Escolha e-mail ou WhatsApp."
     if venda is None or not getattr(venda, "is_active", False):
         return False, "Comprovante não encontrado."
+    from .comprovante_layout import comprovante_da_venda, html_comprovante, pdf_comprovante
+
     cliente = cliente_da_venda(venda)
-    texto = texto_do_comprovante(publico_venda(venda), _nome_da_loja())
+    dados = comprovante_da_venda(venda)
+    texto = texto_do_comprovante(dados, (dados.get("salao") or {}).get("nome") or _nome_da_loja())
     if canal == "email":
-        return _enviar_email(cliente, venda, texto)
-    return _enviar_whatsapp(cliente, texto, user=user)
+        return _enviar_email(cliente, venda, texto, html_comprovante(dados))
+    return _enviar_whatsapp(cliente, texto, pdf_comprovante(dados), user=user)
 
 
-def _enviar_email(cliente, venda, texto: str) -> tuple[bool, str]:
+def _enviar_email(cliente, venda, texto: str, corpo_html: str) -> tuple[bool, str]:
     email = (getattr(cliente, "email", "") or "").strip()
     if not email:
         return False, "O cliente está sem e-mail."
     numero = int(getattr(venda, "numero", 0) or 0)
     assunto = f"Comprovante {numero:06d}"
-    corpo_html = "".join(f"<p>{html.escape(linha)}</p>" for linha in texto.split("\n"))
     try:
         from core.email_delivery import send_system_mail
 
@@ -94,7 +99,7 @@ def _enviar_email(cliente, venda, texto: str) -> tuple[bool, str]:
     return True, "Recibo enviado por e-mail."
 
 
-def _enviar_whatsapp(cliente, texto: str, *, user=None) -> tuple[bool, str]:
+def _enviar_whatsapp(cliente, texto: str, pdf: bytes, *, user=None) -> tuple[bool, str]:
     from tenants.middleware import get_current_loja_id
 
     from .comunicacao_service import whatsapp_pronto
@@ -106,15 +111,23 @@ def _enviar_whatsapp(cliente, texto: str, *, user=None) -> tuple[bool, str]:
     if not whatsapp_pronto(loja_id):
         return False, "O WhatsApp desta loja não está conectado."
     from whatsapp.models import WhatsAppConfig
-    from whatsapp.services import send_whatsapp
+    from whatsapp.services import send_whatsapp, send_whatsapp_document
 
+    config = WhatsAppConfig.objects.filter(loja_id=loja_id).first()
+    numero = "comprovante.pdf"
     try:
-        ok, erro = send_whatsapp(
+        from .recibo_publico import publicar_pdf
+
+        ok, erro = send_whatsapp_document(
             telefone,
-            texto,
+            publicar_pdf(pdf),
+            numero,
+            caption="Comprovante de pagamento (não fiscal)",
             user=user,
-            config=WhatsAppConfig.objects.filter(loja_id=loja_id).first(),
+            config=config,
         )
+        if not ok:
+            ok, erro = send_whatsapp(telefone, texto, user=user, config=config)
     except Exception:
         logger.exception("WhatsApp do comprovante não saiu")
         return False, "Não foi possível enviar o WhatsApp."

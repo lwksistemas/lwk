@@ -144,8 +144,45 @@ def _agendamentos_pedidos(dados):
     return itens
 
 
+class VendaListView(APIView):
+    permission_classes = [IsAuthenticated, IsSalaoMembro]
+
+    def get(self, request):
+        from datetime import datetime, timedelta
+
+        from django.utils import timezone
+        from django.utils.dateparse import parse_date
+
+        from .models import Venda
+
+        qs = Venda.objects.all().order_by("-numero")
+        termo = (request.query_params.get("q") or "").strip()
+        dia = parse_date((request.query_params.get("data") or "").strip())
+        if termo.isdigit():
+            qs = qs.filter(numero=int(termo))
+        elif termo:
+            qs = qs.filter(cliente_nome__icontains=termo)
+        if dia is not None:
+            inicio = timezone.make_aware(datetime(dia.year, dia.month, dia.day))
+            qs = qs.filter(created_at__gte=inicio, created_at__lt=inicio + timedelta(days=1))
+        return Response([
+            {
+                "numero": item.numero,
+                "quando": timezone.localtime(item.created_at).strftime("%d/%m/%Y %H:%M"),
+                "cliente": item.cliente_nome or "Consumidor",
+                "valor": f"{quantia(item.valor):.2f}",
+                "operador": item.operador_nome or "",
+                "cancelado": not item.is_active,
+            }
+            for item in qs[:80]
+        ])
+
+
 class VendaCreateView(APIView):
     permission_classes = [IsAuthenticated, IsSalaoMembro]
+
+    def get(self, request):
+        return VendaListView().get(request)
 
     def post(self, request):
         try:
@@ -185,6 +222,43 @@ class VendaDetailView(APIView):
         if venda is None:
             return _erro("Comprovante não encontrado.", status.HTTP_404_NOT_FOUND)
         return Response(publico_venda(venda))
+
+
+def _venda_numero(numero):
+    from .models import Venda
+
+    return Venda.objects.filter(numero=numero).prefetch_related("itens").first()
+
+
+class VendaHtmlView(APIView):
+    permission_classes = [IsAuthenticated, IsSalaoMembro]
+
+    def get(self, request, numero):
+        from django.http import HttpResponse
+
+        from .comprovante_layout import comprovante_da_venda, html_comprovante
+
+        venda = _venda_numero(numero)
+        if venda is None:
+            return _erro("Comprovante não encontrado.", status.HTTP_404_NOT_FOUND)
+        return HttpResponse(html_comprovante(comprovante_da_venda(venda)), content_type="text/html; charset=utf-8")
+
+
+class VendaPdfView(APIView):
+    permission_classes = [IsAuthenticated, IsSalaoMembro]
+
+    def get(self, request, numero):
+        from django.http import HttpResponse
+
+        from .comprovante_layout import comprovante_da_venda, pdf_comprovante
+
+        venda = _venda_numero(numero)
+        if venda is None:
+            return _erro("Comprovante não encontrado.", status.HTTP_404_NOT_FOUND)
+        pdf = pdf_comprovante(comprovante_da_venda(venda))
+        resposta = HttpResponse(pdf, content_type="application/pdf")
+        resposta["Content-Disposition"] = f'attachment; filename="comprovante-{int(numero):06d}.pdf"'
+        return resposta
 
 
 class VendaEnviarView(APIView):

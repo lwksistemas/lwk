@@ -13,6 +13,7 @@ from salao_cabeleireiro.caixa_service import (
     validar_documentos,
 )
 from salao_cabeleireiro.estoque_service import agrupar_pedidos, repartir_pagamento
+from salao_cabeleireiro.comprovante_layout import cabecalho_da_loja, html_comprovante, pdf_comprovante
 from salao_cabeleireiro.recibo_envio import enviar_comprovante, texto_do_comprovante
 from salao_cabeleireiro.fiscal_service import SalaoFiscalErro, gravar_nfce
 from salao_cabeleireiro.comunicacao_service import regras_de
@@ -157,6 +158,57 @@ class CaixaSalaoTest(unittest.TestCase):
         ok, mensagem = enviar_comprovante(object(), "sms")
         self.assertFalse(ok)
         self.assertIn("e-mail ou WhatsApp", mensagem)
+
+    def test_recibo_usa_o_cadastro_e_nao_um_endereco_fixo(self):
+        class Loja:
+            nome = "Salão da Esquina"
+            logradouro = "Rua A"
+            numero = "10"
+            bairro = "Centro"
+            cidade = "Campinas"
+            uf = "SP"
+            cep = "13010000"
+            telefone_contato = "19999998888"
+            email_contato = "salao@exemplo.com"
+            recibo_logo = ""
+            logo = ""
+            recibo_cor = ""
+            cor_primaria = "#335544"
+            tipo_loja = None
+
+        cabecalho = cabecalho_da_loja(Loja())
+        self.assertEqual(cabecalho["nome"], "Salão da Esquina")
+        self.assertIn("Rua A, 10", cabecalho["endereco"])
+        self.assertNotIn("Rua das Flores", cabecalho["endereco"])
+        self.assertEqual(cabecalho["logo"], "")
+        html = html_comprovante({
+            "numero": 5,
+            "quando": "16/11/2026 às 14:39",
+            "cliente": "Felipe Felix",
+            "desconto": "0.00",
+            "valor": "40.00",
+            "cancelado": False,
+            "servicos": [{"nome": "Barba", "profissional": "Daniele Souza", "total": "40.00"}],
+            "produtos": [{"nome": "Shampoo", "quantidade": 1, "total": "35.00"}],
+            "formas": [
+                {"nome": "Dinheiro", "valor": "20.00"},
+                {"nome": "Pix", "valor": "10.00"},
+                {"nome": "Débito", "valor": "10.00"},
+            ],
+            "salao": cabecalho,
+        })
+        self.assertIn("COMPROVANTE DE PAGAMENTO", html)
+        self.assertIn("Barba", html)
+        self.assertIn("Daniele Souza", html)
+        self.assertIn("Shampoo", html)
+        self.assertIn("Dinheiro", html)
+        self.assertIn("Obrigado pela preferência!", html)
+        self.assertNotIn("<img", html)
+        self.assertNotIn("Rua das Flores", html)
+        cancelado = html_comprovante({**{"numero": 2, "quando": "", "cliente": "Ana", "valor": "10.00", "desconto": "0", "servicos": [], "produtos": [], "formas": [], "salao": {**cabecalho, "logo": "https://media.exemplo/logo.png"}}, "cancelado": True})
+        self.assertIn("CANCELADO", cancelado)
+        self.assertIn("<img", cancelado)
+        self.assertTrue(pdf_comprovante({"numero": 5, "quando": "16/11/2026 às 14:39", "cliente": "Felipe Felix", "valor": "40.00", "desconto": "0", "servicos": [{"nome": "Barba", "profissional": "Daniele Souza", "total": "40.00"}], "produtos": [], "formas": [{"nome": "Dinheiro", "valor": "40.00"}], "salao": cabecalho}).startswith(b"%PDF"))
 
     def test_quantidade_do_mesmo_produto_soma(self):
         pedidos = agrupar_pedidos([{"produto": 3, "quantidade": 1}, {"produto": "3", "quantidade": 2}])

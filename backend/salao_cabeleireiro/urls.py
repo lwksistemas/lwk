@@ -1,6 +1,7 @@
 from django.urls import path
 
 from .loja_config import IdentidadeView, LojaInfoView
+from .fiscal_views import SalaoNfceConfigView, SalaoNFSeConfigView, SalaoNFSeTesteView
 from .views import (
     AgendaView,
     AgendamentoDetailView,
@@ -24,6 +25,9 @@ from .views import (
 
 urlpatterns = [
     path("config/", ConfigView.as_view(), name="salao-config"),
+    path("nfse-config/", SalaoNFSeConfigView.as_view(), name="salao-nfse-config"),
+    path("nfse-config/test-issnet/", SalaoNFSeTesteView.as_view(), name="salao-nfse-teste"),
+    path("nfce-config/", SalaoNfceConfigView.as_view(), name="salao-nfce-config"),
     path("identidade/", IdentidadeView.as_view(), name="salao-identidade"),
     path("loja-info/", LojaInfoView.as_view(), name="salao-loja-info"),
     path("comunicacao/", ComunicacaoView.as_view(), name="salao-comunicacao"),

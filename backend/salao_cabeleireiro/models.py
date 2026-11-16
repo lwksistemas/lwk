@@ -6,6 +6,8 @@ from django.db import models
 
 from core.mixins import LojaIsolationManager
 
+from salao_cabeleireiro.models_fiscal import SalaoNFSeConfig, SalaoNfceConfig  # noqa: F401
+
 from agenda_base.models import (
     BloqueioAgendaBase,
     ClienteBase,

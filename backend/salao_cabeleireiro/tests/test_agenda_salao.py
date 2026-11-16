@@ -4,6 +4,7 @@ from decimal import Decimal
 
 from salao_cabeleireiro.agenda_service import avaliar_jornada, intervalos_conflitam
 from salao_cabeleireiro.caixa_service import calcular_recebimento, interpretar_formas, rotulo_formas
+from salao_cabeleireiro.fiscal_service import SalaoFiscalErro, gravar_nfce
 from salao_cabeleireiro.comunicacao_service import regras_de
 from salao_cabeleireiro.mensagens import na_janela_lembrete, texto_cancelamento, texto_confirmacao
 from salao_cabeleireiro.serializers import painel_valido
@@ -73,6 +74,24 @@ class CaixaSalaoTest(unittest.TestCase):
 
     def test_desconto_integral_nao_exige_forma(self):
         self.assertEqual(interpretar_formas({}, Decimal("0.00")), [])
+
+
+class CupomSalaoTest(unittest.TestCase):
+    def test_ligar_sem_csc_nao_grava(self):
+        class Falso:
+            regime = ""
+            id_csc = ""
+            csc = ""
+            inscricao_estadual = ""
+            ncm_padrao = ""
+            codigo_municipio = ""
+            serie = 1
+
+            def save(self):
+                raise AssertionError("não grava")
+
+        with self.assertRaises(SalaoFiscalErro):
+            gravar_nfce(Falso(), {"habilitada": True, "regime": "simples", "id_csc": "1"})
 
 
 class MensagemSalaoTest(unittest.TestCase):

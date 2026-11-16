@@ -189,6 +189,24 @@ export const SalaoAPI = {
     salaoFetch("/bloqueios/", { method: "POST", body: JSON.stringify(corpo) }),
   removerBloqueio: (id: number) => salaoFetch(`/bloqueios/${id}/`, { method: "DELETE" }),
   arquivar: (caminho: string) => salaoFetch(caminho, { method: "DELETE" }),
+  nfceConfig: () => salaoFetch<NfceConfigSalao>("/nfce-config/"),
+  salvarNfce: (corpo: Record<string, unknown>) =>
+    salaoFetch<NfceConfigSalao>("/nfce-config/", { method: "PUT", body: JSON.stringify(corpo) }),
+};
+
+export type NfceConfigSalao = {
+  habilitada: boolean;
+  regime: string;
+  id_csc: string;
+  csc_informado: boolean;
+  inscricao_estadual: string;
+  serie: number;
+  ambiente_homologacao: boolean;
+  ncm_padrao: string;
+  codigo_municipio: string;
+  aliquota_icms: string;
+  certificado_a1: boolean;
+  proximo_numero: number;
 };
 
 export type ResumoSalao = {

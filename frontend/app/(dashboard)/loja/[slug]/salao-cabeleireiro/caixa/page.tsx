@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { Banknote, Check, CreditCard, Layers, Minus, Plus, QrCode, Scissors, ShoppingBag, Trash2, UserRound } from "lucide-react";
+import { Banknote, Check, CreditCard, Layers, Mail, MessageCircle, Minus, Plus, Printer, QrCode, Scissors, ShoppingBag, Trash2, UserRound, X } from "lucide-react";
 import { SalaoAPI, type AgendamentoSalao, type ClienteSalao, type LocalRecebimentoSalao, type PapelSalao, type ProdutoSalao } from "@/lib/salao-api";
 
 type ItemCarrinho = { produto: number; nome: string; preco: string; saldo: number; quantidade: number };
@@ -50,6 +50,49 @@ function iniciais(nome: string) {
   return nome.split(" ").filter(Boolean).slice(0, 2).map((parte) => parte[0]?.toUpperCase()).join("");
 }
 
+type DocumentosRecibo = { comprovante: boolean; nfse: boolean; nfce: boolean };
+type LinhaRecibo = { nome: string; total: string };
+type ReciboPronto = {
+  cliente: string;
+  numero: number;
+  valor: string;
+  forma: string;
+  quando: string;
+  linhas: LinhaRecibo[];
+  desconto: string;
+  telefone: string;
+  email: string;
+  documentos: DocumentosRecibo;
+};
+
+function escaparHtml(valor: string) {
+  return valor.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+function numeroWhatsapp(telefone: string) {
+  const digitos = (telefone || "").replace(/\D/g, "");
+  if (digitos.length === 10 || digitos.length === 11) return `55${digitos}`;
+  if (digitos.length >= 12) return digitos;
+  return "";
+}
+
+function textoRecibo(recibo: ReciboPronto, loja: string) {
+  const linhas = [
+    loja || "Salão",
+    "COMPROVANTE DE PAGAMENTO (NÃO FISCAL)",
+    `Nº ${String(recibo.numero).padStart(6, "0")} · ${recibo.quando}`,
+    `Cliente: ${recibo.cliente}`,
+    ...recibo.linhas.map((linha) => `${linha.nome} — ${reais(lerReais(linha.total))}`),
+  ];
+  if (lerReais(recibo.desconto) > 0) linhas.push(`Desconto: ${reais(lerReais(recibo.desconto))}`);
+  linhas.push(`Total pago: ${reais(lerReais(recibo.valor))}`);
+  linhas.push(`Forma de pagamento: ${recibo.forma}`);
+  if (recibo.documentos.nfse) linhas.push("NFS-e de serviço: não emitida neste caixa.");
+  if (recibo.documentos.nfce) linhas.push("NFC-e de produto: não emitida neste caixa.");
+  linhas.push("Este comprovante não substitui a emissão de Nota Fiscal (NFS-e) ou Cupom Fiscal (NFC-e).");
+  return linhas.join("\n");
+}
+
 export default function CaixaPdvPage() {
   const slug = (useParams()?.slug as string) ?? "";
   const [aba, setAba] = useState<"atendimentos" | "produtos">("atendimentos");
@@ -68,8 +111,9 @@ export default function CaixaPdvPage() {
   const [operador, setOperador] = useState("");
   const [erro, setErro] = useState("");
   const [salvando, setSalvando] = useState(false);
-  const [sucesso, setSucesso] = useState<{ cliente: string; numero: number; valor: string; forma: string; quando: string } | null>(null);
-  const [documentos, setDocumentos] = useState({ comprovante: true, nfse: true, nfce: true });
+  const [sucesso, setSucesso] = useState<ReciboPronto | null>(null);
+  const [avisoEntrega, setAvisoEntrega] = useState("");
+  const [documentos, setDocumentos] = useState<DocumentosRecibo>({ comprovante: true, nfse: true, nfce: true });
 
   function carregar() {
     const fim = new Date();
@@ -192,7 +236,22 @@ export default function CaixaPdvPage() {
         formas: total > 0 ? linhas.filter((linha) => lerReais(linha.valor) > 0).map((linha) => ({ forma: linha.forma, valor: lerReais(linha.valor).toFixed(2) })) : [],
         itens: carrinho.map((item) => ({ produto: item.produto, quantidade: item.quantidade })),
       });
-      setSucesso({ cliente: venda.cliente, numero: venda.numero, valor: venda.valor, forma: venda.forma_label, quando: venda.quando });
+      setAvisoEntrega("");
+      setSucesso({
+        cliente: venda.cliente,
+        numero: venda.numero,
+        valor: venda.valor,
+        forma: venda.forma_label,
+        quando: venda.quando,
+        desconto: valorDesconto.toFixed(2),
+        telefone: cliente?.telefone || "",
+        email: cliente?.email || "",
+        documentos: { ...documentos },
+        linhas: [
+          ...(atual ? [{ nome: `${atual.servico_nome} (Serviço)`, total: preco.toFixed(2) }] : []),
+          ...carrinho.map((item) => ({ nome: `${item.quantidade}× ${item.nome}`, total: (lerReais(item.preco) * item.quantidade).toFixed(2) })),
+        ],
+      });
       setEscolhido(null);
       setCarrinho([]);
       setDesconto("");
@@ -207,6 +266,61 @@ export default function CaixaPdvPage() {
   }
 
   const temConteudo = Boolean(atual) || carrinho.length > 0;
+  const linhasPrevia = sucesso
+    ? sucesso.linhas
+    : [
+        ...(atual ? [{ nome: `${atual.servico_nome} (Serviço)`, total: preco.toFixed(2) }] : []),
+        ...carrinho.map((item) => ({ nome: `${item.quantidade}× ${item.nome}`, total: (lerReais(item.preco) * item.quantidade).toFixed(2) })),
+      ];
+
+  function fecharRecibo() {
+    setSucesso(null);
+    setAvisoEntrega("");
+  }
+
+  function marcarDocumento(chave: keyof DocumentosRecibo, marcado: boolean) {
+    setDocumentos((atualDocs) => ({ ...atualDocs, [chave]: marcado }));
+    setSucesso((atualRecibo) => atualRecibo ? { ...atualRecibo, documentos: { ...atualRecibo.documentos, [chave]: marcado } } : atualRecibo);
+    setAvisoEntrega("");
+  }
+
+  function exigirComprovante(recibo: ReciboPronto) {
+    if (recibo.documentos.comprovante) return true;
+    setAvisoEntrega("Marque o comprovante não fiscal. A nota de serviço e o cupom fiscal não são emitidos neste caixa.");
+    return false;
+  }
+
+  function imprimirRecibo(recibo: ReciboPronto) {
+    if (!exigirComprovante(recibo)) return;
+    const janela = window.open("", "_blank", "noopener,noreferrer");
+    if (!janela) {
+      setAvisoEntrega("O navegador bloqueou a janela de impressão.");
+      return;
+    }
+    const itens = recibo.linhas.map((linha) => `<p style="display:flex;justify-content:space-between;gap:12px"><span>${escaparHtml(linha.nome)}</span><span>${escaparHtml(reais(lerReais(linha.total)))}</span></p>`).join("");
+    const descontoHtml = lerReais(recibo.desconto) > 0 ? `<p style="display:flex;justify-content:space-between"><span>Desconto</span><span>${escaparHtml(reais(lerReais(recibo.desconto)))}</span></p>` : "";
+    const fiscal = `${recibo.documentos.nfse ? "<p>NFS-e de serviço: não emitida neste caixa.</p>" : ""}${recibo.documentos.nfce ? "<p>NFC-e de produto: não emitida neste caixa.</p>" : ""}`;
+    janela.document.write(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Comprovante ${recibo.numero}</title></head><body style="font-family:sans-serif;max-width:360px;margin:24px auto;font-size:14px"><h1 style="font-size:16px;text-align:center">${escaparHtml(operador || "Salão")}</h1><p style="text-align:center;letter-spacing:.04em">COMPROVANTE DE PAGAMENTO<br>(NÃO FISCAL)</p><p style="display:flex;justify-content:space-between"><span>Nº ${String(recibo.numero).padStart(6, "0")}</span><span>${escaparHtml(recibo.quando)}</span></p><p>Cliente: ${escaparHtml(recibo.cliente)}</p>${itens}${descontoHtml}<p style="display:flex;justify-content:space-between;font-weight:700;border-top:1px solid #ddd;padding-top:8px"><span>Total pago</span><span>${escaparHtml(reais(lerReais(recibo.valor)))}</span></p><p>Forma de pagamento: ${escaparHtml(recibo.forma)}</p>${fiscal}<p style="font-size:12px;color:#666">Este comprovante não substitui a emissão de Nota Fiscal (NFS-e) ou Cupom Fiscal (NFC-e).</p></body></html>`);
+    janela.document.close();
+    window.setTimeout(() => {
+      janela.focus();
+      janela.print();
+    }, 50);
+  }
+
+  function enviarEmail(recibo: ReciboPronto) {
+    if (!exigirComprovante(recibo) || !recibo.email) return;
+    const assunto = encodeURIComponent(`Comprovante ${String(recibo.numero).padStart(6, "0")}`);
+    const corpo = encodeURIComponent(textoRecibo(recibo, operador));
+    window.open(`mailto:${recibo.email}?subject=${assunto}&body=${corpo}`, "_blank", "noopener,noreferrer");
+  }
+
+  function enviarWhatsapp(recibo: ReciboPronto) {
+    if (!exigirComprovante(recibo)) return;
+    const numero = numeroWhatsapp(recibo.telefone);
+    if (!numero) return;
+    window.open(`https://wa.me/${numero}?text=${encodeURIComponent(textoRecibo(recibo, operador))}`, "_blank", "noopener,noreferrer");
+  }
 
   return (
     <div className="space-y-4">
@@ -264,14 +378,6 @@ export default function CaixaPdvPage() {
         </section>
 
         <section className="rounded-3xl bg-white p-4">
-          {sucesso ? (
-            <div className="mb-4 rounded-2xl bg-[#e7f6ee] p-4">
-              <p className="font-semibold text-[#1f8a4c]">Pagamento registrado com sucesso</p>
-              <p className="mt-1 text-sm">{sucesso.cliente} · comprovante {sucesso.numero}</p>
-              <p className="text-sm text-[#5c3d45]">{reais(lerReais(sucesso.valor))} · {sucesso.forma} · {sucesso.quando}</p>
-              <button type="button" className="mt-3 rounded-full bg-[#7a3044] px-3 py-1.5 text-sm text-white" onClick={() => setSucesso(null)}>Fechar</button>
-            </div>
-          ) : null}
           <div className="flex items-start justify-between gap-3 rounded-2xl border border-[#f0e4e7] p-3">
             <div className="flex gap-3">
               <span className="grid h-10 w-10 place-items-center rounded-full bg-[#f6eef0] text-[#7a3044]"><UserRound size={18} /></span>
@@ -405,8 +511,7 @@ export default function CaixaPdvPage() {
               </div>
               <p className="mt-2 text-left text-xs">Cliente: {atual?.cliente_nome || sucesso?.cliente || "—"}</p>
               <div className="mt-3 space-y-1 text-left text-xs">
-                {atual ? <p className="flex justify-between gap-2"><span>{atual.servico_nome} (Serviço)</span><span>{reais(preco)}</span></p> : null}
-                {carrinho.map((item) => <p key={item.produto} className="flex justify-between gap-2"><span>{item.quantidade}× {item.nome}</span><span>{reais(lerReais(item.preco) * item.quantidade)}</span></p>)}
+                {linhasPrevia.map((linha) => <p key={linha.nome} className="flex justify-between gap-2"><span>{linha.nome}</span><span>{reais(lerReais(linha.total))}</span></p>)}
               </div>
               <p className="mt-3 flex justify-between border-t border-[#f0e4e7] pt-2 font-semibold"><span>Total pago</span><span>{reais(sucesso ? lerReais(sucesso.valor) : total)}</span></p>
               <p className="mt-2 text-left text-xs">Forma de pagamento: {sucesso?.forma || formaLabel}</p>
@@ -415,6 +520,65 @@ export default function CaixaPdvPage() {
           </div>
         </section>
       </div>
+      {sucesso ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-2xl rounded-2xl bg-white shadow-xl">
+            <div className="flex items-center justify-between border-b border-[#f0e4e7] p-4">
+              <h2 className="text-lg font-bold text-green-700">✓ Pagamento registrado</h2>
+              <button type="button" onClick={fecharRecibo} aria-label="Fechar" className="rounded-lg p-2 hover:bg-[#f6eef0]"><X size={18} /></button>
+            </div>
+            <div className="space-y-4 p-6">
+              <div className="space-y-1 rounded-lg bg-green-50 p-4 text-sm">
+                <p><strong>Cliente:</strong> {sucesso.cliente}</p>
+                <p><strong>Valor:</strong> {reais(lerReais(sucesso.valor))}</p>
+                <p><strong>Valor recebido nesta operação:</strong> {reais(lerReais(sucesso.valor))}</p>
+                <p><strong>Formas nesta operação:</strong> {sucesso.forma}</p>
+                <p className="pt-1 text-xs text-[#8a6e74]">O recibo impresso, o WhatsApp e o e-mail listam as formas e o total pago. Comprovante {String(sucesso.numero).padStart(6, "0")} · {sucesso.quando}</p>
+              </div>
+              <div>
+                <p className="text-sm font-medium">Documentos para o cliente</p>
+                {([
+                  ["comprovante", "Comprovante não fiscal", "Resumo do pagamento (serviços e produtos)."],
+                  ["nfse", "NFS-e (Serviços)", "Nota Fiscal de Serviço Eletrônica."],
+                  ["nfce", "NFC-e (Produtos)", "Cupom Fiscal Eletrônico de Produtos."],
+                ] as const).map(([chave, titulo, texto]) => (
+                  <label key={chave} className="mt-3 flex items-start justify-between gap-3 text-sm">
+                    <span>
+                      <span className="block font-medium">{titulo}</span>
+                      <span className="block text-[#8a6e74]">{texto}</span>
+                    </span>
+                    <input type="checkbox" checked={sucesso.documentos[chave]} onChange={(evento) => marcarDocumento(chave, evento.target.checked)} className="mt-1 h-4 w-4 accent-[#7a3044]" />
+                  </label>
+                ))}
+                {sucesso.documentos.nfse || sucesso.documentos.nfce ? (
+                  <p className="mt-3 text-xs text-[#8a6e74]">A nota de serviço e o cupom fiscal não são emitidos neste caixa. O cliente recebe o comprovante não fiscal.</p>
+                ) : null}
+              </div>
+              <p className="text-sm text-[#5c3d45]">Envie o recibo de pagamento para o cliente:</p>
+              <div className="grid grid-cols-3 gap-3">
+                <button type="button" onClick={() => imprimirRecibo(sucesso)} className="flex flex-col items-center gap-2 rounded-xl border border-[#eadfe2] p-4 hover:bg-[#f6eef0]">
+                  <Printer size={24} />
+                  <span className="text-xs font-medium">Imprimir</span>
+                </button>
+                <button type="button" onClick={() => enviarEmail(sucesso)} disabled={!sucesso.email} className="flex flex-col items-center gap-2 rounded-xl border border-[#eadfe2] p-4 hover:bg-[#f6eef0] disabled:opacity-40">
+                  <Mail size={24} />
+                  <span className="text-xs font-medium">Email</span>
+                  <span className="text-center text-[11px] text-[#8a6e74]">{sucesso.email ? "Enviar o comprovante" : "Cliente sem e-mail"}</span>
+                </button>
+                <button type="button" onClick={() => enviarWhatsapp(sucesso)} disabled={!numeroWhatsapp(sucesso.telefone)} className="flex flex-col items-center gap-2 rounded-xl border border-[#eadfe2] p-4 hover:bg-[#f6eef0] disabled:opacity-40">
+                  <MessageCircle size={24} />
+                  <span className="text-xs font-medium">WhatsApp</span>
+                  <span className="text-center text-[11px] text-[#8a6e74]">{numeroWhatsapp(sucesso.telefone) ? "Abrir a conversa" : "Cliente sem telefone"}</span>
+                </button>
+              </div>
+              {avisoEntrega ? <p className="text-sm text-red-700">{avisoEntrega}</p> : null}
+              <div className="flex justify-end">
+                <button type="button" onClick={fecharRecibo} className="rounded-lg bg-[#7a3044] px-4 py-2 text-sm text-white">Fechar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

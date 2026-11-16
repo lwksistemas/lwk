@@ -51,7 +51,7 @@ function iniciais(nome: string) {
 }
 
 type DocumentosRecibo = { comprovante: boolean; nfse: boolean; nfce: boolean };
-type LinhaRecibo = { nome: string; total: string };
+type LinhaRecibo = { nome: string; detalhe: string; total: string };
 type ReciboPronto = {
   cliente: string;
   numero: number;
@@ -82,7 +82,7 @@ function textoRecibo(recibo: ReciboPronto, loja: string) {
     "COMPROVANTE DE PAGAMENTO (NÃO FISCAL)",
     `Nº ${String(recibo.numero).padStart(6, "0")} · ${recibo.quando}`,
     `Cliente: ${recibo.cliente}`,
-    ...recibo.linhas.map((linha) => `${linha.nome} — ${reais(lerReais(linha.total))}`),
+    ...recibo.linhas.flatMap((linha) => [linha.detalhe ? `${linha.nome} — ${reais(lerReais(linha.total))}\n${linha.detalhe}` : `${linha.nome} — ${reais(lerReais(linha.total))}`]),
   ];
   if (lerReais(recibo.desconto) > 0) linhas.push(`Desconto: ${reais(lerReais(recibo.desconto))}`);
   linhas.push(`Total pago: ${reais(lerReais(recibo.valor))}`);
@@ -248,8 +248,8 @@ export default function CaixaPdvPage() {
         email: cliente?.email || "",
         documentos: { ...documentos },
         linhas: [
-          ...(atual ? [{ nome: `${atual.servico_nome} (Serviço)`, total: preco.toFixed(2) }] : []),
-          ...carrinho.map((item) => ({ nome: `${item.quantidade}× ${item.nome}`, total: (lerReais(item.preco) * item.quantidade).toFixed(2) })),
+          ...(atual ? [{ nome: `${atual.servico_nome} (Serviço)`, detalhe: atual.profissional_nome ? `Profissional: ${atual.profissional_nome}` : "", total: preco.toFixed(2) }] : []),
+          ...carrinho.map((item) => ({ nome: `${item.quantidade}× ${item.nome}`, detalhe: "", total: (lerReais(item.preco) * item.quantidade).toFixed(2) })),
         ],
       });
       setEscolhido(null);
@@ -269,8 +269,8 @@ export default function CaixaPdvPage() {
   const linhasPrevia = sucesso
     ? sucesso.linhas
     : [
-        ...(atual ? [{ nome: `${atual.servico_nome} (Serviço)`, total: preco.toFixed(2) }] : []),
-        ...carrinho.map((item) => ({ nome: `${item.quantidade}× ${item.nome}`, total: (lerReais(item.preco) * item.quantidade).toFixed(2) })),
+        ...(atual ? [{ nome: `${atual.servico_nome} (Serviço)`, detalhe: atual.profissional_nome ? `Profissional: ${atual.profissional_nome}` : "", total: preco.toFixed(2) }] : []),
+        ...carrinho.map((item) => ({ nome: `${item.quantidade}× ${item.nome}`, detalhe: "", total: (lerReais(item.preco) * item.quantidade).toFixed(2) })),
       ];
 
   function fecharRecibo() {
@@ -292,19 +292,33 @@ export default function CaixaPdvPage() {
 
   function imprimirRecibo(recibo: ReciboPronto) {
     if (!exigirComprovante(recibo)) return;
-    const janela = window.open("", "_blank", "noopener,noreferrer");
-    if (!janela) {
-      setAvisoEntrega("O navegador bloqueou a janela de impressão.");
-      return;
-    }
-    const itens = recibo.linhas.map((linha) => `<p style="display:flex;justify-content:space-between;gap:12px"><span>${escaparHtml(linha.nome)}</span><span>${escaparHtml(reais(lerReais(linha.total)))}</span></p>`).join("");
+    const itens = recibo.linhas.map((linha) => `<p style="display:flex;justify-content:space-between;gap:12px;margin:0"><span>${escaparHtml(linha.nome)}</span><span>${escaparHtml(reais(lerReais(linha.total)))}</span></p>${linha.detalhe ? `<p style="margin:0 0 8px;color:#555;font-size:12px">${escaparHtml(linha.detalhe)}</p>` : ""}`).join("");
     const descontoHtml = lerReais(recibo.desconto) > 0 ? `<p style="display:flex;justify-content:space-between"><span>Desconto</span><span>${escaparHtml(reais(lerReais(recibo.desconto)))}</span></p>` : "";
     const fiscal = `${recibo.documentos.nfse ? "<p>NFS-e de serviço: não emitida neste caixa.</p>" : ""}${recibo.documentos.nfce ? "<p>NFC-e de produto: não emitida neste caixa.</p>" : ""}`;
-    janela.document.write(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Comprovante ${recibo.numero}</title></head><body style="font-family:sans-serif;max-width:360px;margin:24px auto;font-size:14px"><h1 style="font-size:16px;text-align:center">${escaparHtml(operador || "Salão")}</h1><p style="text-align:center;letter-spacing:.04em">COMPROVANTE DE PAGAMENTO<br>(NÃO FISCAL)</p><p style="display:flex;justify-content:space-between"><span>Nº ${String(recibo.numero).padStart(6, "0")}</span><span>${escaparHtml(recibo.quando)}</span></p><p>Cliente: ${escaparHtml(recibo.cliente)}</p>${itens}${descontoHtml}<p style="display:flex;justify-content:space-between;font-weight:700;border-top:1px solid #ddd;padding-top:8px"><span>Total pago</span><span>${escaparHtml(reais(lerReais(recibo.valor)))}</span></p><p>Forma de pagamento: ${escaparHtml(recibo.forma)}</p>${fiscal}<p style="font-size:12px;color:#666">Este comprovante não substitui a emissão de Nota Fiscal (NFS-e) ou Cupom Fiscal (NFC-e).</p></body></html>`);
-    janela.document.close();
+    const html = `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Comprovante ${recibo.numero}</title></head><body style="font-family:sans-serif;max-width:360px;margin:24px auto;font-size:14px"><h1 style="font-size:16px;text-align:center">${escaparHtml(operador || "Salão")}</h1><p style="text-align:center;letter-spacing:.04em">COMPROVANTE DE PAGAMENTO<br>(NÃO FISCAL)</p><p style="display:flex;justify-content:space-between"><span>Nº ${String(recibo.numero).padStart(6, "0")}</span><span>${escaparHtml(recibo.quando)}</span></p><p>Cliente: ${escaparHtml(recibo.cliente)}</p>${itens}${descontoHtml}<p style="display:flex;justify-content:space-between;font-weight:700;border-top:1px solid #ddd;padding-top:8px"><span>Total pago</span><span>${escaparHtml(reais(lerReais(recibo.valor)))}</span></p><p>Forma de pagamento: ${escaparHtml(recibo.forma)}</p>${fiscal}<p style="font-size:12px;color:#666">Este comprovante não substitui a emissão de Nota Fiscal (NFS-e) ou Cupom Fiscal (NFC-e).</p></body></html>`;
+    const quadro = document.createElement("iframe");
+    quadro.setAttribute("title", "Impressão do comprovante");
+    quadro.style.position = "fixed";
+    quadro.style.right = "0";
+    quadro.style.bottom = "0";
+    quadro.style.width = "0";
+    quadro.style.height = "0";
+    quadro.style.border = "0";
+    document.body.appendChild(quadro);
+    const documento = quadro.contentDocument;
+    const janela = quadro.contentWindow;
+    if (!documento || !janela) {
+      quadro.remove();
+      setAvisoEntrega("Não foi possível preparar a impressão.");
+      return;
+    }
+    documento.open();
+    documento.write(html);
+    documento.close();
     window.setTimeout(() => {
       janela.focus();
       janela.print();
+      window.setTimeout(() => quadro.remove(), 1000);
     }, 50);
   }
 
@@ -511,7 +525,12 @@ export default function CaixaPdvPage() {
               </div>
               <p className="mt-2 text-left text-xs">Cliente: {atual?.cliente_nome || sucesso?.cliente || "—"}</p>
               <div className="mt-3 space-y-1 text-left text-xs">
-                {linhasPrevia.map((linha) => <p key={linha.nome} className="flex justify-between gap-2"><span>{linha.nome}</span><span>{reais(lerReais(linha.total))}</span></p>)}
+                {linhasPrevia.map((linha) => (
+                  <div key={linha.nome}>
+                    <p className="flex justify-between gap-2"><span>{linha.nome}</span><span>{reais(lerReais(linha.total))}</span></p>
+                    {linha.detalhe ? <p className="text-[#8a6e74]">{linha.detalhe}</p> : null}
+                  </div>
+                ))}
               </div>
               <p className="mt-3 flex justify-between border-t border-[#f0e4e7] pt-2 font-semibold"><span>Total pago</span><span>{reais(sucesso ? lerReais(sucesso.valor) : total)}</span></p>
               <p className="mt-2 text-left text-xs">Forma de pagamento: {sucesso?.forma || formaLabel}</p>
@@ -530,6 +549,7 @@ export default function CaixaPdvPage() {
             <div className="space-y-4 p-6">
               <div className="space-y-1 rounded-lg bg-green-50 p-4 text-sm">
                 <p><strong>Cliente:</strong> {sucesso.cliente}</p>
+                {sucesso.linhas.filter((linha) => linha.detalhe).map((linha) => <p key={linha.nome}><strong>{linha.detalhe}</strong></p>)}
                 <p><strong>Valor:</strong> {reais(lerReais(sucesso.valor))}</p>
                 <p><strong>Valor recebido nesta operação:</strong> {reais(lerReais(sucesso.valor))}</p>
                 <p><strong>Formas nesta operação:</strong> {sucesso.forma}</p>

@@ -272,6 +272,8 @@ export const SalaoAPI = {
   vender: (corpo: { agendamento?: number; agendamentos?: number[]; desconto: string; origem?: "caixa" | "agenda"; formas?: { forma: string; valor: string }[]; itens?: { produto: number; quantidade: number }[]; nfse?: boolean; nfce?: boolean }) =>
     salaoFetch<VendaSalao>("/vendas/", { method: "POST", body: JSON.stringify(corpo) }),
   venda: (numero: number) => salaoFetch<VendaSalao>(`/vendas/${numero}/`),
+  enviarRecibo: (numero: number, canal: "email" | "whatsapp") =>
+    salaoFetch<{ success: boolean; message: string }>(`/vendas/${numero}/enviar/`, { method: "POST", body: JSON.stringify({ canal }) }),
   receber: (id: number, corpo: { desconto: string; origem?: "agenda" | "caixa"; forma?: string; formas?: { forma: string; valor: string }[] }) =>
     salaoFetch<AgendamentoSalao>(`/agendamentos/${id}/receber/`, { method: "POST", body: JSON.stringify(corpo) }),
   estornarRecebimento: (id: number) => salaoFetch(`/recebimentos/${id}/`, { method: "DELETE" }),

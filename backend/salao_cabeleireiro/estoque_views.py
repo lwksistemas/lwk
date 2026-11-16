@@ -185,3 +185,19 @@ class VendaDetailView(APIView):
         if venda is None:
             return _erro("Comprovante não encontrado.", status.HTTP_404_NOT_FOUND)
         return Response(publico_venda(venda))
+
+
+class VendaEnviarView(APIView):
+    permission_classes = [IsAuthenticated, IsSalaoMembro]
+
+    def post(self, request, numero):
+        from .models import Venda
+        from .recibo_envio import enviar_comprovante
+
+        venda = Venda.objects.filter(numero=numero, is_active=True).prefetch_related("itens").first()
+        if venda is None:
+            return _erro("Comprovante não encontrado.", status.HTTP_404_NOT_FOUND)
+        ok, mensagem = enviar_comprovante(venda, (request.data.get("canal") or "").strip(), user=request.user)
+        if not ok:
+            return _erro(mensagem)
+        return Response({"success": True, "message": mensagem})

@@ -13,6 +13,7 @@ from salao_cabeleireiro.caixa_service import (
     validar_documentos,
 )
 from salao_cabeleireiro.estoque_service import agrupar_pedidos, repartir_pagamento
+from salao_cabeleireiro.recibo_envio import enviar_comprovante, texto_do_comprovante
 from salao_cabeleireiro.fiscal_service import SalaoFiscalErro, gravar_nfce
 from salao_cabeleireiro.comunicacao_service import regras_de
 from salao_cabeleireiro.mensagens import na_janela_lembrete, texto_cancelamento, texto_confirmacao
@@ -137,6 +138,25 @@ class CaixaSalaoTest(unittest.TestCase):
             validar_documentos(True, False, {"nfce": True})
         with self.assertRaises(ValueError):
             validar_documentos(False, True, {"nfse": True})
+
+    def test_comprovante_lista_servico_total_e_forma(self):
+        texto = texto_do_comprovante({
+            "numero": 5,
+            "quando": "16/11/2026 14:39",
+            "cliente": "Felipe Felix",
+            "valor": "40.00",
+            "desconto": "0.00",
+            "forma_label": "Dinheiro e Pix",
+            "servicos": [{"nome": "Barba", "profissional": "Daniele Souza", "total": "40.00"}],
+            "itens": [],
+        }, "Salão Teste")
+        self.assertIn("Nº 000005", texto)
+        self.assertIn("Profissional: Daniele Souza", texto)
+        self.assertIn("Total pago: R$ 40,00", texto)
+        self.assertIn("Dinheiro e Pix", texto)
+        ok, mensagem = enviar_comprovante(object(), "sms")
+        self.assertFalse(ok)
+        self.assertIn("e-mail ou WhatsApp", mensagem)
 
     def test_quantidade_do_mesmo_produto_soma(self):
         pedidos = agrupar_pedidos([{"produto": 3, "quantidade": 1}, {"produto": "3", "quantidade": 2}])

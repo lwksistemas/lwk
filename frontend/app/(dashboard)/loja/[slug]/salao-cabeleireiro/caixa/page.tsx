@@ -170,6 +170,8 @@ export default function CaixaPdvPage() {
   const [salvando, setSalvando] = useState(false);
   const [sucesso, setSucesso] = useState<ReciboPronto | null>(null);
   const [avisoEntrega, setAvisoEntrega] = useState("");
+  const [avisoOk, setAvisoOk] = useState(false);
+  const [enviando, setEnviando] = useState<"email" | "whatsapp" | null>(null);
   const [documentos, setDocumentos] = useState<DocumentosRecibo>({ comprovante: true, nfse: false, nfce: false });
 
   function carregar() {
@@ -387,6 +389,8 @@ export default function CaixaPdvPage() {
   function fecharRecibo() {
     setSucesso(null);
     setAvisoEntrega("");
+    setAvisoOk(false);
+    setEnviando(null);
   }
 
   function marcarDocumento(chave: keyof DocumentosRecibo, marcado: boolean) {
@@ -398,11 +402,13 @@ export default function CaixaPdvPage() {
     setDocumentos((atualDocs) => ({ ...atualDocs, [chave]: marcado }));
     setSucesso((atualRecibo) => atualRecibo ? { ...atualRecibo, documentos: { ...atualRecibo.documentos, [chave]: marcado } } : atualRecibo);
     setAvisoEntrega("");
+    setAvisoOk(false);
   }
 
   function exigirComprovante(recibo: ReciboPronto) {
     if (recibo.documentos.comprovante) return true;
     setAvisoEntrega("Marque o comprovante não fiscal. A nota de serviço e o cupom fiscal não são emitidos neste caixa.");
+    setAvisoOk(false);
     return false;
   }
 
@@ -426,6 +432,7 @@ export default function CaixaPdvPage() {
     if (!documento || !janela) {
       quadro.remove();
       setAvisoEntrega("Não foi possível preparar a impressão.");
+      setAvisoOk(false);
       return;
     }
     documento.open();
@@ -438,18 +445,23 @@ export default function CaixaPdvPage() {
     }, 50);
   }
 
-  function enviarEmail(recibo: ReciboPronto) {
-    if (!exigirComprovante(recibo) || !recibo.email) return;
-    const assunto = encodeURIComponent(`Comprovante ${String(recibo.numero).padStart(6, "0")}`);
-    const corpo = encodeURIComponent(textoRecibo(recibo, operador));
-    window.open(`mailto:${recibo.email}?subject=${assunto}&body=${corpo}`, "_blank", "noopener,noreferrer");
-  }
-
-  function enviarWhatsapp(recibo: ReciboPronto) {
-    if (!exigirComprovante(recibo)) return;
-    const numero = numeroWhatsapp(recibo.telefone);
-    if (!numero) return;
-    window.open(`https://wa.me/${numero}?text=${encodeURIComponent(textoRecibo(recibo, operador))}`, "_blank", "noopener,noreferrer");
+  async function enviarRecibo(recibo: ReciboPronto, canal: "email" | "whatsapp") {
+    if (!exigirComprovante(recibo) || enviando) return;
+    if (canal === "email" && !recibo.email) return;
+    if (canal === "whatsapp" && !numeroWhatsapp(recibo.telefone)) return;
+    setEnviando(canal);
+    setAvisoEntrega("");
+    setAvisoOk(false);
+    try {
+      const resposta = await SalaoAPI.enviarRecibo(recibo.numero, canal);
+      setAvisoEntrega(resposta.message);
+      setAvisoOk(true);
+    } catch (exc) {
+      setAvisoEntrega(exc instanceof Error ? exc.message : "Não foi possível enviar o recibo.");
+      setAvisoOk(false);
+    } finally {
+      setEnviando(null);
+    }
   }
 
   return (
@@ -721,18 +733,18 @@ export default function CaixaPdvPage() {
                   <Download size={24} />
                   <span className="text-xs font-medium">Baixar PDF</span>
                 </button>
-                <button type="button" onClick={() => enviarEmail(sucesso)} disabled={!sucesso.email} className="flex flex-col items-center gap-2 rounded-xl border border-[#eadfe2] p-4 hover:bg-[#f6eef0] disabled:opacity-40">
+                <button type="button" onClick={() => void enviarRecibo(sucesso, "email")} disabled={!sucesso.email || enviando !== null} className="flex flex-col items-center gap-2 rounded-xl border border-[#eadfe2] p-4 hover:bg-[#f6eef0] disabled:opacity-40">
                   <Mail size={24} />
-                  <span className="text-xs font-medium">Enviar por e-mail</span>
-                  <span className="text-center text-[11px] text-[#8a6e74]">{sucesso.email ? "Abre o e-mail do computador" : "Cliente sem e-mail"}</span>
+                  <span className="text-xs font-medium">{enviando === "email" ? "Enviando..." : "Enviar por e-mail"}</span>
+                  <span className="text-center text-[11px] text-[#8a6e74]">{sucesso.email ? "Enviar o recibo por e-mail" : "Cliente sem e-mail"}</span>
                 </button>
-                <button type="button" onClick={() => enviarWhatsapp(sucesso)} disabled={!numeroWhatsapp(sucesso.telefone)} className="flex flex-col items-center gap-2 rounded-xl border border-[#eadfe2] p-4 hover:bg-[#f6eef0] disabled:opacity-40">
+                <button type="button" onClick={() => void enviarRecibo(sucesso, "whatsapp")} disabled={!numeroWhatsapp(sucesso.telefone) || enviando !== null} className="flex flex-col items-center gap-2 rounded-xl border border-[#eadfe2] p-4 hover:bg-[#f6eef0] disabled:opacity-40">
                   <MessageCircle size={24} />
-                  <span className="text-xs font-medium">Enviar por WhatsApp</span>
-                  <span className="text-center text-[11px] text-[#8a6e74]">{numeroWhatsapp(sucesso.telefone) ? "Abre a conversa para você enviar. Não usa o envio automático." : "Cliente sem telefone"}</span>
+                  <span className="text-xs font-medium">{enviando === "whatsapp" ? "Enviando..." : "Enviar por WhatsApp"}</span>
+                  <span className="text-center text-[11px] text-[#8a6e74]">{numeroWhatsapp(sucesso.telefone) ? "Enviar o recibo pelo WhatsApp" : "Cliente sem telefone"}</span>
                 </button>
               </div>
-              {avisoEntrega ? <p className="text-sm text-red-700">{avisoEntrega}</p> : null}
+              {avisoEntrega ? <p className={`text-sm ${avisoOk ? "text-green-700" : "text-red-700"}`}>{avisoEntrega}</p> : null}
               <div className="flex justify-end">
                 <button type="button" onClick={fecharRecibo} className="rounded-lg bg-[#7a3044] px-4 py-2 text-sm text-white">Fechar</button>
               </div>

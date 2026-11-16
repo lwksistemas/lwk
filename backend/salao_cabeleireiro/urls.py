@@ -1,7 +1,7 @@
 from django.urls import path
 
 from .loja_config import IdentidadeView, LojaInfoView
-from .estoque_views import ProdutoDetailView, ProdutoListCreateView, VendaCreateView, VendaDetailView
+from .estoque_views import ProdutoDetailView, ProdutoListCreateView, VendaCreateView, VendaDetailView, VendaEnviarView
 from .nfe_entrada_views import (
     ImportarXmlView,
     NfeConfirmarView,
@@ -50,6 +50,7 @@ urlpatterns = [
     path("caixa/", CaixaView.as_view(), name="salao-caixa"),
     path("vendas/", VendaCreateView.as_view(), name="salao-vendas"),
     path("vendas/<int:numero>/", VendaDetailView.as_view(), name="salao-venda"),
+    path("vendas/<int:numero>/enviar/", VendaEnviarView.as_view(), name="salao-venda-enviar"),
     path("produtos/", ProdutoListCreateView.as_view(), name="salao-produtos"),
     path("produtos/<int:pk>/", ProdutoDetailView.as_view(), name="salao-produto"),
     path("estoque/importar-xml/", ImportarXmlView.as_view(), name="salao-importar-xml"),

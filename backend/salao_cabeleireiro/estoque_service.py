@@ -4,6 +4,28 @@ from decimal import Decimal
 from django.db import transaction
 from django.utils import timezone
 
+
+def banco_da_loja():
+    from tenants.middleware import get_current_tenant_db
+
+    banco = get_current_tenant_db()
+    return banco if banco and banco != "default" else None
+
+
+def tenant_atomic():
+    """select_for_update só vale na conexão do schema da loja."""
+    banco = banco_da_loja()
+    if banco:
+        return transaction.atomic(using=banco)
+    return transaction.atomic()
+
+
+def gravar(modelo, **kwargs):
+    banco = banco_da_loja()
+    if banco:
+        return modelo.objects.using(banco).create(**kwargs)
+    return modelo.objects.create(**kwargs)
+
 from .caixa_service import calcular_recebimento, interpretar_formas, motivo_bloqueio_recebimento, quantia, rotulo_formas
 from .models import MovimentoEstoque, Produto, Recebimento, Venda, VendaItem
 
@@ -57,7 +79,8 @@ def _baixar(produto, quantidade, venda):
         raise ValueError(f"{produto.nome} tem {produto.saldo} no estoque.")
     produto.saldo -= quantidade
     produto.save(update_fields=["saldo"])
-    MovimentoEstoque.objects.create(
+    gravar(
+        MovimentoEstoque,
         produto=produto,
         venda=venda,
         tipo="saida",
@@ -78,11 +101,11 @@ def registrar_venda(dados, agendamento, papel: str, local: str, origem: str) -> 
         motivo = motivo_bloqueio_recebimento(local, origem, papel)
         if motivo:
             raise PermissionError(motivo)
-    with transaction.atomic():
-        produtos = {
-            item.id: item
-            for item in Produto.objects.select_for_update().filter(id__in=[pedido["produto"] for pedido in pedidos], is_active=True)
-        }
+    with tenant_atomic():
+        bloqueados = Produto.objects.none()
+        if pedidos:
+            bloqueados = Produto.objects.select_for_update().filter(id__in=[pedido["produto"] for pedido in pedidos], is_active=True)
+        produtos = {item.id: item for item in bloqueados}
         if len(produtos) != len(pedidos):
             raise ValueError("Um dos produtos não está mais à venda.")
         for pedido in pedidos:
@@ -107,7 +130,8 @@ def registrar_venda(dados, agendamento, papel: str, local: str, origem: str) -> 
         partes_servico, partes_produtos = repartir_pagamento(partes, valor_servico)
         recebimento = None
         if agendamento is not None:
-            recebimento = Recebimento.objects.create(
+            recebimento = gravar(
+                Recebimento,
                 agendamento=agendamento,
                 profissional=agendamento.profissional,
                 valor_servico=agendamento.servico.preco,
@@ -120,7 +144,8 @@ def registrar_venda(dados, agendamento, papel: str, local: str, origem: str) -> 
                 observacao=(dados.get("observacao") or "")[:200],
             )
         ultimo = Venda.objects.select_for_update().order_by("-numero").first()
-        venda = Venda.objects.create(
+        venda = gravar(
+            Venda,
             numero=(ultimo.numero if ultimo else 0) + 1,
             agendamento=agendamento,
             recebimento=recebimento,
@@ -138,7 +163,8 @@ def registrar_venda(dados, agendamento, papel: str, local: str, origem: str) -> 
             preco = quantia(produto.preco)
             total_item = (preco * pedido["quantidade"]).quantize(Decimal("0.01"))
             comissao_item = (total_item * quantia(produto.comissao_percentual) / Decimal("100")).quantize(Decimal("0.01"))
-            VendaItem.objects.create(
+            gravar(
+                VendaItem,
                 venda=venda,
                 produto=produto,
                 nome=produto.nome,
@@ -155,7 +181,7 @@ def registrar_venda(dados, agendamento, papel: str, local: str, origem: str) -> 
 def estornar_venda(venda: Venda):
     if venda is None or not venda.is_active:
         return
-    with transaction.atomic():
+    with tenant_atomic():
         venda = Venda.objects.select_for_update().get(pk=venda.pk)
         if not venda.is_active:
             return
@@ -165,7 +191,8 @@ def estornar_venda(venda: Venda):
             produto = Produto.objects.select_for_update().get(pk=item.produto_id)
             produto.saldo += item.quantidade
             produto.save(update_fields=["saldo"])
-            MovimentoEstoque.objects.create(
+            gravar(
+                MovimentoEstoque,
                 produto=produto,
                 venda=venda,
                 tipo="estorno",

@@ -1,5 +1,4 @@
 """Cadastro de produto e venda do caixa. A nota fiscal não é emitida aqui."""
-from django.db import transaction
 from django.db.models import Q
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
@@ -7,7 +6,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .caixa_service import quantia
-from .estoque_service import publico_produto, publico_venda, registrar_venda
+from .estoque_service import gravar, publico_produto, publico_venda, registrar_venda, tenant_atomic
 from .models import MovimentoEstoque, Produto
 from .permissions import IsSalaoAdmin, IsSalaoMembro, contexto_salao, papel_salao
 from .views import _agendamento_completo, _config, _erro
@@ -41,8 +40,9 @@ class ProdutoListCreateView(APIView):
         codigo = (request.data.get("codigo_barras") or "").strip()[:40]
         if codigo and Produto.objects.filter(is_active=True, codigo_barras=codigo).exists():
             return _erro("Já existe um produto com este código.")
-        with transaction.atomic():
-            produto = Produto.objects.create(
+        with tenant_atomic():
+            produto = gravar(
+                Produto,
                 nome=nome[:120],
                 codigo_barras=codigo,
                 preco=preco,
@@ -50,7 +50,8 @@ class ProdutoListCreateView(APIView):
                 comissao_percentual=comissao,
             )
             if saldo:
-                MovimentoEstoque.objects.create(
+                gravar(
+                    MovimentoEstoque,
                     produto=produto,
                     tipo="entrada",
                     quantidade=saldo,
@@ -81,7 +82,7 @@ class ProdutoDetailView(APIView):
         codigo = str(codigo).strip()[:40]
         if codigo and Produto.objects.filter(is_active=True, codigo_barras=codigo).exclude(pk=produto.pk).exists():
             return _erro("Já existe um produto com este código.")
-        with transaction.atomic():
+        with tenant_atomic():
             produto = Produto.objects.select_for_update().get(pk=produto.pk)
             diferenca = saldo - produto.saldo
             produto.nome = nome[:120]
@@ -91,7 +92,8 @@ class ProdutoDetailView(APIView):
             produto.comissao_percentual = comissao
             produto.save()
             if diferenca:
-                MovimentoEstoque.objects.create(
+                gravar(
+                    MovimentoEstoque,
                     produto=produto,
                     tipo="ajuste",
                     quantidade=diferenca,

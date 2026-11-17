@@ -712,24 +712,21 @@ export default function AgendaSalaoPage() {
                 })()}
                 {almocoDaColuna(coluna).map((faixa, indice, faixas) => {
                   const topo = (faixa.inicio - HORA_INICIO) * ALTURA_HORA;
-                  const ladoALado = modo === "semana" && faixas.length > 1;
+                  const sobrepostos = faixas.slice(0, indice).filter((outra) => outra.inicio < faixa.inicio + 0.4 && faixa.inicio < outra.fim).length;
                   const faixaHora = `${horaTexto(faixa.inicio)}–${horaTexto(faixa.fim)}`;
                   return (
                     <div
                       key={faixa.chave}
-                      className="pointer-events-none absolute"
+                      className="pointer-events-none absolute right-0.5 left-0.5"
                       style={{
                         top: Math.max(0, topo),
                         height: Math.max(28, (faixa.fim - faixa.inicio) * ALTURA_HORA),
-                        left: ladoALado ? `calc(${(100 / faixas.length) * indice}% + 2px)` : 2,
-                        width: ladoALado ? `calc(${100 / faixas.length}% - 4px)` : undefined,
-                        right: ladoALado ? undefined : 2,
                         zIndex: 4,
                       }}
                       title={`Almoço · ${faixa.nome} · ${faixaHora}`}
                     >
-                      <span className="absolute inset-y-0 left-0 w-1.5 rounded-full bg-[#d97706]" />
-                      <span className="ml-2.5 inline-block max-w-[calc(100%-10px)] truncate rounded bg-[#f8e7c8] px-1 py-0.5 text-[11px] font-medium text-[#7a4b12] shadow-sm">
+                      <span className="absolute inset-y-0 w-1.5 rounded-full bg-[#d97706]" style={{ left: sobrepostos * 8 }} />
+                      <span className="inline-block max-w-full truncate rounded bg-[#f8e7c8] px-1 py-0.5 text-[11px] font-medium text-[#7a4b12] shadow-sm" style={{ marginLeft: 8 + sobrepostos * 8, marginTop: sobrepostos * 18 }}>
                         Almoço{modo === "semana" ? ` · ${faixa.nome}` : ""} {faixaHora}
                       </span>
                     </div>

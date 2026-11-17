@@ -1,3 +1,4 @@
+import re
 import unittest
 from datetime import datetime, time, timedelta
 from decimal import Decimal
@@ -216,12 +217,19 @@ class CaixaSalaoTest(unittest.TestCase):
         self.assertIn("Shampoo", html)
         self.assertIn("Dinheiro", html)
         self.assertIn("Obrigado pela preferência!", html)
+        self.assertIn("Serviço", html)
+        self.assertIn("Formas de pagamento:", html)
+        self.assertNotIn("72mm", html)
         self.assertNotIn("<img", html)
         self.assertNotIn("Rua das Flores", html)
         cancelado = html_comprovante({**{"numero": 2, "quando": "", "cliente": "Ana", "valor": "10.00", "desconto": "0", "servicos": [], "produtos": [], "formas": [], "salao": {**cabecalho, "logo": "https://media.exemplo/logo.png"}}, "cancelado": True})
         self.assertIn("CANCELADO", cancelado)
         self.assertIn("<img", cancelado)
-        self.assertTrue(pdf_comprovante({"numero": 5, "quando": "16/11/2026 às 14:39", "cliente": "Felipe Felix", "valor": "40.00", "desconto": "0", "servicos": [{"nome": "Barba", "profissional": "Daniele Souza", "total": "40.00"}], "produtos": [], "formas": [{"nome": "Dinheiro", "valor": "40.00"}], "salao": cabecalho}).startswith(b"%PDF"))
+        pdf = pdf_comprovante({"numero": 5, "quando": "16/11/2026 às 14:39", "cliente": "Felipe Felix", "valor": "40.00", "desconto": "0", "servicos": [{"nome": "Barba", "profissional": "Daniele Souza", "total": "40.00"}], "produtos": [], "formas": [{"nome": "Dinheiro", "valor": "40.00"}], "salao": cabecalho})
+        self.assertTrue(pdf.startswith(b"%PDF"))
+        caixa = re.search(br"/MediaBox\s*\[\s*0\s+0\s+([0-9.]+)", pdf)
+        self.assertIsNotNone(caixa)
+        self.assertGreater(float(caixa.group(1)), 500)
 
     def test_quantidade_do_mesmo_produto_soma(self):
         pedidos = agrupar_pedidos([{"produto": 3, "quantidade": 1}, {"produto": "3", "quantidade": 2}])

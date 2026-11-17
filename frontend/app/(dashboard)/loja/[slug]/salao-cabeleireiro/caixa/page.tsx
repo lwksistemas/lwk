@@ -659,7 +659,7 @@ export default function CaixaPdvPage() {
         </section>
       ) : null}
 
-      <div className="grid items-start gap-4 xl:grid-cols-[300px_minmax(0,1fr)_320px]">
+      <div className="grid items-start gap-4 xl:grid-cols-[280px_minmax(0,1fr)_440px]">
         <section className="rounded-3xl bg-white p-4">
           <div className="grid grid-cols-2 gap-2">
             <button type="button" onClick={() => { setAba("atendimentos"); setBusca(""); }} className={`rounded-xl px-3 py-2 text-sm font-medium ${aba === "atendimentos" ? "bg-[#7a3044] text-white" : "bg-[#f6eef0] text-[#5c3d45]"}`}>

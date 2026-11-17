@@ -16,7 +16,7 @@ const OPCOES: { id: PainelSalao; nome: string; texto: string }[] = [
 const LISTA = [
   { titulo: "Layout do dashboard", descricao: "Operação do dia, agenda da semana ou gestão do mês.", href: "#layout", itens: ["Visualizar com dados de demonstração", "Gravar o layout do salão"] },
   { titulo: "Pagar assinatura", descricao: "Baixar boleto e ver o histórico de pagamentos.", href: "assinatura", itens: ["Baixar boleto", "Histórico de pagamento"] },
-  { titulo: "Identidade visual", descricao: "Cor do menu, fundo das páginas e cores dos status da agenda.", href: "aparencia", itens: ["Cor do menu", "Fundo das páginas", "Cores dos status na agenda"] },
+  { titulo: "Identidade visual", descricao: "Cor do menu, fundo das páginas, cores dos status e o visual da agenda.", href: "aparencia", itens: ["Cor do menu", "Fundo das páginas", "Visual da agenda"] },
   { titulo: "Configurar tela de login", descricao: "Logo, fundo e cores da tela de login do salão.", href: "login", itens: ["Logo", "Imagem de fundo", "Cores do login"] },
   { titulo: "Contato no recibo", descricao: "Telefone, e-mail, endereço, documento, cor e logomarca do recibo.", href: "contato", itens: ["Telefone do salão", "Endereço e CPF ou CNPJ", "Cor e logomarca do recibo"] },
   { titulo: "Mensagens no WhatsApp", descricao: "Confirmação, lembrete, mudança de horário e cancelamento.", href: "#mensagens", itens: ["Confirmação de horário", "Lembrete", "Aviso de mudança e cancelamento"] },

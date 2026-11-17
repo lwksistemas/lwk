@@ -146,6 +146,7 @@ type Props = {
   accentColor?: string;
   value?: string | null;
   onChange?: (visual: AgendaVisualId) => void;
+  construirAmostras?: (statusColors: AgendaStatusColorMap) => ReturnType<typeof buildSampleEvents>;
 };
 
 export function AgendaV7Preview({
@@ -153,6 +154,7 @@ export function AgendaV7Preview({
   accentColor = '#8B3D52',
   value,
   onChange,
+  construirAmostras,
 }: Props) {
   const [visual, setVisual] = useState<AgendaVisualId>(() =>
     normalizeAgendaVisual(value ?? AGENDA_VISUAL_DEFAULT),
@@ -162,7 +164,10 @@ export function AgendaV7Preview({
   const [erro, setErro] = useState<string | null>(null);
   const [carregando, setCarregando] = useState(false);
 
-  const events = useMemo(() => buildSampleEvents(statusColors), [statusColors]);
+  const events = useMemo(
+    () => (construirAmostras ? construirAmostras(statusColors) : buildSampleEvents(statusColors)),
+    [construirAmostras, statusColors],
+  );
   const eventContent = useMemo(
     () => makeAgendaFcEventContent({ showProfessional: true }),
     [],

@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import apiClient from "@/lib/api-client";
+import { agendaVisualStyleVars, normalizeAgendaVisual, type AgendaVisualId } from "@/lib/clinica-agenda-visual";
 import { STATUS_PADRAO, useStatusSalao } from "@/components/salao/cores-salao";
 import { diaTemAtendimento } from "@/components/salao/PaineisSalao";
 import { SalaoAPI, type AgendamentoSalao, type BloqueioSalao, type ClienteSalao, type FormaPagamentoSalao, type JornadaDia, type LocalRecebimentoSalao, type ProfissionalSalao, type ServicoSalao } from "@/lib/salao-api";
@@ -59,6 +61,9 @@ export default function AgendaSalaoPage() {
   const horarioAberto = useRef(false);
   const novoPedido = useRef("");
   const [modo, setModo] = useState<"dia" | "semana" | "mes">("semana");
+  const [visual, setVisual] = useState<AgendaVisualId>("pulse");
+  const [filtroProfissional, setFiltroProfissional] = useState("todos");
+  const [lista, setLista] = useState(false);
   const [cursor, setCursor] = useState(() => new Date());
   const [profissionais, setProfissionais] = useState<ProfissionalSalao[]>([]);
   const [servicos, setServicos] = useState<ServicoSalao[]>([]);
@@ -104,15 +109,16 @@ export default function AgendaSalaoPage() {
   const colunas = useMemo(() => {
     const inicio = new Date(periodo.inicio);
     if (modo === "dia") {
-      return profissionais.map((item) => ({ id: String(item.id), titulo: item.nome, data: inicio }));
+      const visiveis = filtroProfissional === "todos" ? profissionais : profissionais.filter((item) => String(item.id) === filtroProfissional);
+      return visiveis.map((item) => ({ id: String(item.id), titulo: item.nome, detalhe: item.especialidade, data: inicio }));
     }
-    if (modo === "mes") return [] as { id: string; titulo: string; data: Date }[];
+    if (modo === "mes") return [] as { id: string; titulo: string; detalhe: string; data: Date }[];
     return Array.from({ length: 7 }, (_, indice) => {
       const data = new Date(inicio);
       data.setDate(inicio.getDate() + indice);
-      return { id: data.toDateString(), titulo: data.toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit" }), data };
+      return { id: data.toDateString(), titulo: data.toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit" }), detalhe: "", data };
     }).filter((coluna) => diaTemAtendimento(coluna.data, "todos", profissionais, jornadas));
-  }, [periodo.inicio, modo, profissionais, jornadas]);
+  }, [periodo.inicio, modo, profissionais, jornadas, filtroProfissional]);
 
   const carregar = useCallback(() => {
     setErro("");
@@ -132,6 +138,9 @@ export default function AgendaSalaoPage() {
   }, [periodo.inicio, periodo.fim]);
 
   useEffect(() => { carregar(); }, [carregar]);
+  useEffect(() => {
+    apiClient.get<{ agenda_visual?: string }>("/salao-cabeleireiro/identidade/").then((resposta) => setVisual(normalizeAgendaVisual(resposta.data.agenda_visual))).catch(() => undefined);
+  }, []);
   useEffect(() => {
     SalaoAPI.formas().then((lista) => { if (lista.length) setFormasPagamento(lista); }).catch(() => undefined);
   }, []);
@@ -440,12 +449,19 @@ export default function AgendaSalaoPage() {
           <h1 className="text-3xl font-semibold">Agenda</h1>
           <p className="text-sm text-[#8a6e74]">Dia por profissional, semana por dia e mês. O horário ocupado não aceita outro atendimento.</p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <button type="button" className="rounded-full border bg-white px-3 py-1.5 text-sm" onClick={abrirFolga}>Folgas e bloqueios</button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button type="button" className="rounded-full border bg-white px-3 py-1.5 text-sm" onClick={() => setCursor(new Date())}>Hoje</button>
           <button type="button" className="rounded-full border bg-white px-3 py-1.5 text-sm" onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate() - (modo === "mes" ? 30 : modo === "semana" ? 7 : 1)))}>Anterior</button>
           <button type="button" className="rounded-full border bg-white px-3 py-1.5 text-sm" onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate() + (modo === "mes" ? 30 : modo === "semana" ? 7 : 1)))}>Próxima</button>
+          <button type="button" className={`rounded-full border px-3 py-1.5 text-sm ${lista ? "bg-[#7a3044] text-white" : "bg-white"}`} onClick={() => setLista((aberta) => !aberta)}>Lista</button>
+          <select className="rounded-full border bg-white px-3 py-1.5 text-sm" value={filtroProfissional} aria-label="Profissional" onChange={(evento) => setFiltroProfissional(evento.target.value)}>
+            <option value="todos">Todos os profissionais</option>
+            {profissionais.map((pessoa) => <option key={pessoa.id} value={pessoa.id}>{pessoa.nome}</option>)}
+          </select>
+          <Link href={`/loja/${slug}/salao-cabeleireiro/configuracoes/aparencia`} className="rounded-full border bg-white px-3 py-1.5 text-sm">Configurar</Link>
+          <button type="button" className="rounded-full border bg-white px-3 py-1.5 text-sm" onClick={abrirFolga}>Bloquear</button>
           {(["dia", "semana", "mes"] as const).map((item) => (
-            <button key={item} type="button" className={`rounded-full px-3 py-1.5 text-sm ${modo === item ? "bg-[#7a3044] text-white" : "bg-white"}`} onClick={() => setModo(item)}>
+            <button key={item} type="button" className={`rounded-full px-3 py-1.5 text-sm ${modo === item ? "bg-[#7a3044] text-white" : "bg-white"}`} onClick={() => { setModo(item); setLista(false); }}>
               {item === "dia" ? "Dia" : item === "semana" ? "Semana" : "Mês"}
             </button>
           ))}
@@ -455,17 +471,32 @@ export default function AgendaSalaoPage() {
       {erro ? <p className="mb-2 text-sm text-red-700">{erro}</p> : null}
       {aviso ? <p className="mb-2 text-sm text-[#1f8a4c]">{aviso}</p> : null}
       {profissionais.length === 0 ? <p className="mb-2 text-sm text-[#8a6e74]">Cadastre um profissional para abrir as colunas do dia.</p> : null}
-      {modo === "mes" ? (
-        <Mes cursor={cursor} eventos={eventos} aoAbrir={(data) => { setCursor(data); setModo("dia"); }} />
+      {lista ? (
+        <ul className="space-y-2 rounded-2xl border bg-white p-3" style={agendaVisualStyleVars(visual)}>
+          {eventos.filter((item) => item.status !== "CANCELLED" && (filtroProfissional === "todos" || String(item.profissional) === filtroProfissional)).length === 0 ? <li className="text-sm text-[#8a6e74]">Nenhum horário neste período.</li> : null}
+          {eventos.filter((item) => item.status !== "CANCELLED" && (filtroProfissional === "todos" || String(item.profissional) === filtroProfissional)).map((item) => (
+            <li key={item.id}>
+              <button type="button" className="flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2 text-left text-sm text-white" style={{ background: statusCores[item.status] || STATUS_PADRAO.SCHEDULED, borderRadius: "var(--agenda-card-radius, 12px)" }} onClick={() => { setForm(null); setSelecionado(item); }}>
+                <span>{new Date(item.inicio).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })} · {item.cliente_nome}</span>
+                <span className="truncate">{item.servico_nome} · {item.profissional_nome}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : modo === "mes" ? (
+        <div style={agendaVisualStyleVars(visual)}>
+          <Mes cursor={cursor} eventos={eventos.filter((item) => filtroProfissional === "todos" || String(item.profissional) === filtroProfissional)} statusCores={statusCores} aoAbrir={(data) => { setCursor(data); setModo("dia"); }} />
+        </div>
       ) : (
-        <div className="overflow-auto rounded-2xl border border-[#f0e4e6] bg-white">
+        <div className="overflow-auto rounded-2xl border bg-white" style={{ ...agendaVisualStyleVars(visual), borderColor: "var(--agenda-border, #f0e4e6)" }}>
           <div className="grid" style={{ gridTemplateColumns: `64px repeat(${Math.max(colunas.length, 1)}, minmax(140px, 1fr))` }}>
             <div />
             {colunas.map((coluna) => {
               const folgas = folgasDoDia(coluna.data).filter((item) => modo !== "dia" || !item.profissional || String(item.profissional) === coluna.id);
               return (
-                <div key={coluna.id} className="border-b border-l px-2 py-2 text-center text-xs text-[#8a6e74]">
-                  {coluna.titulo}
+                <div key={coluna.id} className="border-b border-l px-2 py-2 text-center text-xs text-[#8a6e74]" style={coluna.data.toDateString() === new Date().toDateString() ? { background: "var(--agenda-today-bg)" } : undefined}>
+                  <span className="block font-medium text-[#2a1c20]">{coluna.titulo}</span>
+                  {coluna.detalhe ? <span className="block truncate text-[10px] uppercase">{coluna.detalhe}</span> : null}
                   {folgas.map((item) => (
                     <span key={item.id} className="mt-1 block truncate text-[10px] text-[#7a3044]" title={item.titulo}>Folga · {item.profissional_nome}</span>
                   ))}
@@ -504,12 +535,13 @@ export default function AgendaSalaoPage() {
                   const fimHora = item.horario_fim ? Number(item.horario_fim.slice(0, 2)) + Number(item.horario_fim.slice(3, 5)) / 60 : HORA_FIM;
                   const topo = (inicioHora - HORA_INICIO) * ALTURA_HORA;
                   return (
-                    <div key={item.id} data-evento="1" className="absolute left-1 right-1 rounded-md bg-[#f3e6ea] px-1 py-0.5 text-[11px] text-[#7a3044]" style={{ top: Math.max(0, topo), height: Math.max(22, (fimHora - inicioHora) * ALTURA_HORA) }} title={item.titulo}>
-                      Folga · {item.titulo}
+                    <div key={item.id} data-evento="1" className="absolute left-1 right-1 border-l-4 border-[#d97706] bg-[#f8e7c8] px-1 py-0.5 text-[11px] text-[#7a4b12]" style={{ top: Math.max(0, topo), height: Math.max(22, (fimHora - inicioHora) * ALTURA_HORA), borderRadius: "var(--agenda-card-radius, 8px)" }} title={item.titulo}>
+                      Intervalo
+                      <span className="block truncate">{item.titulo}</span>
                     </div>
                   );
                 }) : null}
-                {eventos.filter((item) => item.status !== "CANCELLED").filter((item) => {
+                {eventos.filter((item) => item.status !== "CANCELLED" && (filtroProfissional === "todos" || String(item.profissional) === filtroProfissional)).filter((item) => {
                   const inicio = new Date(item.inicio);
                   const mesmoDia = inicio.toDateString() === coluna.data.toDateString();
                   return modo === "dia" ? mesmoDia && String(item.profissional) === coluna.id : mesmoDia;
@@ -527,12 +559,12 @@ export default function AgendaSalaoPage() {
                       onDragStart={(evento) => evento.dataTransfer.setData("text/plain", String(item.id))}
                       onClick={(evento) => { evento.stopPropagation(); setForm(null); setConfirmarExclusao(false); setSelecionado(item); }}
                       title={`${faixa} · Profissional ${item.profissional_nome} · Cliente ${item.cliente_nome}`}
-                      className="absolute left-1 right-1 overflow-hidden rounded-md px-1 py-0.5 text-left text-[11px] leading-tight text-white"
-                      style={{ top: Math.max(0, topo), height: Math.max(48, (item.duracao_minutos / 60) * ALTURA_HORA), background: statusCores[item.status] || STATUS_PADRAO.SCHEDULED }}
+                      className="absolute left-1 right-1 overflow-hidden px-1.5 py-0.5 text-left text-[11px] leading-tight text-white"
+                      style={{ top: Math.max(0, topo), height: Math.max(48, (item.duracao_minutos / 60) * ALTURA_HORA), background: statusCores[item.status] || STATUS_PADRAO.SCHEDULED, borderRadius: "var(--agenda-card-radius, 12px)", boxShadow: "var(--agenda-card-shadow, none)" }}
                     >
-                      <span className="block truncate">{faixa}</span>
-                      <span className="block truncate">Profissional {item.profissional_nome}</span>
-                      <span className="block truncate">Cliente {item.cliente_nome}</span>
+                      <span className="block truncate font-medium">{faixa}</span>
+                      <span className="block truncate uppercase">{item.cliente_nome}</span>
+                      <span className="block truncate">{item.servico_nome}{modo === "semana" ? ` · ${item.profissional_nome}` : ""}</span>
                     </button>
                   );
                 })}
@@ -541,6 +573,11 @@ export default function AgendaSalaoPage() {
           </div>
         </div>
       )}
+      <p className="mt-3 flex flex-wrap gap-3 text-[11px] text-[#5c3d45]">
+        {[["Aguardando", statusCores.SCHEDULED || STATUS_PADRAO.SCHEDULED], ["Confirmado", statusCores.CONFIRMED || STATUS_PADRAO.CONFIRMED], ["Em atendimento", statusCores.IN_PROGRESS || STATUS_PADRAO.IN_PROGRESS], ["Concluído", statusCores.COMPLETED || STATUS_PADRAO.COMPLETED], ["Cancelado", statusCores.CANCELLED || STATUS_PADRAO.CANCELLED], ["Faltou", statusCores.NO_SHOW || STATUS_PADRAO.NO_SHOW], ["Intervalo", "#f8e7c8"]].map(([nome, cor]) => (
+          <span key={nome} className="inline-flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: cor }} />{nome}</span>
+        ))}
+      </p>
       {folgaAberta ? (
         <div className="fixed inset-0 z-40 grid place-items-center bg-black/40 p-4" role="dialog" aria-modal="true" aria-labelledby="folga-formulario" onClick={(evento) => { if (evento.target === evento.currentTarget) setFolgaAberta(false); }}>
           <div className="max-h-[90vh] w-full max-w-2xl overflow-auto rounded-3xl bg-white p-5">
@@ -840,7 +877,7 @@ function ModalReceber({
   );
 }
 
-function Mes({ cursor, eventos, aoAbrir }: { cursor: Date; eventos: AgendamentoSalao[]; aoAbrir: (data: Date) => void }) {
+function Mes({ cursor, eventos, statusCores, aoAbrir }: { cursor: Date; eventos: AgendamentoSalao[]; statusCores: Record<string, string>; aoAbrir: (data: Date) => void }) {
   const primeiro = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
   const dias = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0).getDate();
   const offset = (primeiro.getDay() + 6) % 7;
@@ -852,11 +889,17 @@ function Mes({ cursor, eventos, aoAbrir }: { cursor: Date; eventos: AgendamentoS
       {celulas.map((dia, indice) => {
         if (!dia) return <div key={`vazio-${indice}`} className="rounded-xl border border-[#f0e4e6] bg-white" />;
         const data = new Date(cursor.getFullYear(), cursor.getMonth(), dia);
-        const total = eventos.filter((item) => new Date(item.inicio).toDateString() === data.toDateString() && item.status !== "CANCELLED").length;
+        const doDia = eventos.filter((item) => new Date(item.inicio).toDateString() === data.toDateString() && item.status !== "CANCELLED");
+        const hoje = data.toDateString() === new Date().toDateString();
         return (
-          <button key={dia} type="button" className="h-full min-h-0 rounded-xl border border-[#f0e4e6] bg-white p-2 text-left" onClick={() => aoAbrir(data)}>
-            <span className="text-sm">{dia}</span>
-            {total ? <span className="mt-2 block text-xs text-[#7a3044]">{total} horário{total > 1 ? "s" : ""}</span> : null}
+          <button key={dia} type="button" className="h-full min-h-0 rounded-xl border bg-white p-2 text-left" style={hoje ? { background: "var(--agenda-today-bg, #fff)" } : undefined} onClick={() => aoAbrir(data)}>
+            <span className={`text-sm ${hoje ? "font-semibold" : ""}`}>{dia}</span>
+            <span className="mt-1 block space-y-0.5">
+              {doDia.slice(0, 3).map((item) => (
+                <span key={item.id} className="block truncate text-[10px] text-white" style={{ background: statusCores[item.status] || STATUS_PADRAO.SCHEDULED, borderRadius: 4, padding: "1px 4px" }}>{dois(new Date(item.inicio).getHours())}:{dois(new Date(item.inicio).getMinutes())} {item.cliente_nome}</span>
+              ))}
+              {doDia.length > 3 ? <span className="block text-[10px] text-[#8a6e74]">mais +{doDia.length - 3}</span> : null}
+            </span>
           </button>
         );
       })}

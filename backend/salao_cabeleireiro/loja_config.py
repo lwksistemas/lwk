@@ -29,6 +29,7 @@ def serializar_identidade(loja) -> dict:
         "cor_secundaria": (loja.cor_secundaria or "").strip() or "#4c1d78",
         "cor_fundo_pagina": (getattr(loja, "cor_fundo_pagina", None) or "").strip(),
         "agenda_status_colors": getattr(loja, "agenda_status_colors", None) or {},
+        "agenda_visual": (getattr(loja, "agenda_visual", None) or "pulse").strip() or "pulse",
     }
 
 
@@ -93,6 +94,11 @@ class IdentidadeView(APIView):
 
             loja.agenda_status_colors = sanitize_agenda_status_colors(dados.get("agenda_status_colors"))
             campos.append("agenda_status_colors")
+        if "agenda_visual" in dados:
+            from superadmin.theme_colors import sanitize_agenda_visual
+
+            loja.agenda_visual = sanitize_agenda_visual(dados.get("agenda_visual"))
+            campos.append("agenda_visual")
         if campos:
             from django.utils import timezone
 

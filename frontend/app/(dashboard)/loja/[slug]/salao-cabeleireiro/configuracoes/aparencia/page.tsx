@@ -5,7 +5,9 @@ import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import apiClient from "@/lib/api-client";
+import { AgendaV7Preview } from "@/components/clinica-beleza/AgendaV7Preview";
 import { hexCor, STATUS_PADRAO } from "@/components/salao/cores-salao";
+import { normalizeAgendaVisual, type AgendaVisualId } from "@/lib/clinica-agenda-visual";
 
 const STATUS = [
   ["SCHEDULED", "Aguardando"],
@@ -21,16 +23,58 @@ type Identidade = {
   cor_secundaria: string;
   cor_fundo_pagina: string;
   agenda_status_colors: Record<string, { bg?: string; border?: string }>;
+  agenda_visual?: string | null;
 };
+
+function amostrasDoSalao(cores: Record<string, { bg?: string; border?: string }>) {
+  const hoje = new Date();
+  const dia = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, "0")}-${String(hoje.getDate()).padStart(2, "0")}`;
+  const cor = (status: string) => cores[status] || { bg: STATUS_PADRAO[status] || "#7a3044", border: STATUS_PADRAO[status] || "#7a3044" };
+  const item = (id: string, inicio: string, fim: string, cliente: string, status: string, profissional: number, profissionalNome: string, servico: string) => {
+    const tinta = cor(status);
+    return {
+      id,
+      title: cliente,
+      start: `${dia}T${inicio}`,
+      end: `${dia}T${fim}`,
+      color: tinta.bg,
+      contrastColor: "#fff",
+      backgroundColor: tinta.bg,
+      borderColor: tinta.border,
+      extendedProps: { status, patient_name: cliente, professional: profissional, professional_name: profissionalNome, procedure_name: servico },
+    };
+  };
+  return [
+    item("corte", "09:00:00", "09:45:00", "Helena Prado", "SCHEDULED", 1, "Lia Costa", "Corte"),
+    item("barba", "10:00:00", "10:30:00", "Caio Mendes", "CONFIRMED", 2, "Rafael Nunes", "Barba"),
+    item("escova", "11:00:00", "11:45:00", "Marina Luz", "IN_PROGRESS", 1, "Lia Costa", "Escova"),
+    item("cor", "14:00:00", "16:00:00", "Pedro Alves", "COMPLETED", 2, "Rafael Nunes", "Coloração"),
+    {
+      id: "intervalo",
+      title: "Intervalo",
+      start: `${dia}T12:00:00`,
+      end: `${dia}T13:00:00`,
+      color: "#f4d7b0",
+      contrastColor: "#7a4b12",
+      backgroundColor: "#f4d7b0",
+      borderColor: "#e8b86a",
+      extendedProps: { isBloqueio: true, motivo: "Intervalo", professional: 1, professional_name: "Lia Costa" },
+    },
+  ];
+}
 
 export default function AparenciaSalaoPage() {
   const slug = (useParams()?.slug as string) ?? "";
   const [form, setForm] = useState<Identidade | null>(null);
   const [erro, setErro] = useState("");
   const [aviso, setAviso] = useState("");
+  const [visual, setVisual] = useState<AgendaVisualId>("pulse");
 
   useEffect(() => {
-    apiClient.get<Identidade>("/salao-cabeleireiro/identidade/").then((resposta) => setForm(normalizar(resposta.data))).catch(() => setErro("Não foi possível carregar a identidade visual."));
+    apiClient.get<Identidade>("/salao-cabeleireiro/identidade/").then((resposta) => {
+      setForm(normalizar(resposta.data));
+      setVisual(normalizeAgendaVisual(resposta.data.agenda_visual));
+    }).catch(() => setErro("Não foi possível carregar a identidade visual."));
   }, []);
 
   async function gravar() {
@@ -66,7 +110,7 @@ export default function AparenciaSalaoPage() {
         <ArrowLeft size={16} /> Voltar às configurações
       </Link>
       <h1 className="text-2xl font-semibold">Identidade visual</h1>
-      <p className="mt-1 max-w-2xl text-sm text-[#8a6e74]">Cor do menu, fundo das páginas e cores dos status da agenda. O layout do dashboard continua o que o administrador escolheu.</p>
+      <p className="mt-1 max-w-2xl text-sm text-[#8a6e74]">Cor do menu, fundo das páginas, cores dos status e o visual da agenda. O tema vale para Dia, Semana e Mês.</p>
       {erro ? <p className="mt-3 text-sm text-red-700">{erro}</p> : null}
       {aviso ? <p className="mt-3 text-sm text-[#1f8a4c]">{aviso}</p> : null}
       {form ? (
@@ -85,6 +129,16 @@ export default function AparenciaSalaoPage() {
             ))}
           </div>
           <button type="button" className="rounded-full bg-[#7a3044] px-4 py-2 text-sm text-white" onClick={gravar}>Gravar identidade</button>
+          <AgendaV7Preview
+            statusColors={form.agenda_status_colors}
+            accentColor={form.cor_primaria}
+            value={visual}
+            construirAmostras={amostrasDoSalao}
+            onChange={(id) => {
+              setVisual(id);
+              apiClient.patch("/salao-cabeleireiro/identidade/", { agenda_visual: id }).then(() => setAviso("O visual da agenda ficou gravado neste salão.")).catch(() => setErro("Não foi possível gravar o visual da agenda."));
+            }}
+          />
         </div>
       ) : null}
     </div>

@@ -717,20 +717,21 @@ export default function AgendaSalaoPage() {
                   return (
                     <div
                       key={faixa.chave}
-                      data-evento="1"
-                      className="absolute border-l-4 border-[#d97706] bg-[#f8e7c8] px-1 py-0.5 text-[11px] text-[#7a4b12]"
+                      className="pointer-events-none absolute"
                       style={{
                         top: Math.max(0, topo),
-                        height: Math.max(22, (faixa.fim - faixa.inicio) * ALTURA_HORA),
-                        borderRadius: "var(--agenda-card-radius, 8px)",
-                        left: ladoALado ? `calc(${(100 / faixas.length) * indice}% + 4px)` : 4,
-                        width: ladoALado ? `calc(${100 / faixas.length}% - 8px)` : undefined,
-                        right: ladoALado ? undefined : 4,
+                        height: Math.max(28, (faixa.fim - faixa.inicio) * ALTURA_HORA),
+                        left: ladoALado ? `calc(${(100 / faixas.length) * indice}% + 2px)` : 2,
+                        width: ladoALado ? `calc(${100 / faixas.length}% - 4px)` : undefined,
+                        right: ladoALado ? undefined : 2,
+                        zIndex: 4,
                       }}
                       title={`Almoço · ${faixa.nome} · ${faixaHora}`}
                     >
-                      Almoço{modo === "semana" ? ` · ${faixa.nome}` : ""}
-                      <span className="block truncate">{faixaHora}</span>
+                      <span className="absolute inset-y-0 left-0 w-1.5 rounded-full bg-[#d97706]" />
+                      <span className="ml-2.5 inline-block max-w-[calc(100%-10px)] truncate rounded bg-[#f8e7c8] px-1 py-0.5 text-[11px] font-medium text-[#7a4b12] shadow-sm">
+                        Almoço{modo === "semana" ? ` · ${faixa.nome}` : ""} {faixaHora}
+                      </span>
                     </div>
                   );
                 })}
@@ -799,7 +800,7 @@ export default function AgendaSalaoPage() {
         </div>
       )}
       <p className="mt-3 flex flex-wrap gap-3 text-[11px] text-[#5c3d45]">
-        {[["Aguardando", statusCores.SCHEDULED || STATUS_PADRAO.SCHEDULED], ["Confirmado", statusCores.CONFIRMED || STATUS_PADRAO.CONFIRMED], ["Em atendimento", statusCores.IN_PROGRESS || STATUS_PADRAO.IN_PROGRESS], ["Concluído", statusCores.COMPLETED || STATUS_PADRAO.COMPLETED], ["Cancelado", statusCores.CANCELLED || STATUS_PADRAO.CANCELLED], ["Faltou", statusCores.NO_SHOW || STATUS_PADRAO.NO_SHOW], ["Intervalo", "#f8e7c8"], ["Folga", "#f6e4e8"]].map(([nome, cor]) => (
+        {[["Aguardando", statusCores.SCHEDULED || STATUS_PADRAO.SCHEDULED], ["Confirmado", statusCores.CONFIRMED || STATUS_PADRAO.CONFIRMED], ["Em atendimento", statusCores.IN_PROGRESS || STATUS_PADRAO.IN_PROGRESS], ["Concluído", statusCores.COMPLETED || STATUS_PADRAO.COMPLETED], ["Cancelado", statusCores.CANCELLED || STATUS_PADRAO.CANCELLED], ["Faltou", statusCores.NO_SHOW || STATUS_PADRAO.NO_SHOW], ["Almoço", "#f8e7c8"], ["Folga", "#f6e4e8"]].map(([nome, cor]) => (
           <span key={nome} className="inline-flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: cor }} />{nome}</span>
         ))}
       </p>

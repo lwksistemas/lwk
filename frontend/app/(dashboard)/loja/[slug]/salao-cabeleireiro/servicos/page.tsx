@@ -133,15 +133,13 @@ export default function ServicosSalaoPage() {
       {categorias.filter((grupo) => lista.some((item) => item.categoria === grupo.nome)).map((grupo) => (
         <section key={grupo.id} className="mb-5">
           <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-[#7a3044]">{grupo.nome}</h2>
-          <ul className="grid gap-3 md:grid-cols-2">
+          <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             {lista.filter((item) => item.categoria === grupo.nome).map((item) => (
               <li key={item.id}>
-                <button type="button" className="flex h-full w-full items-start justify-between gap-3 rounded-3xl border border-[#f0e4e6] bg-white px-4 py-3 text-left hover:bg-[#fbf6f4]" onClick={() => abrir(item)}>
-                  <span>
-                    <span className="block font-medium">{item.nome}</span>
-                    <span className="mt-0.5 block text-sm text-[#8a6e74]">{item.duracao_minutos} min</span>
-                  </span>
-                  <span className="shrink-0 text-sm">R$ {item.preco}</span>
+                <button type="button" className="flex w-full items-center gap-3 rounded-xl border border-[#f0e4e6] bg-white px-3 py-2 text-left text-sm hover:bg-[#fbf6f4]" onClick={() => abrir(item)}>
+                  <span className="min-w-0 flex-1 truncate font-medium">{item.nome}</span>
+                  <span className="shrink-0 text-[#8a6e74]">{item.duracao_minutos} min</span>
+                  <span className="shrink-0">R$ {item.preco}</span>
                 </button>
               </li>
             ))}
@@ -154,19 +152,19 @@ export default function ServicosSalaoPage() {
             <h2 id="servico-formulario" className="mb-3 text-lg font-semibold">{escolhido ? "Editar serviço" : "Adicionar serviço"}</h2>
             {erro ? <p className="mb-2 text-sm text-red-700">{erro}</p> : null}
             <div className="grid gap-2 sm:grid-cols-2">
-              <label className="text-sm sm:col-span-2">Nome
+              <label className="text-sm">Nome
                 <input className={`mt-1 ${CAMPO}`} value={form.nome} onChange={(evento) => setForm({ ...form, nome: evento.target.value })} required />
               </label>
-              <label className="text-sm">Categoria
+              <label className="text-sm">Minutos
+                <input className={`mt-1 ${CAMPO}`} inputMode="numeric" value={form.duracao_minutos} onChange={(evento) => setForm({ ...form, duracao_minutos: evento.target.value })} required />
+              </label>
+              <label className="text-sm sm:col-span-2">Categoria
                 <select className={`mt-1 ${CAMPO}`} value={form.categoria} onChange={(evento) => setForm({ ...form, categoria: evento.target.value })} required>
                   <option value="">Escolha</option>
                   {categorias.map((item) => <option key={item.id} value={item.nome}>{item.nome}</option>)}
                 </select>
               </label>
-              <label className="text-sm">Minutos deste serviço
-                <input className={`mt-1 ${CAMPO}`} inputMode="numeric" value={form.duracao_minutos} onChange={(evento) => setForm({ ...form, duracao_minutos: evento.target.value })} required />
-              </label>
-              <label className="text-sm">Preço
+              <label className="text-sm sm:col-span-2">Preço
                 <input className={`mt-1 ${CAMPO}`} inputMode="decimal" value={form.preco} onChange={(evento) => setForm({ ...form, preco: evento.target.value })} required />
               </label>
               <label className="text-sm sm:col-span-2">Descrição

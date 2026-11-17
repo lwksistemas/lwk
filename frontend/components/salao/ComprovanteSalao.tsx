@@ -83,6 +83,7 @@ export function ComprovanteSalaoCard({ dados }: { dados: ComprovanteSalao }) {
               {salao?.email ? <span className="inline-flex items-center gap-1" style={{ color: cor }}><Icone nome="email" /><span className="text-[#3a2a2e]">{salao.email}</span></span> : null}
             </div>
           ) : null}
+          {salao?.documento ? <div>{salao.documento}</div> : null}
         </div>
         <div className="mt-3 h-px" style={{ background: cor }} />
         <div className="mt-3 rounded-xl px-3 py-2.5 text-center font-sans text-[13px] font-bold tracking-wide text-white" style={{ background: cor }}>

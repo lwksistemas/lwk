@@ -35,6 +35,15 @@ def _reais(valor) -> str:
     return f"R$ {texto}"
 
 
+def _documento(valor: str) -> str:
+    digitos = re.sub(r"\D", "", valor or "")
+    if len(digitos) == 11:
+        return f"CPF {digitos[:3]}.{digitos[3:6]}.{digitos[6:9]}-{digitos[9:]}"
+    if len(digitos) == 14:
+        return f"CNPJ {digitos[:2]}.{digitos[2:5]}.{digitos[5:8]}/{digitos[8:12]}-{digitos[12:]}"
+    return ""
+
+
 def _cor(valor: str) -> str:
     cor = _texto(valor)
     if re.fullmatch(r"#[0-9A-Fa-f]{6}", cor):
@@ -47,7 +56,7 @@ def cabecalho_da_loja(loja) -> dict:
     from superadmin.loja_utils import contato_publico_loja
 
     if loja is None:
-        return {"nome": "Salão", "subtitulo": "", "endereco": "", "telefone": "", "email": "", "logo": "", "cor": "#7A3044"}
+        return {"nome": "Salão", "subtitulo": "", "endereco": "", "documento": "", "telefone": "", "email": "", "logo": "", "cor": "#7A3044"}
     rua = _texto(getattr(loja, "logradouro", ""))
     numero = _texto(getattr(loja, "numero", ""))
     if rua and numero:
@@ -64,6 +73,8 @@ def cabecalho_da_loja(loja) -> dict:
     cep = _cep(getattr(loja, "cep", ""))
     if cep:
         partes.append(f"CEP {cep}")
+    endereco = _texto(getattr(loja, "recibo_endereco", "")) or " – ".join(partes)
+    documento = _documento(getattr(loja, "recibo_documento", "")) or _documento(getattr(loja, "cpf_cnpj", ""))
     telefone, email = contato_publico_loja(loja)
     tipo = getattr(loja, "tipo_loja", None)
     subtitulo = _texto(getattr(tipo, "nome", "")) if tipo is not None else ""
@@ -72,7 +83,8 @@ def cabecalho_da_loja(loja) -> dict:
     return {
         "nome": _texto(getattr(loja, "nome", "")) or "Salão",
         "subtitulo": subtitulo,
-        "endereco": " – ".join(partes),
+        "endereco": endereco,
+        "documento": documento,
         "telefone": _telefone(telefone),
         "email": email,
         "logo": logo,
@@ -287,6 +299,9 @@ def html_comprovante(dados: dict) -> str:
         )
     if linha_contato:
         contato.append(f'<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px">{"".join(linha_contato)}</div>')
+    documento = html.escape(salao.get("documento") or "")
+    if documento:
+        contato.append(f'<div style="color:#3a2a2e">{documento}</div>')
     subtitulo_html = (
         f'<div style="margin-top:4px;font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:{cor}">{subtitulo}</div>'
         if subtitulo else ""
@@ -410,6 +425,8 @@ def pdf_comprovante(dados: dict) -> bytes:
     altura_pagina = 42 + 62
     if salao.get("endereco"):
         altura_pagina += 13 * _linhas(salao.get("endereco"), 9)
+    if salao.get("documento"):
+        altura_pagina += 13
     if salao.get("telefone") or salao.get("email"):
         altura_pagina += 16
     altura_pagina += 14 + (34 if dados.get("numero") else 24) + 14
@@ -547,6 +564,11 @@ def pdf_comprovante(dados: dict) -> bytes:
         pagina.setFont("Times-Roman", 9)
         pagina.drawString(esquerda + 16, y, contato[:90])
         y -= 16
+    if salao.get("documento"):
+        pagina.setFillColor(tinta)
+        pagina.setFont("Times-Roman", 9)
+        pagina.drawString(esquerda, y, str(salao.get("documento"))[:60])
+        y -= 13
     pagina.setStrokeColor(cor)
     pagina.setLineWidth(0.8)
     pagina.line(esquerda, y, direita, y)

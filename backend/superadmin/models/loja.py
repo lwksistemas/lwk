@@ -158,6 +158,18 @@ class Loja(models.Model):
         default="",
         help_text="Cor da faixa do recibo (#RRGGBB). Vazio usa a cor principal da clínica.",
     )
+    recibo_endereco = models.CharField(
+        max_length=300,
+        blank=True,
+        default="",
+        help_text="Endereço impresso no recibo. Vazio usa o endereço do cadastro da loja.",
+    )
+    recibo_documento = models.CharField(
+        max_length=18,
+        blank=True,
+        default="",
+        help_text="CPF ou CNPJ impresso no recibo, só dígitos. Vazio usa o documento do cadastro.",
+    )
 
     # Status
     is_active = models.BooleanField(default=True)

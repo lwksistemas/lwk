@@ -18,7 +18,7 @@ const LISTA = [
   { titulo: "Pagar assinatura", descricao: "Baixar boleto e ver o histórico de pagamentos.", href: "assinatura", itens: ["Baixar boleto", "Histórico de pagamento"] },
   { titulo: "Identidade visual", descricao: "Cor do menu, fundo das páginas e cores dos status da agenda.", href: "aparencia", itens: ["Cor do menu", "Fundo das páginas", "Cores dos status na agenda"] },
   { titulo: "Configurar tela de login", descricao: "Logo, fundo e cores da tela de login do salão.", href: "login", itens: ["Logo", "Imagem de fundo", "Cores do login"] },
-  { titulo: "Contato no recibo", descricao: "Telefone, e-mail, cor e logomarca do recibo.", href: "contato", itens: ["Telefone do salão", "E-mail do salão", "Cor e logomarca do recibo"] },
+  { titulo: "Contato no recibo", descricao: "Telefone, e-mail, endereço, documento, cor e logomarca do recibo.", href: "contato", itens: ["Telefone do salão", "Endereço e CPF ou CNPJ", "Cor e logomarca do recibo"] },
   { titulo: "Mensagens no WhatsApp", descricao: "Confirmação, lembrete, mudança de horário e cancelamento.", href: "#mensagens", itens: ["Confirmação de horário", "Lembrete", "Aviso de mudança e cancelamento"] },
   { titulo: "Funcionamento do salão", descricao: "Tipo de estabelecimento, recebimentos e permissões.", href: "funcionamento", itens: ["Salão com recepção", "Profissional autônomo", "Onde o pagamento é recebido"] },
   { titulo: "Nota fiscal (NFS-e)", descricao: "Provedor e certificado da nota de serviço.", href: "nota-fiscal", itens: ["Provedor de NF", "Certificado digital", "Emissão do serviço"] },

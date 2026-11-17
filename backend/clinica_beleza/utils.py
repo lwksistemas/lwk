@@ -83,7 +83,7 @@ class LojaContextHelper:
         if not loja_id:
             return None
 
-        cache_key = f"loja_owner_info_v6_{loja_id}"
+        cache_key = f"loja_owner_info_v7_{loja_id}"
         cached = cache.get(cache_key)
         if cached is not None:
             return cached
@@ -119,6 +119,8 @@ class LojaContextHelper:
                 "email_contato": (loja.email_contato or "").strip(),
                 "recibo_logo": (getattr(loja, "recibo_logo", "") or "").strip(),
                 "recibo_cor": (getattr(loja, "recibo_cor", "") or "").strip(),
+                "recibo_endereco": (getattr(loja, "recibo_endereco", "") or "").strip(),
+                "recibo_documento": (getattr(loja, "recibo_documento", "") or "").strip(),
                 "cor_primaria": (getattr(loja, "cor_primaria", "") or "").strip(),
                 # Dados da loja para recibos (usa contato da clínica se preenchido)
                 "nome": loja.nome or "",
@@ -197,6 +199,7 @@ class LojaContextHelper:
         cache.delete(f"loja_owner_info_v4_{loja_id}")
         cache.delete(f"loja_owner_info_v5_{loja_id}")
         cache.delete(f"loja_owner_info_v6_{loja_id}")
+        cache.delete(f"loja_owner_info_v7_{loja_id}")
         cache.delete(f"whatsapp_config_{loja_id}")
         invalidate_dashboard_cache(loja_id)
 

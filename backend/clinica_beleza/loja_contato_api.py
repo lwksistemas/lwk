@@ -74,6 +74,20 @@ def patch_contato_loja(request) -> Response:
         loja.recibo_logo = logo[:200]
         update_fields.append("recibo_logo")
 
+    if "recibo_endereco" in data:
+        loja.recibo_endereco = str(data.get("recibo_endereco") or "").strip()[:300]
+        update_fields.append("recibo_endereco")
+
+    if "recibo_documento" in data:
+        digitos = "".join(caractere for caractere in str(data.get("recibo_documento") or "") if caractere.isdigit())
+        if digitos and len(digitos) not in {11, 14}:
+            return Response(
+                {"error": "Informe um CPF com 11 dígitos ou um CNPJ com 14."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        loja.recibo_documento = digitos
+        update_fields.append("recibo_documento")
+
     if len(update_fields) > 1:
         loja.save(update_fields=update_fields)
         LojaContextHelper.invalidate_cache(loja_id)

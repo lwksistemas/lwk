@@ -59,6 +59,7 @@ export type CabecalhoRecibo = {
   nome: string;
   subtitulo: string;
   endereco: string;
+  documento?: string;
   telefone: string;
   email: string;
   logo: string;

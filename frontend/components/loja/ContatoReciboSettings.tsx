@@ -4,6 +4,14 @@ import { useCallback, useEffect, useState } from "react";
 import { Phone, Mail, Save } from "lucide-react";
 import apiClient from "@/lib/api-client";
 import { formatTelefone, telefoneInternacionalBr } from "@/lib/format-br";
+
+function formatarDocumento(valor: string) {
+  const digitos = valor.replace(/\D/g, "").slice(0, 14);
+  if (digitos.length <= 11) {
+    return digitos.replace(/(\d{3})(\d)/, "$1.$2").replace(/(\d{3})(\d)/, "$1.$2").replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+  }
+  return digitos.replace(/(\d{2})(\d)/, "$1.$2").replace(/(\d{3})(\d)/, "$1.$2").replace(/(\d{3})(\d)/, "$1/$2").replace(/(\d{4})(\d{1,2})$/, "$1-$2");
+}
 import { useToast } from "@/components/ui/Toast";
 import { ImageUploadMedia } from "@/components/ImageUploadMedia";
 
@@ -17,6 +25,10 @@ type ContatoReciboInfo = {
   recibo_logo?: string;
   recibo_cor?: string;
   cor_primaria?: string;
+  recibo_endereco?: string;
+  recibo_documento?: string;
+  endereco?: string;
+  cpf_cnpj?: string;
 };
 
 type ContatoReciboSettingsProps = {
@@ -41,6 +53,11 @@ export function ContatoReciboSettings({
   const [fallbackEmail, setFallbackEmail] = useState("");
   const [logo, setLogo] = useState("");
   const [cor, setCor] = useState(accentColor);
+  const [endereco, setEndereco] = useState("");
+  const [documento, setDocumento] = useState("");
+  const [enderecoCadastro, setEnderecoCadastro] = useState("");
+  const [documentoCadastro, setDocumentoCadastro] = useState("");
+  const doSalao = apiPrefix === "/salao-cabeleireiro";
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -52,6 +69,10 @@ export function ContatoReciboSettings({
       setFallbackEmail((data.owner_email || "").trim());
       setLogo((data.recibo_logo || "").trim());
       setCor((data.recibo_cor || data.cor_primaria || accentColor).trim() || accentColor);
+      setEndereco((data.recibo_endereco || "").trim());
+      setDocumento(formatarDocumento(data.recibo_documento || ""));
+      setEnderecoCadastro((data.endereco || "").trim());
+      setDocumentoCadastro(formatarDocumento(data.cpf_cnpj || ""));
     } catch {
       toast.error("Não foi possível carregar o contato da loja.");
     } finally {
@@ -73,6 +94,7 @@ export function ContatoReciboSettings({
         email_contato: email.trim(),
         recibo_logo: logo.trim(),
         recibo_cor: cor.trim(),
+        ...(doSalao ? { recibo_endereco: endereco.trim(), recibo_documento: documento.replace(/\D/g, "") } : {}),
       });
       toast.success("Recibo atualizado.");
       await load();
@@ -101,6 +123,7 @@ export function ContatoReciboSettings({
           Telefone, e-mail, cor e logomarca do recibo impresso ou enviado ao {publicoLabel}.
           A logo da tela de login não entra mais no recibo. Se o telefone ou o e-mail
           ficarem em branco, o sistema usa os dados do administrador da {entidadeLabel}.
+          {doSalao ? " Endereço e CPF ou CNPJ em branco usam o cadastro do salão." : ""}
         </p>
       </div>
 
@@ -144,6 +167,30 @@ export function ContatoReciboSettings({
           <span className="h-8 flex-1 rounded-lg" style={{ backgroundColor: /^#[0-9A-Fa-f]{6}$/.test(cor) ? cor : accentColor }} />
         </span>
       </label>
+
+      {doSalao ? (
+        <>
+          <label className="block space-y-1.5">
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Endereço no recibo</span>
+            <input
+              value={endereco}
+              onChange={(e) => setEndereco(e.target.value)}
+              placeholder={enderecoCadastro || "Rua, número – bairro – cidade/UF – CEP"}
+              className="w-full rounded-lg border border-gray-300 dark:border-neutral-600 bg-white dark:bg-neutral-900 px-3 py-2.5 text-sm text-gray-900 dark:text-gray-100"
+            />
+          </label>
+          <label className="block space-y-1.5">
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">CPF ou CNPJ no recibo</span>
+            <input
+              inputMode="numeric"
+              value={documento}
+              onChange={(e) => setDocumento(formatarDocumento(e.target.value))}
+              placeholder={documentoCadastro || "CPF ou CNPJ do cadastro"}
+              className="w-full rounded-lg border border-gray-300 dark:border-neutral-600 bg-white dark:bg-neutral-900 px-3 py-2.5 text-sm text-gray-900 dark:text-gray-100"
+            />
+          </label>
+        </>
+      ) : null}
 
       <label className="block space-y-1.5">
         <span className="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2">

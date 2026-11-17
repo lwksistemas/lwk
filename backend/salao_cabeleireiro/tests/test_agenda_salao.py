@@ -189,10 +189,20 @@ class CaixaSalaoTest(unittest.TestCase):
             recibo_cor = ""
             cor_primaria = "#335544"
             tipo_loja = None
+            cpf_cnpj = "12345678000195"
+            recibo_endereco = ""
+            recibo_documento = ""
 
         cabecalho = cabecalho_da_loja(Loja())
         self.assertEqual(cabecalho["nome"], "Salão da Esquina")
+        self.assertEqual(cabecalho["documento"], "CNPJ 12.345.678/0001-95")
         self.assertIn("Rua A, 10", cabecalho["endereco"])
+        Loja.recibo_endereco = "Rua B, 20 – Centro – Campinas/SP – CEP 13010-000"
+        Loja.recibo_documento = "12345678901"
+        proprio = cabecalho_da_loja(Loja())
+        self.assertEqual(proprio["endereco"], "Rua B, 20 – Centro – Campinas/SP – CEP 13010-000")
+        self.assertEqual(proprio["documento"], "CPF 123.456.789-01")
+        self.assertNotIn("Rua A", proprio["endereco"])
         self.assertNotIn("Rua das Flores", cabecalho["endereco"])
         self.assertEqual(cabecalho["logo"], "")
         html = html_comprovante({
@@ -219,6 +229,8 @@ class CaixaSalaoTest(unittest.TestCase):
         self.assertIn("Obrigado pela preferência!", html)
         self.assertIn("Serviço", html)
         self.assertIn("Formas de pagamento:", html)
+        self.assertIn("CNPJ 12.345.678/0001-95", html)
+        self.assertIn("Rua A, 10", html)
         self.assertNotIn("72mm", html)
         self.assertNotIn("<img", html)
         self.assertNotIn("Rua das Flores", html)

@@ -558,6 +558,7 @@ class BloqueioListCreateView(APIView):
                 "data_fim": item.data_fim.isoformat(),
                 "horario_inicio": item.horario_inicio.isoformat() if item.horario_inicio else None,
                 "horario_fim": item.horario_fim.isoformat() if item.horario_fim else None,
+                "observacoes": item.observacoes or "",
                 "profissional": item.profissional_id,
                 "profissional_nome": item.profissional.nome if item.profissional_id else "Salão",
             }
@@ -593,6 +594,7 @@ class BloqueioListCreateView(APIView):
             data_fim=data_fim,
             horario_inicio=horario_inicio,
             horario_fim=horario_fim,
+            observacoes=(request.data.get("observacoes") or "").strip(),
             profissional=profissional,
         )
         return Response({"id": bloqueio.id}, status=status.HTTP_201_CREATED)

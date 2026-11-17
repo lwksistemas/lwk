@@ -20,6 +20,7 @@ export interface ModalBloqueioHorarioProps {
   professionals: BloqueioProfessional[];
   dataInicioSugerida?: Date | null;
   defaultProfessionalId?: string;
+  enviar?: (body: Record<string, unknown>) => Promise<void>;
 }
 
 const fieldClass =
@@ -34,6 +35,7 @@ export function ModalBloqueioHorario({
   professionals,
   dataInicioSugerida,
   defaultProfessionalId,
+  enviar,
 }: ModalBloqueioHorarioProps) {
   const state = useModalBloqueioHorario({
     isOpen,
@@ -41,6 +43,7 @@ export function ModalBloqueioHorario({
     onSuccess,
     dataInicioSugerida,
     defaultProfessionalId,
+    enviar,
   });
 
   if (!isOpen) return null;

@@ -211,6 +211,7 @@ export type BloqueioSalao = {
   horario_fim: string | null;
   profissional: number | null;
   profissional_nome: string;
+  observacoes?: string;
 };
 
 export type AgendamentoSalao = {

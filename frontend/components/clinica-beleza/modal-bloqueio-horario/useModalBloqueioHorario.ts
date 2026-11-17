@@ -27,6 +27,7 @@ interface UseModalBloqueioHorarioParams {
   onSuccess: () => void;
   dataInicioSugerida?: Date | null;
   defaultProfessionalId?: string;
+  enviar?: (body: Record<string, unknown>) => Promise<void>;
 }
 
 export function useModalBloqueioHorario({
@@ -35,6 +36,7 @@ export function useModalBloqueioHorario({
   onSuccess,
   dataInicioSugerida,
   defaultProfessionalId,
+  enviar,
 }: UseModalBloqueioHorarioParams) {
   const [modo, setModo] = useState<ModoBloqueioIntervalo>("horario");
   const [dataInicioDia, setDataInicioDia] = useState("");
@@ -186,19 +188,30 @@ export function useModalBloqueioHorario({
       const gravados: string[] = [];
       for (let i = 0; i < bodies.length; i++) {
         const body = bodies[i];
-        const res = await clinicaBelezaFetch("/bloqueios/", {
-          method: "POST",
-          body: JSON.stringify(body),
-        });
-        if (!res.ok) {
-          const data = await res.json().catch(() => ({}));
-          if (gravados.length) onSuccess();
-          setDiasSelecionados((atual) => atual.filter((dia) => !gravados.includes(dia)));
-          throw new Error(
-            gravados.length
-              ? `Bloqueou ${gravados.length} dia(s). ${extractBloqueioApiError(data, res.status)}`
-              : extractBloqueioApiError(data, res.status),
-          );
+        if (enviar) {
+          try {
+            await enviar(body);
+          } catch (erroEnvio) {
+            if (gravados.length) onSuccess();
+            setDiasSelecionados((atual) => atual.filter((dia) => !gravados.includes(dia)));
+            const mensagem = erroEnvio instanceof Error ? erroEnvio.message : "Erro ao criar bloqueio.";
+            throw new Error(gravados.length ? `Bloqueou ${gravados.length} dia(s). ${mensagem}` : mensagem);
+          }
+        } else {
+          const res = await clinicaBelezaFetch("/bloqueios/", {
+            method: "POST",
+            body: JSON.stringify(body),
+          });
+          if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            if (gravados.length) onSuccess();
+            setDiasSelecionados((atual) => atual.filter((dia) => !gravados.includes(dia)));
+            throw new Error(
+              gravados.length
+                ? `Bloqueou ${gravados.length} dia(s). ${extractBloqueioApiError(data, res.status)}`
+                : extractBloqueioApiError(data, res.status),
+            );
+          }
         }
         if ((modo === "dias" || repetir) && diasOrdenados[i]) gravados.push(diasOrdenados[i]);
       }
@@ -226,6 +239,7 @@ export function useModalBloqueioHorario({
     professionalId,
     repetir,
     weekdayRepeticao,
+    enviar,
   ]);
 
   return {

@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties }
 import apiClient from "@/lib/api-client";
 import { agendaVisualStyleVars, normalizeAgendaVisual, type AgendaVisualId } from "@/lib/clinica-agenda-visual";
 import { STATUS_PADRAO, useStatusSalao } from "@/components/salao/cores-salao";
+import { ModalBloqueioHorario } from "@/components/clinica-beleza/modal-bloqueio-horario/ModalBloqueioHorario";
 import { diaTemAtendimento } from "@/components/salao/PaineisSalao";
 import { SalaoAPI, type AgendamentoSalao, type BloqueioSalao, type ClienteSalao, type FormaPagamentoSalao, type JornadaDia, type LocalRecebimentoSalao, type ProfissionalSalao, type ServicoSalao } from "@/lib/salao-api";
 
@@ -15,6 +16,39 @@ const ALTURA_HORA = 52;
 
 function dois(valor: number) {
   return String(valor).padStart(2, "0");
+}
+
+function diaLocalDeIso(valor: string) {
+  const data = new Date(valor);
+  if (Number.isNaN(data.getTime())) return valor.slice(0, 10);
+  return `${data.getFullYear()}-${dois(data.getMonth() + 1)}-${dois(data.getDate())}`;
+}
+
+function tipoDoMotivo(motivo: string) {
+  const texto = motivo.toLowerCase();
+  if (texto.includes("férias") || texto.includes("ferias")) return "ferias";
+  if (texto.includes("manutenção") || texto.includes("manutencao")) return "manutencao";
+  if (texto.includes("evento") || texto.includes("reunião") || texto.includes("reuniao")) return "evento";
+  if (texto.includes("feriado")) return "feriado";
+  return "folga";
+}
+
+function corpoBloqueioSalao(body: Record<string, unknown>) {
+  const inicioBruto = String(body.data_inicio || "");
+  const fimBruto = String(body.data_fim || inicioBruto);
+  const diaInteiro = Boolean(body.dia_inteiro);
+  const inicio = new Date(inicioBruto);
+  const fim = new Date(fimBruto);
+  return {
+    titulo: String(body.motivo || "Bloqueio").trim(),
+    tipo: tipoDoMotivo(String(body.motivo || "")),
+    profissional: body.professional ? Number(body.professional) : null,
+    data_inicio: diaLocalDeIso(inicioBruto),
+    data_fim: diaLocalDeIso(fimBruto),
+    horario_inicio: diaInteiro || Number.isNaN(inicio.getTime()) ? "" : `${dois(inicio.getHours())}:${dois(inicio.getMinutes())}`,
+    horario_fim: diaInteiro || Number.isNaN(fim.getTime()) ? "" : `${dois(fim.getHours())}:${dois(fim.getMinutes())}`,
+    observacoes: String(body.observacoes || "").trim(),
+  };
 }
 
 function horaDecimal(texto: string) {
@@ -101,7 +135,7 @@ export default function AgendaSalaoPage() {
   const [confirmarExclusao, setConfirmarExclusao] = useState(false);
   const [bloqueios, setBloqueios] = useState<BloqueioSalao[]>([]);
   const [folgaAberta, setFolgaAberta] = useState(false);
-  const [folga, setFolga] = useState({ titulo: "", profissional: "", data_inicio: "", data_fim: "", horario_inicio: "", horario_fim: "" });
+  const [bloqueioAberto, setBloqueioAberto] = useState<BloqueioSalao | null>(null);
 
   const periodo = useMemo(() => {
     if (modo === "dia") {
@@ -433,43 +467,15 @@ export default function AgendaSalaoPage() {
   }
 
   function abrirFolga() {
-    const dia = `${cursor.getFullYear()}-${dois(cursor.getMonth() + 1)}-${dois(cursor.getDate())}`;
     setErro("");
-    setFolga({
-      titulo: "",
-      profissional: String(profissionais[0]?.id || ""),
-      data_inicio: dia,
-      data_fim: dia,
-      horario_inicio: "",
-      horario_fim: "",
-    });
     setFolgaAberta(true);
-  }
-
-  async function criarFolga(evento: React.FormEvent) {
-    evento.preventDefault();
-    setErro("");
-    try {
-      await SalaoAPI.bloquear({
-        titulo: folga.titulo,
-        tipo: "folga",
-        profissional: Number(folga.profissional),
-        data_inicio: folga.data_inicio,
-        data_fim: folga.data_fim || folga.data_inicio,
-        horario_inicio: folga.horario_inicio,
-        horario_fim: folga.horario_fim,
-      });
-      setFolga({ ...folga, titulo: "", horario_inicio: "", horario_fim: "" });
-      recarregarBloqueios();
-    } catch (exc) {
-      setErro(exc instanceof Error ? exc.message : "Não foi possível gravar a folga.");
-    }
   }
 
   async function removerFolga(id: number) {
     setErro("");
     try {
       await SalaoAPI.removerBloqueio(id);
+      setBloqueioAberto(null);
       recarregarBloqueios();
     } catch (exc) {
       setErro(exc instanceof Error ? exc.message : "Não foi possível remover a folga.");
@@ -547,7 +553,7 @@ export default function AgendaSalaoPage() {
                   <span className="block font-medium text-[#2a1c20]">{coluna.titulo}</span>
                   {coluna.detalhe ? <span className="block truncate text-[10px] uppercase">{coluna.detalhe}</span> : null}
                   {folgas.map((item) => (
-                    <span key={item.id} className="mt-1 block truncate text-[10px] text-[#7a3044]" title={item.titulo}>Folga · {item.profissional_nome}</span>
+                    <button key={item.id} type="button" className="mt-1 block w-full truncate text-[10px] text-[#7a3044]" title={item.titulo} onClick={(evento) => { evento.stopPropagation(); setBloqueioAberto(item); }}>Folga · {item.profissional_nome}</button>
                   ))}
                 </div>
               );
@@ -600,10 +606,10 @@ export default function AgendaSalaoPage() {
                   const fimHora = item.horario_fim ? horaDecimal(item.horario_fim) : HORA_FIM;
                   const topo = (inicioHora - HORA_INICIO) * ALTURA_HORA;
                   return (
-                    <div key={item.id} data-evento="1" className="absolute left-1 right-1 border-l-4 border-[#7a3044] bg-[#f6e4e8] px-1 py-0.5 text-[11px] text-[#7a3044]" style={{ top: Math.max(0, topo), height: Math.max(22, (fimHora - inicioHora) * ALTURA_HORA), borderRadius: "var(--agenda-card-radius, 8px)", zIndex: 2 }} title={item.titulo}>
+                    <button key={item.id} type="button" data-evento="1" className="absolute left-1 right-1 border-l-4 border-[#7a3044] bg-[#f6e4e8] px-1 py-0.5 text-left text-[11px] text-[#7a3044]" style={{ top: Math.max(0, topo), height: Math.max(22, (fimHora - inicioHora) * ALTURA_HORA), borderRadius: "var(--agenda-card-radius, 8px)", zIndex: 2 }} title={item.titulo} onClick={(evento) => { evento.stopPropagation(); setBloqueioAberto(item); }}>
                       Folga
                       <span className="block truncate">{item.titulo}</span>
-                    </div>
+                    </button>
                   );
                 }) : null}
                 {eventos.filter((item) => item.status !== "CANCELLED" && (filtroProfissional === "todos" || String(item.profissional) === filtroProfissional)).filter((item) => {
@@ -643,47 +649,29 @@ export default function AgendaSalaoPage() {
           <span key={nome} className="inline-flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: cor }} />{nome}</span>
         ))}
       </p>
-      {folgaAberta ? (
-        <div className="fixed inset-0 z-40 grid place-items-center bg-black/40 p-4" role="dialog" aria-modal="true" aria-labelledby="folga-formulario" onClick={(evento) => { if (evento.target === evento.currentTarget) setFolgaAberta(false); }}>
-          <div className="max-h-[90vh] w-full max-w-2xl overflow-auto rounded-3xl bg-white p-5">
-            <h2 id="folga-formulario" className="text-lg font-semibold">Folgas e bloqueios</h2>
-            <p className="mt-1 text-sm text-[#8a6e74]">A secretaria registra a folga de qualquer profissional. Sem horário, o dia inteiro fica bloqueado.</p>
-            {erro ? <p className="mt-2 text-sm text-red-700">{erro}</p> : null}
-            <form className="mt-3 grid gap-2 sm:grid-cols-2" onSubmit={criarFolga}>
-              <label className="text-sm sm:col-span-2">Profissional
-                <select className="mt-1 w-full rounded-lg border px-2 py-2" value={folga.profissional} onChange={(evento) => setFolga({ ...folga, profissional: evento.target.value })} required>
-                  {profissionais.map((pessoa) => <option key={pessoa.id} value={pessoa.id}>{pessoa.nome}</option>)}
-                </select>
-              </label>
-              <label className="text-sm sm:col-span-2">Motivo
-                <input className="mt-1 w-full rounded-lg border px-2 py-2" value={folga.titulo} onChange={(evento) => setFolga({ ...folga, titulo: evento.target.value })} required />
-              </label>
-              <label className="text-sm">Começa
-                <input type="date" className="mt-1 w-full rounded-lg border px-2 py-2" value={folga.data_inicio} onChange={(evento) => setFolga({ ...folga, data_inicio: evento.target.value })} required />
-              </label>
-              <label className="text-sm">Termina
-                <input type="date" className="mt-1 w-full rounded-lg border px-2 py-2" value={folga.data_fim} onChange={(evento) => setFolga({ ...folga, data_fim: evento.target.value })} />
-              </label>
-              <label className="text-sm">Das
-                <input type="time" className="mt-1 w-full rounded-lg border px-2 py-2" value={folga.horario_inicio} onChange={(evento) => setFolga({ ...folga, horario_inicio: evento.target.value })} />
-              </label>
-              <label className="text-sm">Até
-                <input type="time" className="mt-1 w-full rounded-lg border px-2 py-2" value={folga.horario_fim} onChange={(evento) => setFolga({ ...folga, horario_fim: evento.target.value })} />
-              </label>
-              <div className="mt-1 flex justify-end gap-2 sm:col-span-2">
-                <button type="button" className="rounded-full border px-4 py-2 text-sm" onClick={() => setFolgaAberta(false)}>Fechar</button>
-                <button className="rounded-full bg-[#7a3044] px-4 py-2 text-sm text-white" type="submit">Registrar</button>
-              </div>
-            </form>
-            <ul className="mt-4">
-              {bloqueios.length === 0 ? <li className="text-sm text-[#8a6e74]">Nenhuma folga cadastrada.</li> : null}
-              {bloqueios.map((item) => (
-                <li key={item.id} className="flex flex-wrap items-center justify-between gap-2 border-t border-[#f0e4e6] py-2 text-sm">
-                  <span>{item.profissional_nome} · {item.titulo} · {item.data_inicio}{item.data_fim !== item.data_inicio ? ` a ${item.data_fim}` : ""}{item.horario_inicio ? ` · ${item.horario_inicio.slice(0, 5)}–${item.horario_fim?.slice(0, 5)}` : " · dia inteiro"}</span>
-                  <button type="button" className="text-[#8a6e74]" onClick={() => removerFolga(item.id)}>Remover</button>
-                </li>
-              ))}
-            </ul>
+      <ModalBloqueioHorario
+        isOpen={folgaAberta}
+        onClose={() => setFolgaAberta(false)}
+        onSuccess={recarregarBloqueios}
+        professionals={profissionais.map((pessoa) => ({ id: pessoa.id, nome: pessoa.nome, specialty: pessoa.especialidade }))}
+        dataInicioSugerida={cursor}
+        defaultProfessionalId={filtroProfissional === "todos" ? "" : filtroProfissional}
+        enviar={(body) => SalaoAPI.bloquear(corpoBloqueioSalao(body)).then(() => undefined)}
+      />
+      {bloqueioAberto ? (
+        <div className="fixed inset-0 z-40 grid place-items-center bg-black/40 p-4" role="dialog" aria-modal="true" aria-labelledby="folga-aberta" onClick={(evento) => { if (evento.target === evento.currentTarget) setBloqueioAberto(null); }}>
+          <div className="w-full max-w-md rounded-3xl bg-white p-5">
+            <h2 id="folga-aberta" className="text-lg font-semibold">{bloqueioAberto.titulo}</h2>
+            <p className="mt-2 text-sm text-[#5c3d45]">{bloqueioAberto.profissional_nome}</p>
+            <p className="mt-1 text-sm text-[#5c3d45]">
+              {bloqueioAberto.data_inicio}{bloqueioAberto.data_fim !== bloqueioAberto.data_inicio ? ` a ${bloqueioAberto.data_fim}` : ""}
+              {bloqueioAberto.horario_inicio ? ` · ${bloqueioAberto.horario_inicio.slice(0, 5)}–${bloqueioAberto.horario_fim?.slice(0, 5)}` : " · dia inteiro"}
+            </p>
+            {bloqueioAberto.observacoes ? <p className="mt-2 text-sm text-[#8a6e74]">{bloqueioAberto.observacoes}</p> : null}
+            <div className="mt-4 flex justify-end gap-2">
+              <button type="button" className="rounded-full border px-4 py-2 text-sm" onClick={() => setBloqueioAberto(null)}>Fechar</button>
+              <button type="button" className="rounded-full bg-red-600 px-4 py-2 text-sm text-white" onClick={() => removerFolga(bloqueioAberto.id)}>Excluir bloqueio</button>
+            </div>
           </div>
         </div>
       ) : null}

@@ -10,6 +10,7 @@ import { agendaVisualStyleVars, normalizeAgendaVisual, type AgendaVisualId } fro
 import { STATUS_PADRAO, useStatusSalao } from "@/components/salao/cores-salao";
 import { ModalBloqueioHorario } from "@/components/clinica-beleza/modal-bloqueio-horario/ModalBloqueioHorario";
 import { diaTemAtendimento } from "@/components/salao/PaineisSalao";
+import { SalaoAgendaCalendario } from "@/components/salao/SalaoAgendaCalendario";
 import { SalaoAPI, type AgendamentoSalao, type BloqueioSalao, type ClienteSalao, type FormaPagamentoSalao, type JornadaDia, type LocalRecebimentoSalao, type ProfissionalSalao, type ServicoSalao } from "@/lib/salao-api";
 
 const HORA_INICIO = 8;
@@ -530,6 +531,16 @@ export default function AgendaSalaoPage() {
     window.addEventListener("pointerup", encerrar);
   }
 
+  async function redimensionar(eventoId: number, minutos: number) {
+    try {
+      await SalaoAPI.atualizarAgendamento(eventoId, { duracao_minutos: minutos });
+      setAviso(`Tempo ajustado para ${minutos} min.`);
+      carregar();
+    } catch (exc) {
+      setErro(exc instanceof Error ? exc.message : "Não foi possível ajustar o tempo.");
+    }
+  }
+
   async function soltar(eventoId: number, data: Date, profissionalId?: string) {
     const atual = eventos.find((item) => item.id === eventoId);
     if (!atual) return;
@@ -609,12 +620,16 @@ export default function AgendaSalaoPage() {
       <div className="mb-3 flex shrink-0 flex-wrap items-center justify-between gap-2">
         <div>
           <h1 className="text-3xl font-semibold">Agenda</h1>
-          <p className="text-sm text-[#8a6e74]">Dia por profissional, semana por dia e mês. O horário ocupado não aceita outro atendimento.</p>
+          <p className="text-sm text-[#8a6e74]">Mesma agenda da clínica: dia por profissional, semana e mês no calendário.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <button type="button" className="border bg-white px-3 py-1.5 text-sm" style={botao(false)} onClick={() => setCursor(new Date())}>Hoje</button>
-          <button type="button" className="border bg-white px-3 py-1.5 text-sm" style={botao(false)} onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate() - (modo === "mes" ? 30 : modo === "semana" ? 7 : 1)))}>Anterior</button>
-          <button type="button" className="border bg-white px-3 py-1.5 text-sm" style={botao(false)} onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate() + (modo === "mes" ? 30 : modo === "semana" ? 7 : 1)))}>Próxima</button>
+          {lista || (modo === "dia" && filtroProfissional === "todos") ? (
+            <>
+              <button type="button" className="border bg-white px-3 py-1.5 text-sm" style={botao(false)} onClick={() => setCursor(new Date())}>Hoje</button>
+              <button type="button" className="border bg-white px-3 py-1.5 text-sm" style={botao(false)} onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate() - (modo === "mes" ? 30 : modo === "semana" ? 7 : 1)))}>Anterior</button>
+              <button type="button" className="border bg-white px-3 py-1.5 text-sm" style={botao(false)} onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate() + (modo === "mes" ? 30 : modo === "semana" ? 7 : 1)))}>Próxima</button>
+            </>
+          ) : null}
           <button type="button" className="border px-3 py-1.5 text-sm" style={botao(lista)} onClick={() => setLista((aberta) => !aberta)}>Lista</button>
           <select className="border bg-white px-3 py-1.5 text-sm" style={botao(false)} value={filtroProfissional} aria-label="Profissional" onChange={(evento) => setFiltroProfissional(evento.target.value)}>
             <option value="todos">Todos os profissionais</option>
@@ -622,18 +637,37 @@ export default function AgendaSalaoPage() {
           </select>
           <Link href={`/loja/${slug}/salao-cabeleireiro/configuracoes/aparencia`} className="border bg-white px-3 py-1.5 text-sm" style={botao(false)}>Configurar</Link>
           <button type="button" className="border bg-white px-3 py-1.5 text-sm" style={botao(false)} onClick={abrirFolga}>Bloquear</button>
-          {(["dia", "semana", "mes"] as const).map((item) => (
+          {lista || (modo === "dia" && filtroProfissional === "todos") ? (["dia", "semana", "mes"] as const).map((item) => (
             <button key={item} type="button" className="border px-3 py-1.5 text-sm" style={botao(modo === item && !lista)} onClick={() => { setModo(item); setLista(false); }}>
               {item === "dia" ? "Dia" : item === "semana" ? "Semana" : "Mês"}
             </button>
-          ))}
+          )) : null}
           <button type="button" className="border px-3 py-1.5 text-sm" style={botao(true)} onClick={() => abrirNovo(cursor)}>+ Novo agendamento</button>
         </div>
       </div>
       {erro ? <p className="mb-2 text-sm text-red-700">{erro}</p> : null}
       {aviso ? <p className="mb-2 text-sm text-[#1f8a4c]">{aviso}</p> : null}
       {profissionais.length === 0 ? <p className="mb-2 text-sm text-[#8a6e74]">Cadastre um profissional para abrir as colunas do dia.</p> : null}
-      {lista ? (
+      {!lista && !(modo === "dia" && filtroProfissional === "todos") ? (
+        <SalaoAgendaCalendario
+          modo={modo}
+          cursor={cursor}
+          visual={visual}
+          filtroProfissional={filtroProfissional}
+          profissionais={profissionais}
+          jornadas={jornadas}
+          eventos={eventos}
+          bloqueios={bloqueios}
+          statusCores={statusCores}
+          onVista={(vista) => setModo(vista)}
+          onCursor={setCursor}
+          onAbrir={(item) => { setForm(null); setConfirmarExclusao(false); setSelecionado(item); }}
+          onAbrirBloqueio={setBloqueioAberto}
+          onNovo={abrirNovo}
+          onMover={(id, inicio) => { void soltar(id, inicio); }}
+          onRedimensionar={(id, minutos) => { void redimensionar(id, minutos); }}
+        />
+      ) : lista ? (
         <ul className={`border bg-white p-3 ${filtroProfissional === "todos" ? "grid grid-cols-1 gap-2 sm:grid-cols-2" : "space-y-2"}`} style={{ ...tema, borderColor: "var(--agenda-border)", borderRadius: "var(--agenda-radius, 16px)" }}>
           {linhasLista.length === 0 ? <li className={`text-sm text-[#8a6e74] ${filtroProfissional === "todos" ? "sm:col-span-2" : ""}`}>Nenhum horário neste período.</li> : null}
           {linhasLista.map((linha) => (

@@ -17,6 +17,22 @@ function dois(valor: number) {
   return String(valor).padStart(2, "0");
 }
 
+function horaDecimal(texto: string) {
+  const [hora, minuto] = texto.split(":");
+  return Number(hora) + Number(minuto || 0) / 60;
+}
+
+function intervaloDoProfissional(jornadas: Record<number, JornadaDia[]>, profissionalId: string, data: Date) {
+  const jornada = jornadas[Number(profissionalId)] || [];
+  const diaSemana = (data.getDay() + 6) % 7;
+  const item = jornada.find((linha) => linha.dia_semana === diaSemana && linha.ativo);
+  if (!item?.intervalo_inicio || !item.intervalo_fim) return null;
+  const inicio = horaDecimal(item.intervalo_inicio);
+  const fim = horaDecimal(item.intervalo_fim);
+  if (!(fim > inicio)) return null;
+  return { inicio, fim };
+}
+
 type LinhaPagamento = { id: string; forma: string; valor: string };
 
 const FORMAS_PADRAO: FormaPagamentoSalao[] = [
@@ -530,13 +546,23 @@ export default function AgendaSalaoPage() {
                 }}
               >
                 {horas.map((hora) => <div key={hora} style={{ height: ALTURA_HORA }} className="border-b border-[#f0e4e6]" />)}
+                {modo === "dia" ? (() => {
+                  const faixa = intervaloDoProfissional(jornadas, coluna.id, coluna.data);
+                  if (!faixa) return null;
+                  const topo = (faixa.inicio - HORA_INICIO) * ALTURA_HORA;
+                  return (
+                    <div data-evento="1" className="absolute left-1 right-1 border-l-4 border-[#d97706] bg-[#f8e7c8] px-1 py-0.5 text-[11px] text-[#7a4b12]" style={{ top: Math.max(0, topo), height: Math.max(22, (faixa.fim - faixa.inicio) * ALTURA_HORA), borderRadius: "var(--agenda-card-radius, 8px)" }} title="Intervalo">
+                      Intervalo
+                    </div>
+                  );
+                })() : null}
                 {modo === "dia" ? folgasDoDia(coluna.data).filter((item) => !item.profissional || String(item.profissional) === coluna.id).map((item) => {
-                  const inicioHora = item.horario_inicio ? Number(item.horario_inicio.slice(0, 2)) + Number(item.horario_inicio.slice(3, 5)) / 60 : HORA_INICIO;
-                  const fimHora = item.horario_fim ? Number(item.horario_fim.slice(0, 2)) + Number(item.horario_fim.slice(3, 5)) / 60 : HORA_FIM;
+                  const inicioHora = item.horario_inicio ? horaDecimal(item.horario_inicio) : HORA_INICIO;
+                  const fimHora = item.horario_fim ? horaDecimal(item.horario_fim) : HORA_FIM;
                   const topo = (inicioHora - HORA_INICIO) * ALTURA_HORA;
                   return (
-                    <div key={item.id} data-evento="1" className="absolute left-1 right-1 border-l-4 border-[#d97706] bg-[#f8e7c8] px-1 py-0.5 text-[11px] text-[#7a4b12]" style={{ top: Math.max(0, topo), height: Math.max(22, (fimHora - inicioHora) * ALTURA_HORA), borderRadius: "var(--agenda-card-radius, 8px)" }} title={item.titulo}>
-                      Intervalo
+                    <div key={item.id} data-evento="1" className="absolute left-1 right-1 border-l-4 border-[#7a3044] bg-[#f6e4e8] px-1 py-0.5 text-[11px] text-[#7a3044]" style={{ top: Math.max(0, topo), height: Math.max(22, (fimHora - inicioHora) * ALTURA_HORA), borderRadius: "var(--agenda-card-radius, 8px)", zIndex: 2 }} title={item.titulo}>
+                      Folga
                       <span className="block truncate">{item.titulo}</span>
                     </div>
                   );
@@ -574,7 +600,7 @@ export default function AgendaSalaoPage() {
         </div>
       )}
       <p className="mt-3 flex flex-wrap gap-3 text-[11px] text-[#5c3d45]">
-        {[["Aguardando", statusCores.SCHEDULED || STATUS_PADRAO.SCHEDULED], ["Confirmado", statusCores.CONFIRMED || STATUS_PADRAO.CONFIRMED], ["Em atendimento", statusCores.IN_PROGRESS || STATUS_PADRAO.IN_PROGRESS], ["Concluído", statusCores.COMPLETED || STATUS_PADRAO.COMPLETED], ["Cancelado", statusCores.CANCELLED || STATUS_PADRAO.CANCELLED], ["Faltou", statusCores.NO_SHOW || STATUS_PADRAO.NO_SHOW], ["Intervalo", "#f8e7c8"]].map(([nome, cor]) => (
+        {[["Aguardando", statusCores.SCHEDULED || STATUS_PADRAO.SCHEDULED], ["Confirmado", statusCores.CONFIRMED || STATUS_PADRAO.CONFIRMED], ["Em atendimento", statusCores.IN_PROGRESS || STATUS_PADRAO.IN_PROGRESS], ["Concluído", statusCores.COMPLETED || STATUS_PADRAO.COMPLETED], ["Cancelado", statusCores.CANCELLED || STATUS_PADRAO.CANCELLED], ["Faltou", statusCores.NO_SHOW || STATUS_PADRAO.NO_SHOW], ["Intervalo", "#f8e7c8"], ["Folga", "#f6e4e8"]].map(([nome, cor]) => (
           <span key={nome} className="inline-flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: cor }} />{nome}</span>
         ))}
       </p>
@@ -883,16 +909,18 @@ function Mes({ cursor, eventos, statusCores, aoAbrir }: { cursor: Date; eventos:
   const offset = (primeiro.getDay() + 6) % 7;
   const celulas: Array<number | null> = [...Array(offset).fill(null), ...Array.from({ length: dias }, (_, indice) => indice + 1)];
   while (celulas.length % 7 !== 0) celulas.push(null);
-  const linhas = celulas.length / 7;
   return (
-    <div className="grid min-h-0 flex-1 grid-cols-7 gap-2" style={{ gridTemplateRows: `repeat(${linhas}, minmax(0, 1fr))` }}>
+    <div className="grid grid-cols-7 gap-2">
+      {["segunda-feira", "terça-feira", "quarta-feira", "quinta-feira", "sexta-feira", "sábado", "domingo"].map((nome) => (
+        <div key={nome} className="px-1 text-center text-[11px] capitalize text-[#8a6e74]">{nome}</div>
+      ))}
       {celulas.map((dia, indice) => {
-        if (!dia) return <div key={`vazio-${indice}`} className="rounded-xl border border-[#f0e4e6] bg-white" />;
+        if (!dia) return <div key={`vazio-${indice}`} className="min-h-28 rounded-xl border border-[#f0e4e6] bg-white" />;
         const data = new Date(cursor.getFullYear(), cursor.getMonth(), dia);
         const doDia = eventos.filter((item) => new Date(item.inicio).toDateString() === data.toDateString() && item.status !== "CANCELLED");
         const hoje = data.toDateString() === new Date().toDateString();
         return (
-          <button key={dia} type="button" className="h-full min-h-0 rounded-xl border bg-white p-2 text-left" style={hoje ? { background: "var(--agenda-today-bg, #fff)" } : undefined} onClick={() => aoAbrir(data)}>
+          <button key={dia} type="button" className="min-h-28 rounded-xl border bg-white p-2 text-left" style={hoje ? { background: "var(--agenda-today-bg, #fff)" } : undefined} onClick={() => aoAbrir(data)}>
             <span className={`text-sm ${hoje ? "font-semibold" : ""}`}>{dia}</span>
             <span className="mt-1 block space-y-0.5">
               {doDia.slice(0, 3).map((item) => (

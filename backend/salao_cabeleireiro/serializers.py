@@ -121,6 +121,7 @@ class ProfissionalSerializer(serializers.ModelSerializer):
             "comissao_tipo",
             "comissao_percentual",
             "comissao_fixa",
+            "intervalo_agenda_minutos",
             "comissoes",
             "is_active",
         ]
@@ -135,6 +136,13 @@ class ProfissionalSerializer(serializers.ModelSerializer):
             }
             for item in profissional.comissoes.select_related("servico").all()
         ]
+
+    def validate_intervalo_agenda_minutos(self, valor):
+        if valor in (None, ""):
+            return None
+        if int(valor) not in (5, 10, 15, 20, 30, 45, 60):
+            raise serializers.ValidationError("O intervalo deve ser 5, 10, 15, 20, 30, 45 ou 60 minutos.")
+        return int(valor)
 
     def validate_comissao_tipo(self, valor):
         tipo = (valor or "percentual").strip()

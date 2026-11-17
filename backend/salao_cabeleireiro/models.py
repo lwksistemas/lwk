@@ -111,6 +111,12 @@ class Cliente(ClienteBase):
 class Profissional(ProfissionalBase):
     comissao_tipo = models.CharField(max_length=12, default="percentual")
     comissao_fixa = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("0"))
+    intervalo_agenda_minutos = models.PositiveIntegerField(
+        blank=True,
+        null=True,
+        verbose_name="Intervalo por atendimento (min)",
+        help_text="Passo entre um horário e o outro na agenda. Vazio usa 15 minutos.",
+    )
 
     class Meta:
         verbose_name = "Profissional"

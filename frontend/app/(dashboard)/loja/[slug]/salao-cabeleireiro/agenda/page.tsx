@@ -5,6 +5,7 @@ import { useParams, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
 import apiClient from "@/lib/api-client";
 import { CLINICA_AGENDA_DURACAO_MIN_MIN, CLINICA_AGENDA_DURACAO_SNAP_MIN } from "@/lib/clinica-beleza-constants";
+import { intervaloAgendaMinutos } from "@/lib/intervalo-agenda";
 import { agendaVisualStyleVars, normalizeAgendaVisual, type AgendaVisualId } from "@/lib/clinica-agenda-visual";
 import { STATUS_PADRAO, useStatusSalao } from "@/components/salao/cores-salao";
 import { ModalBloqueioHorario } from "@/components/clinica-beleza/modal-bloqueio-horario/ModalBloqueioHorario";
@@ -669,7 +670,8 @@ export default function AgendaSalaoPage() {
                   const retangulo = evento.currentTarget.getBoundingClientRect();
                   const hora = HORA_INICIO + (evento.clientY - retangulo.top) / ALTURA_HORA;
                   const data = new Date(coluna.data);
-                  data.setHours(Math.floor(hora), Math.round((hora % 1) * 60 / 15) * 15, 0, 0);
+                  const passo = intervaloAgendaMinutos(profissionais.find((pessoa) => String(pessoa.id) === (modo === "dia" ? coluna.id : filtroProfissional)));
+                  data.setHours(Math.floor(hora), Math.round(((hora % 1) * 60) / passo) * passo, 0, 0);
                   soltar(id, data, modo === "dia" ? coluna.id : undefined);
                 }}
                 onClick={(evento) => {
@@ -678,7 +680,8 @@ export default function AgendaSalaoPage() {
                   const retangulo = evento.currentTarget.getBoundingClientRect();
                   const hora = HORA_INICIO + (evento.clientY - retangulo.top) / ALTURA_HORA;
                   const data = new Date(coluna.data);
-                  data.setHours(Math.floor(hora), 0, 0, 0);
+                  const passo = intervaloAgendaMinutos(profissionais.find((pessoa) => String(pessoa.id) === (modo === "dia" ? coluna.id : filtroProfissional)));
+                  data.setHours(Math.floor(hora), Math.round(((hora % 1) * 60) / passo) * passo, 0, 0);
                   abrirNovo(data, modo === "dia" ? coluna.id : "");
                 }}
               >
@@ -953,7 +956,7 @@ function Formulario({
         </ul>
         <p className="mt-2 text-sm">Duração {minutos} min · Total {reais(total)}</p>
       </div>
-      <label className="text-sm">Data e hora<input type="datetime-local" className="mt-1 w-full rounded-lg border px-2 py-2" value={form.inicio} onChange={(evento) => setForm({ ...form, inicio: evento.target.value })} /></label>
+      <label className="text-sm">Data e hora<input type="datetime-local" step={intervaloAgendaMinutos(profissionais.find((pessoa) => String(pessoa.id) === form.profissional)) * 60} className="mt-1 w-full rounded-lg border px-2 py-2" value={form.inicio} onChange={(evento) => setForm({ ...form, inicio: evento.target.value })} /></label>
       <div className="mt-2 flex items-center justify-end gap-2">
         <button type="button" className="rounded-full border px-4 py-2 text-sm" onClick={aoFechar}>Cancelar</button>
         <button type="submit" className="rounded-full bg-[#7a3044] px-4 py-2 text-sm text-white">Salvar</button>

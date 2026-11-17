@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useState, type Dispatch, type FormEvent, type SetStateAction } from "react";
+import { INTERVALOS_AGENDA_MIN, INTERVALO_AGENDA_PADRAO, intervaloAgendaMinutos } from "@/lib/intervalo-agenda";
 import { SalaoAPI, type BloqueioSalao, type JornadaDia, type ProfissionalSalao, type ServicoSalao } from "@/lib/salao-api";
 
 const DIAS = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"];
 const CAMPO = "w-full rounded-lg border px-2 py-2";
-const VAZIO = { nome: "", telefone: "", especialidade: "Cabeleireiro", comissao_tipo: "percentual", comissao_percentual: "0", comissao_fixa: "0" };
+const VAZIO = { nome: "", telefone: "", especialidade: "Cabeleireiro", comissao_tipo: "percentual", comissao_percentual: "0", comissao_fixa: "0", intervalo_agenda_minutos: String(INTERVALO_AGENDA_PADRAO) };
 
 type Regra = { servico: number; nome: string; tipo: "percentual" | "fixo"; valor: string };
 const FOLGA_VAZIA = { titulo: "", data_inicio: "", data_fim: "", horario_inicio: "", horario_fim: "" };
@@ -45,6 +46,7 @@ export default function ProfissionaisSalaoPage() {
       comissao_tipo: item.comissao_tipo || "percentual",
       comissao_percentual: String(item.comissao_percentual),
       comissao_fixa: String(item.comissao_fixa || "0"),
+      intervalo_agenda_minutos: String(intervaloAgendaMinutos(item)),
     });
     setRegras(montarRegras(servicos, item.comissoes, item.comissao_tipo || "percentual"));
     setJornada([]);
@@ -83,6 +85,7 @@ export default function ProfissionaisSalaoPage() {
         ...form,
         comissao_percentual: form.comissao_percentual.replace(",", "."),
         comissao_fixa: form.comissao_fixa.replace(",", "."),
+        intervalo_agenda_minutos: Number(form.intervalo_agenda_minutos),
         comissoes: regras.filter((regra) => regra.valor.trim() !== "").map((regra) => ({
           servico: regra.servico,
           tipo: regra.tipo,
@@ -152,7 +155,7 @@ export default function ProfissionaisSalaoPage() {
             <button type="button" className="flex h-full w-full items-start justify-between gap-3 rounded-3xl border border-[#f0e4e6] bg-white px-4 py-3 text-left hover:bg-[#fbf6f4]" onClick={() => abrir(item)}>
               <span>
                 <span className="block font-medium">{item.nome}</span>
-                <span className="mt-0.5 block text-sm text-[#8a6e74]">{item.especialidade} · {rotuloComissao(item)}</span>
+                <span className="mt-0.5 block text-sm text-[#8a6e74]">{item.especialidade} · {rotuloComissao(item)} · intervalo {intervaloAgendaMinutos(item)} min</span>
               </span>
               <span className="shrink-0 text-sm text-[#8a6e74]">{item.telefone}</span>
             </button>
@@ -188,6 +191,12 @@ export default function ProfissionaisSalaoPage() {
                 </label>
                 <label className="text-sm">{form.comissao_tipo === "fixo" ? "Valor fixo (R$)" : "Porcentagem"}
                   <input className={`mt-1 ${CAMPO}`} value={form.comissao_tipo === "fixo" ? form.comissao_fixa : form.comissao_percentual} onChange={(evento) => setForm(form.comissao_tipo === "fixo" ? { ...form, comissao_fixa: evento.target.value } : { ...form, comissao_percentual: evento.target.value })} />
+                </label>
+                <label className="text-sm">Intervalo por atendimento
+                  <select className={`mt-1 ${CAMPO}`} value={form.intervalo_agenda_minutos} onChange={(evento) => setForm({ ...form, intervalo_agenda_minutos: evento.target.value })}>
+                    {INTERVALOS_AGENDA_MIN.map((minutos) => <option key={minutos} value={minutos}>{minutos} minutos</option>)}
+                  </select>
+                  <span className="mt-1 block text-xs text-[#8a6e74]">Passo entre um horário e o outro na agenda deste profissional.</span>
                 </label>
               </div>
               <div className="mt-4">

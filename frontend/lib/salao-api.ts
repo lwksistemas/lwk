@@ -166,6 +166,7 @@ export type ProfissionalSalao = {
   comissao_tipo: "percentual" | "fixo";
   comissao_percentual: string;
   comissao_fixa: string;
+  intervalo_agenda_minutos?: number | null;
   comissoes: ComissaoProcedimentoSalao[];
 };
 

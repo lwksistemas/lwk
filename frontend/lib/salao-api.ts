@@ -385,6 +385,16 @@ export const SalaoAPI = {
     salaoFetch<ResumoSessaoSalao>("/caixa/movimento/", { method: "POST", body: JSON.stringify({ tipo, valor, motivo }) }),
   cancelarRecibo: (numero: number, motivo: string) =>
     salaoFetch<VendaSalao>(`/vendas/${numero}/cancelar/`, { method: "POST", body: JSON.stringify({ motivo }) }),
+  previaHtml: async (corpo: Record<string, unknown>) => {
+    const resposta = await fetch(`${getApiBaseUrl()}/salao-cabeleireiro/comprovante/previa/`, {
+      method: "POST",
+      credentials: USE_JWT_HTTPONLY_COOKIES ? "include" : "same-origin",
+      headers: getClinicaBelezaHeadersWithLoja(),
+      body: JSON.stringify(corpo),
+    });
+    if (!resposta.ok) throw new Error("Não foi possível abrir a prévia.");
+    return resposta.text();
+  },
   htmlRecibo: async (numero: number) => {
     const resposta = await fetch(`${getApiBaseUrl()}/salao-cabeleireiro/vendas/${numero}/html/`, {
       credentials: USE_JWT_HTTPONLY_COOKIES ? "include" : "same-origin",

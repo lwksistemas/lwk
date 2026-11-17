@@ -8,6 +8,7 @@ from .estoque_views import (
     VendaCreateView,
     VendaDetailView,
     VendaEnviarView,
+    ComprovantePreviaView,
     VendaHtmlView,
     VendaPdfView,
 )
@@ -74,6 +75,7 @@ urlpatterns = [
     path("formas-pagamento/<int:pk>/", FormaPagamentoDetailView.as_view(), name="salao-forma"),
     path("vendas/", VendaCreateView.as_view(), name="salao-vendas"),
     path("vendas/<int:numero>/", VendaDetailView.as_view(), name="salao-venda"),
+    path("comprovante/previa/", ComprovantePreviaView.as_view(), name="salao-comprovante-previa"),
     path("vendas/<int:numero>/html/", VendaHtmlView.as_view(), name="salao-venda-html"),
     path("vendas/<int:numero>/pdf/", VendaPdfView.as_view(), name="salao-venda-pdf"),
     path("vendas/<int:numero>/enviar/", VendaEnviarView.as_view(), name="salao-venda-enviar"),

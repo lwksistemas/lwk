@@ -87,7 +87,7 @@ class IsSalaoMembro(BasePermission):
             return False
         if request.method in ("GET", "HEAD", "OPTIONS"):
             return True
-        liberadas = {"ReceberAgendamentoView", "VendaCreateView", "SessaoAbrirView", "SessaoFecharView", "SessaoMovimentoView"}
+        liberadas = {"ReceberAgendamentoView", "VendaCreateView", "SessaoAbrirView", "SessaoFecharView", "SessaoMovimentoView", "ComprovantePreviaView"}
         if eh_recepcao(loja, prof, request.user) and view.__class__.__name__ not in liberadas:
             self.message = "A recepção usa somente o Caixa/PDV."
             return False

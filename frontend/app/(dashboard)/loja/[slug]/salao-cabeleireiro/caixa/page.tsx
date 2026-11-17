@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Banknote, Check, CreditCard, Download, Layers, Mail, MessageCircle, Minus, Plus, Printer, QrCode, Scissors, ShoppingBag, Trash2, UserRound, X } from "lucide-react";
-import { ComprovanteSalaoCard } from "@/components/salao/ComprovanteSalao";
 import { SalaoAPI, type AgendamentoSalao, type CabecalhoRecibo, type ClienteSalao, type ComprovanteSalao, type FormaPagamentoSalao, type LocalRecebimentoSalao, type PapelSalao, type ProdutoSalao, type ResumoSessaoSalao, type SessaoCaixaSalao, type VendaSalao } from "@/lib/salao-api";
 
 type ItemCarrinho = { produto: number; nome: string; preco: string; saldo: number; quantidade: number };
@@ -273,6 +272,7 @@ export default function CaixaPdvPage() {
   const [operador, setOperador] = useState("");
   const [abertura, setAbertura] = useState("");
   const [previaAberta, setPreviaAberta] = useState(true);
+  const [htmlPrevia, setHtmlPrevia] = useState("");
   const [erro, setErro] = useState("");
   const [salvando, setSalvando] = useState(false);
   const [sucesso, setSucesso] = useState<ReciboPronto | null>(null);
@@ -350,11 +350,31 @@ export default function CaixaPdvPage() {
   const valorNegativo = linhas.some((linha) => lerReais(linha.valor) < 0) || lerReais(entregue) < 0;
   const valorRecebido = entregue === "" ? total : lerReais(entregue);
   const troco = formaRapida === "dinheiro" && valorRecebido > total ? Math.round((valorRecebido - total) * 100) / 100 : 0;
-  const hoje = new Date();
   const rotulo = useMemo(() => Object.fromEntries(catalogo.map((item) => [item.codigo, item.nome])), [catalogo]);
   const formaLabel = formaRapida === "multiplas"
     ? linhas.map((linha) => rotulo[linha.forma] || linha.forma).join(" e ")
     : rotulo[formaRapida] || formaRapida;
+  const rascunhoPrevia = useMemo(() => JSON.stringify({
+    cliente: atual?.cliente_nome || "—",
+    operador,
+    valor: total.toFixed(2),
+    desconto: valorDesconto.toFixed(2),
+    servicos: selecionados.flatMap((item) => (item.procedimentos?.length ? item.procedimentos : [{ nome: item.servico_nome, preco: item.preco }]).map((procedimento) => ({ nome: procedimento.nome, profissional: item.profissional_nome, total: procedimento.preco }))),
+    produtos: carrinho.map((item) => ({ nome: item.nome, quantidade: item.quantidade, total: (lerReais(item.preco) * item.quantidade).toFixed(2) })),
+    formas: (formaRapida === "multiplas" ? linhas : [{ id: "1", forma: formaRapida, valor: String(total) }]).filter((linha) => lerReais(linha.valor) > 0).map((linha) => ({ nome: rotulo[linha.forma] || linha.forma, valor: lerReais(linha.valor).toFixed(2) })),
+  }), [atual, operador, total, valorDesconto, selecionados, carrinho, formaRapida, linhas, rotulo]);
+
+  useEffect(() => {
+    let ativo = true;
+    const pedido = oficial?.numero
+      ? SalaoAPI.htmlRecibo(oficial.numero)
+      : SalaoAPI.previaHtml({
+          ...JSON.parse(rascunhoPrevia) as Record<string, unknown>,
+          quando: new Date().toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }),
+        });
+    pedido.then((html) => { if (ativo) setHtmlPrevia(html); }).catch(() => undefined);
+    return () => { ativo = false; };
+  }, [oficial?.numero, rascunhoPrevia]);
 
   useEffect(() => {
     if (formaRapida === "multiplas") return;
@@ -874,17 +894,7 @@ export default function CaixaPdvPage() {
               <button type="button" className="text-xs text-[#7a3044]" onClick={() => setPreviaAberta((aberta) => !aberta)}>{previaAberta ? "Recolher" : "Mostrar"}</button>
             </div>
             {previaAberta ? <div className="mt-3 overflow-x-auto">
-              <ComprovanteSalaoCard dados={oficial || {
-                quando: hoje.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }),
-                cliente: atual?.cliente_nome || "—",
-                operador,
-                valor: total.toFixed(2),
-                desconto: valorDesconto.toFixed(2),
-                servicos: selecionados.flatMap((item) => (item.procedimentos?.length ? item.procedimentos : [{ nome: item.servico_nome, preco: item.preco }]).map((procedimento) => ({ nome: procedimento.nome, profissional: item.profissional_nome, total: procedimento.preco }))),
-                produtos: carrinho.map((item) => ({ nome: item.nome, quantidade: item.quantidade, total: (lerReais(item.preco) * item.quantidade).toFixed(2) })),
-                formas: (formaRapida === "multiplas" ? linhas : [{ id: "1", forma: formaRapida, valor: String(total) }]).filter((linha) => lerReais(linha.valor) > 0).map((linha) => ({ nome: rotulo[linha.forma] || linha.forma, valor: lerReais(linha.valor).toFixed(2) })),
-                salao: cabecalho || undefined,
-              }} />
+              <iframe title="Prévia do comprovante" srcDoc={htmlPrevia} className="w-full border-0 bg-white" style={{ minHeight: 720 }} />
               {oficial?.numero ? (
                 <div className="mt-3 flex flex-wrap gap-3 text-xs">
                   <button type="button" className="text-[#7a3044]" onClick={() => void imprimirNumero(oficial.numero as number)}>Reimprimir</button>

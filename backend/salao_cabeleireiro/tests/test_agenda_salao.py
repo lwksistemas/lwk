@@ -239,9 +239,10 @@ class CaixaSalaoTest(unittest.TestCase):
         self.assertIn("<img", cancelado)
         pdf = pdf_comprovante({"numero": 5, "quando": "16/11/2026 às 14:39", "cliente": "Felipe Felix", "valor": "40.00", "desconto": "0", "servicos": [{"nome": "Barba", "profissional": "Daniele Souza", "total": "40.00"}], "produtos": [], "formas": [{"nome": "Dinheiro", "valor": "40.00"}], "salao": cabecalho})
         self.assertTrue(pdf.startswith(b"%PDF"))
-        caixa = re.search(br"/MediaBox\s*\[\s*0\s+0\s+([0-9.]+)", pdf)
-        self.assertIsNotNone(caixa)
-        self.assertGreater(float(caixa.group(1)), 500)
+        from io import BytesIO
+        from pypdf import PdfReader
+        caixa = PdfReader(BytesIO(pdf)).pages[0].mediabox
+        self.assertGreater(float(caixa.width), 500)
 
     def test_a_logomarca_salva_entra_no_pdf_e_no_html(self):
         from io import BytesIO
@@ -378,12 +379,22 @@ class CaixaFechamentoTest(unittest.TestCase):
             "salao": {"nome": "Salão Teste", "cor": "#3175bf"},
         }
         html = html_comprovante(dados)
-        self.assertEqual(rotulo_total(dados), "Valor original")
+        self.assertEqual(rotulo_total(dados), "Valor da operação")
         self.assertIn("CANCELADO", html)
-        self.assertIn("Valor original", html)
+        self.assertIn("Valor da operação", html)
+        self.assertIn("não representa dinheiro recebido", html)
+        self.assertIn("Histórico das formas registradas", html)
         self.assertIn("Pagamento cancelado", html)
         self.assertIn("Cliente desistiu", html)
         self.assertNotIn("Total pago", html)
+        parcial = {**dados, "cancelado": False, "valor": "90.00", "formas": [{"nome": "Dinheiro", "valor": "40.00"}]}
+        pagina_parcial = html_comprovante(parcial)
+        self.assertIn("Total da operação", pagina_parcial)
+        self.assertIn("Valor recebido", pagina_parcial)
+        self.assertIn("Saldo pendente", pagina_parcial)
+        self.assertNotIn("Total pago", pagina_parcial)
+        pendente = {**dados, "cancelado": False, "formas": []}
+        self.assertIn("Valor em aberto", html_comprovante(pendente))
 
 
 class ProcedimentosHorarioTest(unittest.TestCase):

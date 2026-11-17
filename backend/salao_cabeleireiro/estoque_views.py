@@ -291,6 +291,49 @@ class VendaCancelarView(APIView):
         return Response(publico_venda(venda))
 
 
+class ComprovantePreviaView(APIView):
+    """Desenha a prévia com o mesmo HTML do PDF. Não grava venda nem pagamento."""
+
+    permission_classes = [IsAuthenticated, IsSalaoMembro]
+
+    def post(self, request):
+        from django.http import HttpResponse
+
+        from .comprovante_layout import cabecalho_atual, html_comprovante
+
+        bruto = request.data if isinstance(request.data, dict) else {}
+        try:
+            numero = int(bruto.get("numero")) if bruto.get("numero") else None
+        except (TypeError, ValueError):
+            numero = None
+
+        def linhas(itens, campos):
+            if not isinstance(itens, list):
+                return []
+            saida = []
+            for item in itens[:40]:
+                if isinstance(item, dict):
+                    saida.append({campo: str(item.get(campo) or "")[:160] for campo in campos})
+            return saida
+
+        dados = {
+            "numero": numero,
+            "quando": str(bruto.get("quando") or "")[:40],
+            "cliente": str(bruto.get("cliente") or "Consumidor")[:160],
+            "operador": str(bruto.get("operador") or "")[:160],
+            "desconto": str(bruto.get("desconto") or "0")[:20],
+            "valor": str(bruto.get("valor") or "0")[:20],
+            "cancelado": bool(bruto.get("cancelado")),
+            "motivo": str(bruto.get("motivo") or "")[:300],
+            "estorno": str(bruto.get("estorno") or "")[:300],
+            "servicos": linhas(bruto.get("servicos"), ("nome", "profissional", "total")),
+            "produtos": linhas(bruto.get("produtos"), ("nome", "quantidade", "total")),
+            "formas": linhas(bruto.get("formas"), ("nome", "valor")),
+            "salao": cabecalho_atual(),
+        }
+        return HttpResponse(html_comprovante(dados), content_type="text/html; charset=utf-8")
+
+
 class VendaHtmlView(APIView):
     permission_classes = [IsAuthenticated, IsSalaoMembro]
 

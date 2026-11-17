@@ -15,6 +15,7 @@ export default function ServicosSalaoPage() {
   const [escolhido, setEscolhido] = useState<number | null>(null);
   const [form, setForm] = useState(VAZIO);
   const [aberto, setAberto] = useState(false);
+  const [categoriasAberto, setCategoriasAberto] = useState(false);
   const [erro, setErro] = useState("");
 
   function carregar() {
@@ -120,34 +121,14 @@ export default function ServicosSalaoPage() {
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold sm:text-3xl">Serviços</h1>
-          <p className="text-sm text-[#8a6e74]">A duração define o tamanho do horário na agenda.</p>
+          <p className="text-sm text-[#8a6e74]">O tempo fica no serviço. A mesma categoria pode ter serviços com durações diferentes.</p>
         </div>
-        <button type="button" className="rounded-full bg-[#7a3044] px-4 py-2 text-sm text-white" onClick={novo}>Adicionar serviço</button>
+        <div className="flex flex-wrap gap-2">
+          <button type="button" className="rounded-full border border-[#7a3044] px-4 py-2 text-sm text-[#7a3044]" onClick={() => { setErro(""); setCategoriasAberto(true); }}>Adicionar categoria</button>
+          <button type="button" className="rounded-full bg-[#7a3044] px-4 py-2 text-sm text-white" onClick={novo}>Adicionar serviço</button>
+        </div>
       </div>
-      {!aberto && erro ? <p className="mb-2 text-sm text-red-700">{erro}</p> : null}
-      <section className="mb-6 rounded-3xl border border-[#f0e4e6] bg-white p-4">
-        <h2 className="font-medium">Categorias</h2>
-        <p className="mt-1 text-sm text-[#8a6e74]">O agendamento escolhe a categoria e, depois, o procedimento.</p>
-        <form className="mt-3 flex flex-wrap gap-2" onSubmit={adicionarCategoria}>
-          <input className="min-w-48 flex-1 rounded-lg border px-3 py-2 text-sm" value={nomeCategoria} onChange={(evento) => setNomeCategoria(evento.target.value)} placeholder="Nova categoria" />
-          <button className="rounded-full bg-[#7a3044] px-4 py-2 text-sm text-white" type="submit">Adicionar categoria</button>
-        </form>
-        <ul className="mt-3 grid gap-2 sm:grid-cols-2">
-          {categorias.map((item) => (
-            <li key={item.id} className="flex items-center gap-2 rounded-2xl border border-[#f0e4e6] px-3 py-2 text-sm">
-              {editando === item.id ? (
-                <input className="min-w-0 flex-1 rounded-lg border px-2 py-1" value={nomeEdicao} onChange={(evento) => setNomeEdicao(evento.target.value)} />
-              ) : <span className="min-w-0 flex-1">{item.nome}</span>}
-              {editando === item.id ? (
-                <button type="button" className="text-[#7a3044]" onClick={() => void gravarCategoria(item.id)}>Salvar</button>
-              ) : (
-                <button type="button" className="text-[#7a3044]" onClick={() => { setEditando(item.id); setNomeEdicao(item.nome); }}>Renomear</button>
-              )}
-              <button type="button" className="text-[#8a6e74]" onClick={() => void arquivarCategoria(item.id)}>Arquivar</button>
-            </li>
-          ))}
-        </ul>
-      </section>
+      {!aberto && !categoriasAberto && erro ? <p className="mb-2 text-sm text-red-700">{erro}</p> : null}
       {lista.length === 0 ? <p className="text-sm text-[#8a6e74]">Nenhum serviço registrado.</p> : null}
       {categorias.filter((grupo) => lista.some((item) => item.categoria === grupo.nome)).map((grupo) => (
         <section key={grupo.id} className="mb-5">
@@ -182,7 +163,7 @@ export default function ServicosSalaoPage() {
                   {categorias.map((item) => <option key={item.id} value={item.nome}>{item.nome}</option>)}
                 </select>
               </label>
-              <label className="text-sm">Minutos
+              <label className="text-sm">Minutos deste serviço
                 <input className={`mt-1 ${CAMPO}`} inputMode="numeric" value={form.duracao_minutos} onChange={(evento) => setForm({ ...form, duracao_minutos: evento.target.value })} required />
               </label>
               <label className="text-sm">Preço
@@ -198,6 +179,38 @@ export default function ServicosSalaoPage() {
               <button className="rounded-full bg-[#7a3044] px-4 py-2 text-sm text-white" type="submit">Salvar</button>
             </div>
           </form>
+        </div>
+      ) : null}
+      {categoriasAberto ? (
+        <div className="fixed inset-0 z-40 grid place-items-center bg-black/40 p-4" role="dialog" aria-modal="true" aria-labelledby="categoria-formulario" onClick={(evento) => { if (evento.target === evento.currentTarget) setCategoriasAberto(false); }}>
+          <div className="max-h-[90vh] w-full max-w-lg overflow-auto rounded-3xl bg-white p-5">
+            <h2 id="categoria-formulario" className="text-lg font-semibold">Categorias</h2>
+            <p className="mt-1 text-sm text-[#8a6e74]">A categoria só agrupa. O tempo fica no nome de cada serviço.</p>
+            {erro ? <p className="mt-2 text-sm text-red-700">{erro}</p> : null}
+            <ul className="mt-3">
+              {categorias.length === 0 ? <li className="text-sm text-[#8a6e74]">Nenhuma categoria cadastrada.</li> : null}
+              {categorias.map((item) => (
+                <li key={item.id} className="flex items-center gap-2 border-t border-[#f0e4e6] py-2 text-sm">
+                  {editando === item.id ? (
+                    <input className="min-w-0 flex-1 rounded-lg border px-2 py-1" value={nomeEdicao} onChange={(evento) => setNomeEdicao(evento.target.value)} />
+                  ) : <span className="min-w-0 flex-1">{item.nome}</span>}
+                  {editando === item.id ? (
+                    <button type="button" className="text-[#7a3044]" onClick={() => void gravarCategoria(item.id)}>Salvar</button>
+                  ) : (
+                    <button type="button" className="text-[#7a3044]" onClick={() => { setEditando(item.id); setNomeEdicao(item.nome); }}>Renomear</button>
+                  )}
+                  <button type="button" className="text-[#8a6e74]" onClick={() => void arquivarCategoria(item.id)}>Arquivar</button>
+                </li>
+              ))}
+            </ul>
+            <form className="mt-4 flex flex-wrap gap-2" onSubmit={adicionarCategoria}>
+              <input className="min-w-40 flex-1 rounded-lg border px-3 py-2 text-sm" value={nomeCategoria} onChange={(evento) => setNomeCategoria(evento.target.value)} placeholder="Nova categoria" required />
+              <button className="rounded-full bg-[#7a3044] px-4 py-2 text-sm text-white" type="submit">Salvar</button>
+            </form>
+            <div className="mt-4 flex justify-end">
+              <button type="button" className="rounded-full border px-4 py-2 text-sm" onClick={() => { setCategoriasAberto(false); setEditando(null); setErro(""); }}>Fechar</button>
+            </div>
+          </div>
         </div>
       ) : null}
     </div>

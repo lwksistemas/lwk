@@ -147,6 +147,8 @@ type Props = {
   value?: string | null;
   onChange?: (visual: AgendaVisualId) => void;
   construirAmostras?: (statusColors: AgendaStatusColorMap) => ReturnType<typeof buildSampleEvents>;
+  iniciarAberta?: boolean;
+  altura?: number;
 };
 
 export function AgendaV7Preview({
@@ -155,11 +157,13 @@ export function AgendaV7Preview({
   value,
   onChange,
   construirAmostras,
+  iniciarAberta = false,
+  altura = 520,
 }: Props) {
   const [visual, setVisual] = useState<AgendaVisualId>(() =>
     normalizeAgendaVisual(value ?? AGENDA_VISUAL_DEFAULT),
   );
-  const [mostrarPrevia, setMostrarPrevia] = useState(false);
+  const [mostrarPrevia, setMostrarPrevia] = useState(iniciarAberta);
   const [mods, setMods] = useState<LoadedMods | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [carregando, setCarregando] = useState(false);
@@ -304,7 +308,7 @@ export function AgendaV7Preview({
                   week: 'Semana',
                   day: 'Dia',
                 }}
-                height={520}
+                height={altura}
                 weekends
                 dayMaxEvents={3}
                 moreLinkClick="popover"

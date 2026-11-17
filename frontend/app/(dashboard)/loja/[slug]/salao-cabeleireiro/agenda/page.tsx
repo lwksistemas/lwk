@@ -56,6 +56,25 @@ function horaDecimal(texto: string) {
   return Number(hora) + Number(minuto || 0) / 60;
 }
 
+function isoDoDia(data: Date) {
+  return `${data.getFullYear()}-${dois(data.getMonth() + 1)}-${dois(data.getDate())}`;
+}
+
+function dataCurta(iso: string) {
+  const [, mes, dia] = iso.split("-");
+  return `${dia}/${mes}`;
+}
+
+function bloqueioCabeNoFiltro(item: BloqueioSalao, filtro: string) {
+  return filtro === "todos" || !item.profissional || String(item.profissional) === filtro;
+}
+
+function rotuloDoBloqueio(item: BloqueioSalao) {
+  const quando = item.data_fim !== item.data_inicio ? `${dataCurta(item.data_inicio)} a ${dataCurta(item.data_fim)}` : dataCurta(item.data_inicio);
+  const faixa = item.horario_inicio && item.horario_fim ? `${item.horario_inicio.slice(0, 5)}–${item.horario_fim.slice(0, 5)}` : "dia inteiro";
+  return `${quando} · ${faixa}`;
+}
+
 function intervaloDoProfissional(jornadas: Record<number, JornadaDia[]>, profissionalId: string, data: Date) {
   const jornada = jornadas[Number(profissionalId)] || [];
   const diaSemana = (data.getDay() + 6) % 7;
@@ -167,8 +186,8 @@ export default function AgendaSalaoPage() {
       const data = new Date(inicio);
       data.setDate(inicio.getDate() + indice);
       return { id: data.toDateString(), titulo: data.toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit" }), detalhe: "", data };
-    }).filter((coluna) => diaTemAtendimento(coluna.data, "todos", profissionais, jornadas));
-  }, [periodo.inicio, modo, profissionais, jornadas, filtroProfissional]);
+    }).filter((coluna) => diaTemAtendimento(coluna.data, "todos", profissionais, jornadas) || bloqueios.some((item) => item.data_inicio <= isoDoDia(coluna.data) && item.data_fim >= isoDoDia(coluna.data) && bloqueioCabeNoFiltro(item, filtroProfissional)));
+  }, [periodo.inicio, modo, profissionais, jornadas, filtroProfissional, bloqueios]);
 
   const carregar = useCallback(() => {
     setErro("");
@@ -483,9 +502,23 @@ export default function AgendaSalaoPage() {
   }
 
   function folgasDoDia(data: Date) {
-    const iso = `${data.getFullYear()}-${dois(data.getMonth() + 1)}-${dois(data.getDate())}`;
-    return bloqueios.filter((item) => item.data_inicio <= iso && item.data_fim >= iso);
+    const iso = isoDoDia(data);
+    return bloqueios.filter((item) => item.data_inicio <= iso && item.data_fim >= iso && bloqueioCabeNoFiltro(item, filtroProfissional));
   }
+
+  const linhasLista = useMemo(() => {
+    const ini = isoDoDia(new Date(periodo.inicio));
+    const ultimo = new Date(periodo.fim);
+    ultimo.setDate(ultimo.getDate() - 1);
+    const fim = isoDoDia(ultimo);
+    const compromissos = eventos
+      .filter((item) => item.status !== "CANCELLED" && (filtroProfissional === "todos" || String(item.profissional) === filtroProfissional))
+      .map((item) => ({ chave: `a-${item.id}`, quando: new Date(item.inicio).getTime(), agenda: item, bloqueio: null as BloqueioSalao | null }));
+    const folgas = bloqueios
+      .filter((item) => item.data_inicio <= fim && item.data_fim >= ini && bloqueioCabeNoFiltro(item, filtroProfissional))
+      .map((item) => ({ chave: `b-${item.id}`, quando: new Date(`${item.data_inicio}T${(item.horario_inicio || "00:00").slice(0, 5)}:00`).getTime(), agenda: null, bloqueio: item }));
+    return [...compromissos, ...folgas].sort((esquerda, direita) => esquerda.quando - direita.quando);
+  }, [bloqueios, eventos, filtroProfissional, periodo.fim, periodo.inicio]);
 
   const horas = Array.from({ length: HORA_FIM - HORA_INICIO }, (_, indice) => HORA_INICIO + indice);
 
@@ -528,19 +561,26 @@ export default function AgendaSalaoPage() {
       {profissionais.length === 0 ? <p className="mb-2 text-sm text-[#8a6e74]">Cadastre um profissional para abrir as colunas do dia.</p> : null}
       {lista ? (
         <ul className={`border bg-white p-3 ${filtroProfissional === "todos" ? "grid grid-cols-1 gap-2 sm:grid-cols-2" : "space-y-2"}`} style={{ ...tema, borderColor: "var(--agenda-border)", borderRadius: "var(--agenda-radius, 16px)" }}>
-          {eventos.filter((item) => item.status !== "CANCELLED" && (filtroProfissional === "todos" || String(item.profissional) === filtroProfissional)).length === 0 ? <li className={`text-sm text-[#8a6e74] ${filtroProfissional === "todos" ? "sm:col-span-2" : ""}`}>Nenhum horário neste período.</li> : null}
-          {eventos.filter((item) => item.status !== "CANCELLED" && (filtroProfissional === "todos" || String(item.profissional) === filtroProfissional)).map((item) => (
-            <li key={item.id}>
-              <button type="button" className="flex h-full w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm text-white" style={{ background: statusCores[item.status] || STATUS_PADRAO.SCHEDULED, borderRadius: "var(--agenda-card-radius, 12px)" }} onClick={() => { setForm(null); setSelecionado(item); }}>
-                <span>{new Date(item.inicio).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })} · {item.cliente_nome}</span>
-                <span className="truncate">{item.servico_nome} · {item.profissional_nome}</span>
-              </button>
+          {linhasLista.length === 0 ? <li className={`text-sm text-[#8a6e74] ${filtroProfissional === "todos" ? "sm:col-span-2" : ""}`}>Nenhum horário neste período.</li> : null}
+          {linhasLista.map((linha) => (
+            <li key={linha.chave}>
+              {linha.bloqueio ? (
+                <button type="button" className="flex h-full w-full items-center justify-between gap-3 border-l-4 border-[#7a3044] px-3 py-2 text-left text-sm text-[#7a3044]" style={{ background: "#f6e4e8", borderRadius: "var(--agenda-card-radius, 12px)" }} onClick={() => { setForm(null); setSelecionado(null); setBloqueioAberto(linha.bloqueio); }}>
+                  <span>{rotuloDoBloqueio(linha.bloqueio)} · {linha.bloqueio.titulo}</span>
+                  <span className="truncate">Folga · {linha.bloqueio.profissional_nome}</span>
+                </button>
+              ) : linha.agenda ? (
+                <button type="button" className="flex h-full w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm text-white" style={{ background: statusCores[linha.agenda.status] || STATUS_PADRAO.SCHEDULED, borderRadius: "var(--agenda-card-radius, 12px)" }} onClick={() => { setForm(null); setSelecionado(linha.agenda); }}>
+                  <span>{new Date(linha.agenda.inicio).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })} · {linha.agenda.cliente_nome}</span>
+                  <span className="truncate">{linha.agenda.servico_nome} · {linha.agenda.profissional_nome}</span>
+                </button>
+              ) : null}
             </li>
           ))}
         </ul>
       ) : modo === "mes" ? (
         <div className="min-h-0 flex-1" style={tema}>
-          <Mes cursor={cursor} eventos={eventos.filter((item) => filtroProfissional === "todos" || String(item.profissional) === filtroProfissional)} statusCores={statusCores} aoAbrir={(data) => { setCursor(data); setModo("dia"); }} />
+          <Mes cursor={cursor} eventos={eventos.filter((item) => filtroProfissional === "todos" || String(item.profissional) === filtroProfissional)} bloqueios={bloqueios.filter((item) => bloqueioCabeNoFiltro(item, filtroProfissional))} statusCores={statusCores} aoAbrir={(data) => { setCursor(data); setModo("dia"); }} />
         </div>
       ) : (
         <div className="overflow-auto border bg-white" style={{ ...tema, borderColor: "var(--agenda-border, #e5e7eb)", borderRadius: "var(--agenda-radius, 16px)" }}>
@@ -553,7 +593,9 @@ export default function AgendaSalaoPage() {
                   <span className="block font-medium text-[#2a1c20]">{coluna.titulo}</span>
                   {coluna.detalhe ? <span className="block truncate text-[10px] uppercase">{coluna.detalhe}</span> : null}
                   {folgas.map((item) => (
-                    <button key={item.id} type="button" className="mt-1 block w-full truncate text-[10px] text-[#7a3044]" title={item.titulo} onClick={(evento) => { evento.stopPropagation(); setBloqueioAberto(item); }}>Folga · {item.profissional_nome}</button>
+                    <button key={item.id} type="button" className="mt-1 block w-full truncate text-[10px] text-[#7a3044]" title={item.titulo} onClick={(evento) => { evento.stopPropagation(); setBloqueioAberto(item); }}>
+                      {item.horario_inicio && item.horario_fim ? `${item.horario_inicio.slice(0, 5)}–${item.horario_fim.slice(0, 5)} · ` : "Dia inteiro · "}Folga · {item.profissional_nome}
+                    </button>
                   ))}
                 </div>
               );
@@ -601,17 +643,20 @@ export default function AgendaSalaoPage() {
                     </div>
                   );
                 })() : null}
-                {modo === "dia" ? folgasDoDia(coluna.data).filter((item) => !item.profissional || String(item.profissional) === coluna.id).map((item) => {
-                  const inicioHora = item.horario_inicio ? horaDecimal(item.horario_inicio) : HORA_INICIO;
-                  const fimHora = item.horario_fim ? horaDecimal(item.horario_fim) : HORA_FIM;
+                {folgasDoDia(coluna.data).filter((item) => modo !== "dia" || !item.profissional || String(item.profissional) === coluna.id).map((item) => {
+                  const diaInteiro = !item.horario_inicio || !item.horario_fim;
+                  const faixaCurta = modo === "semana" && diaInteiro && Boolean(item.profissional);
+                  const inicioHora = !diaInteiro && item.horario_inicio ? horaDecimal(item.horario_inicio) : HORA_INICIO;
+                  const fimHora = faixaCurta ? HORA_INICIO + 0.7 : !diaInteiro && item.horario_fim ? horaDecimal(item.horario_fim) : HORA_FIM;
                   const topo = (inicioHora - HORA_INICIO) * ALTURA_HORA;
+                  const cobreAColuna = modo === "dia" || !item.profissional;
                   return (
-                    <button key={item.id} type="button" data-evento="1" className="absolute left-1 right-1 border-l-4 border-[#7a3044] bg-[#f6e4e8] px-1 py-0.5 text-left text-[11px] text-[#7a3044]" style={{ top: Math.max(0, topo), height: Math.max(22, (fimHora - inicioHora) * ALTURA_HORA), borderRadius: "var(--agenda-card-radius, 8px)", zIndex: 2 }} title={item.titulo} onClick={(evento) => { evento.stopPropagation(); setBloqueioAberto(item); }}>
-                      Folga
+                    <button key={item.id} type="button" data-evento="1" className={`absolute border-l-4 border-[#7a3044] bg-[#f6e4e8] px-1 py-0.5 text-left text-[11px] text-[#7a3044] ${cobreAColuna ? "right-1 left-1" : "left-1 w-[46%]"}`} style={{ top: Math.max(0, topo), height: Math.max(22, (fimHora - inicioHora) * ALTURA_HORA), borderRadius: "var(--agenda-card-radius, 8px)", zIndex: cobreAColuna ? 2 : 3 }} title={`${item.titulo} · ${item.profissional_nome}`} onClick={(evento) => { evento.stopPropagation(); setBloqueioAberto(item); }}>
+                      Folga · {item.profissional_nome}
                       <span className="block truncate">{item.titulo}</span>
                     </button>
                   );
-                }) : null}
+                })}
                 {eventos.filter((item) => item.status !== "CANCELLED" && (filtroProfissional === "todos" || String(item.profissional) === filtroProfissional)).filter((item) => {
                   const inicio = new Date(item.inicio);
                   const mesmoDia = inicio.toDateString() === coluna.data.toDateString();
@@ -630,8 +675,8 @@ export default function AgendaSalaoPage() {
                       onDragStart={(evento) => evento.dataTransfer.setData("text/plain", String(item.id))}
                       onClick={(evento) => { evento.stopPropagation(); setForm(null); setConfirmarExclusao(false); setSelecionado(item); }}
                       title={`${faixa} · Profissional ${item.profissional_nome} · Cliente ${item.cliente_nome}`}
-                      className="absolute left-1 right-1 overflow-hidden px-1.5 py-0.5 text-left text-[11px] leading-tight text-white"
-                      style={{ top: Math.max(0, topo), height: Math.max(48, (item.duracao_minutos / 60) * ALTURA_HORA), background: statusCores[item.status] || STATUS_PADRAO.SCHEDULED, borderRadius: "var(--agenda-card-radius, 12px)", boxShadow: "var(--agenda-card-shadow, none)" }}
+                      className="absolute right-1 left-1 overflow-hidden px-1.5 py-0.5 text-left text-[11px] leading-tight text-white"
+                      style={{ top: Math.max(0, topo), height: Math.max(48, (item.duracao_minutos / 60) * ALTURA_HORA), background: statusCores[item.status] || STATUS_PADRAO.SCHEDULED, borderRadius: "var(--agenda-card-radius, 12px)", boxShadow: "var(--agenda-card-shadow, none)", zIndex: 1 }}
                     >
                       <span className="block truncate font-medium">{faixa}</span>
                       <span className="block truncate uppercase">{item.cliente_nome}</span>
@@ -652,11 +697,16 @@ export default function AgendaSalaoPage() {
       <ModalBloqueioHorario
         isOpen={folgaAberta}
         onClose={() => setFolgaAberta(false)}
-        onSuccess={recarregarBloqueios}
+        onSuccess={() => { setAviso("Horário bloqueado na agenda."); recarregarBloqueios(); }}
         professionals={profissionais.map((pessoa) => ({ id: pessoa.id, nome: pessoa.nome, specialty: pessoa.especialidade }))}
         dataInicioSugerida={cursor}
         defaultProfessionalId={filtroProfissional === "todos" ? "" : filtroProfissional}
-        enviar={(body) => SalaoAPI.bloquear(corpoBloqueioSalao(body)).then(() => undefined)}
+        enviar={async (body) => {
+          const corpo = corpoBloqueioSalao(body);
+          await SalaoAPI.bloquear(corpo);
+          setCursor(deApi(`${corpo.data_inicio}T12:00:00`));
+          setLista(false);
+        }}
       />
       {bloqueioAberto ? (
         <div className="fixed inset-0 z-40 grid place-items-center bg-black/40 p-4" role="dialog" aria-modal="true" aria-labelledby="folga-aberta" onClick={(evento) => { if (evento.target === evento.currentTarget) setBloqueioAberto(null); }}>
@@ -930,7 +980,7 @@ function ModalReceber({
   );
 }
 
-function Mes({ cursor, eventos, statusCores, aoAbrir }: { cursor: Date; eventos: AgendamentoSalao[]; statusCores: Record<string, string>; aoAbrir: (data: Date) => void }) {
+function Mes({ cursor, eventos, bloqueios, statusCores, aoAbrir }: { cursor: Date; eventos: AgendamentoSalao[]; bloqueios: BloqueioSalao[]; statusCores: Record<string, string>; aoAbrir: (data: Date) => void }) {
   const primeiro = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
   const dias = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0).getDate();
   const offset = (primeiro.getDay() + 6) % 7;
@@ -944,16 +994,22 @@ function Mes({ cursor, eventos, statusCores, aoAbrir }: { cursor: Date; eventos:
       {celulas.map((dia, indice) => {
         if (!dia) return <div key={`vazio-${indice}`} className="min-h-28 border bg-white" style={{ borderRadius: "var(--agenda-card-radius, 12px)", borderColor: "var(--agenda-border, #e5e7eb)" }} />;
         const data = new Date(cursor.getFullYear(), cursor.getMonth(), dia);
+        const iso = isoDoDia(data);
         const doDia = eventos.filter((item) => new Date(item.inicio).toDateString() === data.toDateString() && item.status !== "CANCELLED");
+        const folgas = bloqueios.filter((item) => item.data_inicio <= iso && item.data_fim >= iso);
         const hoje = data.toDateString() === new Date().toDateString();
+        const total = doDia.length + folgas.length;
         return (
           <button key={dia} type="button" className="min-h-28 border bg-white p-2 text-left" style={{ borderRadius: "var(--agenda-card-radius, 12px)", borderColor: hoje ? "var(--agenda-accent, #ad46ff)" : "var(--agenda-border, #e5e7eb)", background: hoje ? "var(--agenda-today-bg, #fff)" : "#fff" }} onClick={() => aoAbrir(data)}>
             <span className={`text-sm ${hoje ? "font-semibold" : ""}`} style={hoje ? { color: "var(--agenda-focus-text)" } : undefined}>{dia}</span>
             <span className="mt-1 block space-y-0.5">
-              {doDia.slice(0, 3).map((item) => (
+              {folgas.slice(0, 3).map((item) => (
+                <span key={`b-${item.id}`} className="block truncate px-1 text-[10px] text-[#7a3044]" style={{ background: "#f6e4e8", borderRadius: "var(--agenda-card-radius, 4px)", padding: "1px 4px" }}>{item.horario_inicio ? item.horario_inicio.slice(0, 5) : "Dia"} {item.titulo}</span>
+              ))}
+              {doDia.slice(0, Math.max(0, 3 - folgas.length)).map((item) => (
                 <span key={item.id} className="block truncate px-1 text-[10px] text-white" style={{ background: statusCores[item.status] || STATUS_PADRAO.SCHEDULED, borderRadius: "var(--agenda-card-radius, 4px)", padding: "1px 4px" }}>{dois(new Date(item.inicio).getHours())}:{dois(new Date(item.inicio).getMinutes())} {item.cliente_nome}</span>
               ))}
-              {doDia.length > 3 ? <span className="block text-[10px] text-[#8a6e74]">mais +{doDia.length - 3}</span> : null}
+              {total > 3 ? <span className="block text-[10px] text-[#8a6e74]">mais +{total - 3}</span> : null}
             </span>
           </button>
         );

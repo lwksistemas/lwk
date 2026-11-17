@@ -28,6 +28,7 @@ export default function FinanceiroSalaoPage() {
   const [confirmar, setConfirmar] = useState<number | null>(null);
   const [nomeEdicao, setNomeEdicao] = useState("");
   const [avisoForma, setAvisoForma] = useState("");
+  const [formasAberto, setFormasAberto] = useState(false);
 
   function carregarFormas() {
     SalaoAPI.formas().then(setFormas).catch((exc: Error) => setErro(exc.message));
@@ -129,15 +130,19 @@ export default function FinanceiroSalaoPage() {
           <h1 className="text-2xl font-semibold sm:text-3xl">Caixa</h1>
           <p className="text-sm text-[#8a6e74]">Recebimentos de atendimentos concluídos. O preço do serviço só entra depois de receber.</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <button type="button" className="rounded-full border border-[#7a3044] px-3 py-1.5 text-sm text-[#7a3044]" onClick={() => { setErro(""); setFormasAberto(true); }}>Formas de pagamento</button>
           <button type="button" className={`rounded-full px-3 py-1.5 text-sm ${modo === "hoje" ? "bg-[#7a3044] text-white" : "border"}`} onClick={() => setModo("hoje")}>Hoje</button>
           <button type="button" className={`rounded-full px-3 py-1.5 text-sm ${modo === "mes" ? "bg-[#7a3044] text-white" : "border"}`} onClick={() => setModo("mes")}>Este mês</button>
         </div>
       </div>
-      {erro ? <p className="mb-3 text-sm text-red-700">{erro}</p> : null}
-      <section className="mb-4 rounded-3xl border border-[#f0e4e6] bg-white p-4">
-        <h2 className="text-sm font-medium">Formas de pagamento</h2>
-        <p className="mt-1 text-xs text-[#8a6e74]">O caixa usa estas formas. Excluir uma forma já recebida tira ela dos próximos pagamentos e mantém o histórico.</p>
+      {!formasAberto && erro ? <p className="mb-3 text-sm text-red-700">{erro}</p> : null}
+      {formasAberto ? (
+        <div className="fixed inset-0 z-40 grid place-items-center bg-black/40 p-4" role="dialog" aria-modal="true" aria-labelledby="formas-pagamento" onClick={(evento) => { if (evento.target === evento.currentTarget) setFormasAberto(false); }}>
+          <section className="max-h-[90vh] w-full max-w-lg overflow-auto rounded-3xl bg-white p-5">
+            <h2 id="formas-pagamento" className="text-lg font-semibold">Formas de pagamento</h2>
+            <p className="mt-1 text-sm text-[#8a6e74]">O caixa usa estas formas. Excluir uma forma já recebida tira ela dos próximos pagamentos e mantém o histórico.</p>
+            {erro ? <p className="mt-2 text-sm text-red-700">{erro}</p> : null}
         <form className="mt-3 flex flex-wrap gap-2" onSubmit={criarForma}>
           <input value={nomeForma} onChange={(evento) => setNomeForma(evento.target.value)} placeholder="Nova forma" className="min-w-40 flex-1 rounded-xl border border-[#eadfe2] px-3 py-2 text-sm" />
           <button type="submit" className="rounded-full bg-[#7a3044] px-4 py-2 text-sm text-white">Adicionar</button>
@@ -170,7 +175,12 @@ export default function FinanceiroSalaoPage() {
             </li>
           ))}
         </ul>
-      </section>
+            <div className="mt-4 flex justify-end">
+              <button type="button" className="rounded-full border px-4 py-2 text-sm" onClick={() => { setFormasAberto(false); setEditando(null); setConfirmar(null); setErro(""); }}>Fechar</button>
+            </div>
+          </section>
+        </div>
+      ) : null}
       <div className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <article className="rounded-3xl border border-[#f0e4e6] bg-white p-4">
           <p className="text-sm text-[#8a6e74]">Recebido</p>

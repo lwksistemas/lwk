@@ -58,6 +58,12 @@ function horaDecimal(texto: string) {
   return Number(hora) + Number(minuto || 0) / 60;
 }
 
+function horaTexto(valor: number) {
+  const hora = Math.floor(valor);
+  const minuto = Math.round((valor - hora) * 60);
+  return `${dois(hora)}:${dois(minuto)}`;
+}
+
 function duracaoPeloPonteiro(origemMin: number, origemY: number, clientY: number, inicio: Date) {
   const bruto = origemMin + ((clientY - origemY) / ALTURA_HORA) * 60;
   const snap = Math.round(bruto / CLINICA_AGENDA_DURACAO_SNAP_MIN) * CLINICA_AGENDA_DURACAO_SNAP_MIN;
@@ -562,6 +568,18 @@ export default function AgendaSalaoPage() {
     return bloqueios.filter((item) => item.data_inicio <= iso && item.data_fim >= iso && bloqueioCabeNoFiltro(item, filtroProfissional));
   }
 
+  function almocoDaColuna(coluna: { id: string; data: Date }) {
+    const pessoas = modo === "dia"
+      ? profissionais.filter((pessoa) => String(pessoa.id) === coluna.id)
+      : filtroProfissional === "todos"
+        ? profissionais
+        : profissionais.filter((pessoa) => String(pessoa.id) === filtroProfissional);
+    return pessoas.flatMap((pessoa) => {
+      const faixa = intervaloDoProfissional(jornadas, String(pessoa.id), coluna.data);
+      return faixa ? [{ chave: String(pessoa.id), nome: pessoa.nome, ...faixa }] : [];
+    });
+  }
+
   const linhasLista = useMemo(() => {
     const ini = isoDoDia(new Date(periodo.inicio));
     const ultimo = new Date(periodo.fim);
@@ -692,16 +710,30 @@ export default function AgendaSalaoPage() {
                   if (coluna.data.toDateString() !== agora.toDateString() || hora < HORA_INICIO || hora > HORA_FIM) return null;
                   return <div className="pointer-events-none absolute right-0 left-0 z-10 h-0.5" style={{ top: (hora - HORA_INICIO) * ALTURA_HORA, background: "var(--agenda-now, #ef4444)" }} />;
                 })()}
-                {modo === "dia" ? (() => {
-                  const faixa = intervaloDoProfissional(jornadas, coluna.id, coluna.data);
-                  if (!faixa) return null;
+                {almocoDaColuna(coluna).map((faixa, indice, faixas) => {
                   const topo = (faixa.inicio - HORA_INICIO) * ALTURA_HORA;
+                  const ladoALado = modo === "semana" && faixas.length > 1;
+                  const faixaHora = `${horaTexto(faixa.inicio)}–${horaTexto(faixa.fim)}`;
                   return (
-                    <div data-evento="1" className="absolute left-1 right-1 border-l-4 border-[#d97706] bg-[#f8e7c8] px-1 py-0.5 text-[11px] text-[#7a4b12]" style={{ top: Math.max(0, topo), height: Math.max(22, (faixa.fim - faixa.inicio) * ALTURA_HORA), borderRadius: "var(--agenda-card-radius, 8px)" }} title="Intervalo">
-                      Intervalo
+                    <div
+                      key={faixa.chave}
+                      data-evento="1"
+                      className="absolute border-l-4 border-[#d97706] bg-[#f8e7c8] px-1 py-0.5 text-[11px] text-[#7a4b12]"
+                      style={{
+                        top: Math.max(0, topo),
+                        height: Math.max(22, (faixa.fim - faixa.inicio) * ALTURA_HORA),
+                        borderRadius: "var(--agenda-card-radius, 8px)",
+                        left: ladoALado ? `calc(${(100 / faixas.length) * indice}% + 4px)` : 4,
+                        width: ladoALado ? `calc(${100 / faixas.length}% - 8px)` : undefined,
+                        right: ladoALado ? undefined : 4,
+                      }}
+                      title={`Almoço · ${faixa.nome} · ${faixaHora}`}
+                    >
+                      Almoço{modo === "semana" ? ` · ${faixa.nome}` : ""}
+                      <span className="block truncate">{faixaHora}</span>
                     </div>
                   );
-                })() : null}
+                })}
                 {folgasDoDia(coluna.data).filter((item) => modo !== "dia" || !item.profissional || String(item.profissional) === coluna.id).map((item) => {
                   const diaInteiro = !item.horario_inicio || !item.horario_fim;
                   const faixaCurta = modo === "semana" && diaInteiro && Boolean(item.profissional);

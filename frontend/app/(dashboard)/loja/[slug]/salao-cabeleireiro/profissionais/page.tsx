@@ -2,33 +2,29 @@
 
 import { useEffect, useState, type Dispatch, type FormEvent, type SetStateAction } from "react";
 import { INTERVALOS_AGENDA_MIN, INTERVALO_AGENDA_PADRAO, intervaloAgendaMinutos } from "@/lib/intervalo-agenda";
-import { SalaoAPI, type BloqueioSalao, type JornadaDia, type ProfissionalSalao, type ServicoSalao } from "@/lib/salao-api";
+import { SalaoAPI, type JornadaDia, type ProfissionalSalao, type ServicoSalao } from "@/lib/salao-api";
 
 const DIAS = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"];
 const CAMPO = "w-full rounded-lg border px-2 py-2";
 const VAZIO = { nome: "", telefone: "", especialidade: "Cabeleireiro", comissao_tipo: "percentual", comissao_percentual: "0", comissao_fixa: "0", intervalo_agenda_minutos: String(INTERVALO_AGENDA_PADRAO) };
 
 type Regra = { servico: number; nome: string; tipo: "percentual" | "fixo"; valor: string };
-const FOLGA_VAZIA = { titulo: "", data_inicio: "", data_fim: "", horario_inicio: "", horario_fim: "" };
 
 export default function ProfissionaisSalaoPage() {
   const [lista, setLista] = useState<ProfissionalSalao[]>([]);
   const [servicos, setServicos] = useState<ServicoSalao[]>([]);
   const [regras, setRegras] = useState<Regra[]>([]);
-  const [bloqueios, setBloqueios] = useState<BloqueioSalao[]>([]);
   const [escolhido, setEscolhido] = useState<number | null>(null);
   const [form, setForm] = useState(VAZIO);
   const [jornada, setJornada] = useState<JornadaDia[]>([]);
-  const [folga, setFolga] = useState(FOLGA_VAZIA);
   const [aberto, setAberto] = useState(false);
   const [erro, setErro] = useState("");
   const [aviso, setAviso] = useState("");
 
   function carregar() {
-    Promise.all([SalaoAPI.profissionais(), SalaoAPI.bloqueios(), SalaoAPI.servicos()])
-      .then(([pessoas, folgas, procedimentos]) => {
+    Promise.all([SalaoAPI.profissionais(), SalaoAPI.servicos()])
+      .then(([pessoas, procedimentos]) => {
         setLista(pessoas);
-        setBloqueios(folgas);
         setServicos(procedimentos);
       })
       .catch((exc: Error) => setErro(exc.message));
@@ -59,7 +55,6 @@ export default function ProfissionaisSalaoPage() {
     setForm(VAZIO);
     setRegras(montarRegras(servicos, []));
     setJornada([]);
-    setFolga(FOLGA_VAZIA);
     setErro("");
     setAviso("");
     setAberto(true);
@@ -71,7 +66,6 @@ export default function ProfissionaisSalaoPage() {
     setForm(VAZIO);
     setRegras([]);
     setJornada([]);
-    setFolga(FOLGA_VAZIA);
     setErro("");
     setAviso("");
   }
@@ -114,29 +108,6 @@ export default function ProfissionaisSalaoPage() {
       setErro(exc instanceof Error ? exc.message : "Não foi possível arquivar.");
     }
   }
-
-  async function criarFolga(evento: FormEvent) {
-    evento.preventDefault();
-    if (!escolhido) return;
-    setErro("");
-    try {
-      await SalaoAPI.bloquear({
-        titulo: folga.titulo,
-        tipo: "folga",
-        profissional: escolhido,
-        data_inicio: folga.data_inicio,
-        data_fim: folga.data_fim || folga.data_inicio,
-        horario_inicio: folga.horario_inicio,
-        horario_fim: folga.horario_fim,
-      });
-      setFolga(FOLGA_VAZIA);
-      carregar();
-    } catch (exc) {
-      setErro(exc instanceof Error ? exc.message : "Não foi possível gravar a folga.");
-    }
-  }
-
-  const folgasDele = bloqueios.filter((item) => item.profissional === escolhido);
 
   return (
     <div>
@@ -244,29 +215,6 @@ export default function ProfissionaisSalaoPage() {
                 <button className="rounded-full bg-[#7a3044] px-4 py-2 text-sm text-white" type="submit">Salvar</button>
               </div>
             </form>
-            {escolhido ? (
-              <section className="mt-5 border-t border-[#f0e4e6] pt-4">
-                <h3 className="mb-2 text-sm font-medium">Folgas e bloqueios</h3>
-                <form className="grid gap-2 sm:grid-cols-5" onSubmit={criarFolga}>
-                  <input className={CAMPO} placeholder="Motivo" value={folga.titulo} onChange={(evento) => setFolga({ ...folga, titulo: evento.target.value })} required />
-                  <input type="date" className={CAMPO} value={folga.data_inicio} onChange={(evento) => setFolga({ ...folga, data_inicio: evento.target.value })} required />
-                  <input type="date" className={CAMPO} value={folga.data_fim} onChange={(evento) => setFolga({ ...folga, data_fim: evento.target.value })} />
-                  <input type="time" className={CAMPO} value={folga.horario_inicio} onChange={(evento) => setFolga({ ...folga, horario_inicio: evento.target.value })} />
-                  <input type="time" className={CAMPO} value={folga.horario_fim} onChange={(evento) => setFolga({ ...folga, horario_fim: evento.target.value })} />
-                  <button className="rounded-full border px-4 py-2 text-sm sm:col-span-5" type="submit">Registrar folga</button>
-                </form>
-                <p className="mt-2 text-xs text-[#8a6e74]">Sem horário, o dia inteiro fica bloqueado.</p>
-                {folgasDele.length === 0 ? <p className="mt-3 text-sm text-[#8a6e74]">Nenhuma folga cadastrada.</p> : null}
-                <ul>
-                  {folgasDele.map((item) => (
-                    <li key={item.id} className="flex flex-wrap items-center justify-between gap-2 border-t border-[#f0e4e6] py-2 text-sm">
-                      <span>{item.titulo} · {item.data_inicio}{item.data_fim !== item.data_inicio ? ` a ${item.data_fim}` : ""}{item.horario_inicio ? ` · ${item.horario_inicio.slice(0, 5)}–${item.horario_fim?.slice(0, 5)}` : " · dia inteiro"}</span>
-                      <button type="button" className="text-[#8a6e74]" onClick={() => SalaoAPI.removerBloqueio(item.id).then(carregar).catch((exc: Error) => setErro(exc.message))}>Remover</button>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            ) : null}
           </div>
         </div>
       ) : null}

@@ -78,6 +78,8 @@ def cabecalho_da_loja(loja) -> dict:
     telefone, email = contato_publico_loja(loja)
     tipo = getattr(loja, "tipo_loja", None)
     subtitulo = _texto(getattr(tipo, "nome", "")) if tipo is not None else ""
+    if subtitulo.casefold().startswith("salão de "):
+        subtitulo = subtitulo[9:].strip()
     logo = _texto(getattr(loja, "recibo_logo", "")) or _texto(getattr(loja, "logo", ""))
     cor = _cor(_texto(getattr(loja, "recibo_cor", "")) or _texto(getattr(loja, "cor_primaria", "")))
     return {
@@ -196,11 +198,22 @@ def texto_cancelamento(dados: dict) -> str:
     return partes[0] if len(partes) == 1 else f"{partes[0]}. {' '.join(partes[1:])}"
 
 
+def _com_identidade_atual(dados: dict) -> dict:
+    """O miolo da venda fica congelado. Nome, cor, logo, endereço e documento seguem o cadastro atual."""
+    from tenants.middleware import get_current_loja_id
+
+    if not get_current_loja_id():
+        return dados
+    saida = dict(dados)
+    saida["salao"] = cabecalho_atual()
+    return saida
+
+
 def comprovante_da_venda(venda) -> dict:
     """A segunda via lê o que foi gravado na venda. Recibo antigo monta os valores já salvos."""
     gravado = venda.comprovante if isinstance(getattr(venda, "comprovante", None), dict) else {}
     if gravado.get("numero"):
-        return _com_cancelamento(venda, gravado)
+        return _com_identidade_atual(_com_cancelamento(venda, gravado))
     from .models import Recebimento
 
     recibos = list(
@@ -507,6 +520,14 @@ def pdf_comprovante(dados: dict) -> bytes:
         elif tipo == "cartao":
             pagina.roundRect(x, cy + 1, 13, 8, 1, stroke=1, fill=0)
             pagina.line(x, cy + 6, x + 13, cy + 6)
+        elif tipo == "telefone":
+            pagina.roundRect(x + 3, cy + 1, 5, 8, 1, stroke=1, fill=0)
+            pagina.line(x + 1, cy + 3, x + 4, cy + 5)
+            pagina.line(x + 7, cy + 5, x + 10, cy + 7)
+        elif tipo == "email":
+            pagina.rect(x, cy + 2, 12, 8, stroke=1, fill=0)
+            pagina.line(x, cy + 10, x + 6, cy + 6)
+            pagina.line(x + 12, cy + 10, x + 6, cy + 6)
         elif tipo == "info":
             pagina.circle(x + 5, cy + 5, 5, stroke=1, fill=0)
             pagina.setFillColor(cor)
@@ -557,12 +578,24 @@ def pdf_comprovante(dados: dict) -> bytes:
             pagina.setFillColor(tinta)
             pagina.drawString(esquerda + 16, y, linha)
             y -= 13
-    contato = "  |  ".join(item for item in (_telefone(salao.get("telefone") or ""), salao.get("email") or "") if item)
-    if contato:
-        marca("telefone", esquerda, y - 2)
-        pagina.setFillColor(tinta)
+    telefone = _telefone(salao.get("telefone") or "")
+    email = str(salao.get("email") or "")
+    cursor = esquerda
+    if telefone or email:
         pagina.setFont("Times-Roman", 9)
-        pagina.drawString(esquerda + 16, y, contato[:90])
+        if telefone:
+            marca("telefone", cursor, y - 2)
+            pagina.setFillColor(tinta)
+            pagina.drawString(cursor + 16, y, telefone)
+            cursor += 16 + pagina.stringWidth(telefone, "Times-Roman", 9) + 8
+        if telefone and email:
+            pagina.setFillColor(cinza)
+            pagina.drawString(cursor, y, "|")
+            cursor += pagina.stringWidth("|", "Times-Roman", 9) + 8
+        if email:
+            marca("email", cursor, y - 2)
+            pagina.setFillColor(tinta)
+            pagina.drawString(cursor + 16, y, email[:42])
         y -= 16
     if salao.get("documento"):
         pagina.setFillColor(tinta)

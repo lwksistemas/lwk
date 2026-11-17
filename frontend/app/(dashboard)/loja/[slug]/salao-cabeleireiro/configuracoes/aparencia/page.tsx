@@ -72,10 +72,12 @@ export default function AparenciaSalaoPage() {
 
   useEffect(() => {
     apiClient.get<Identidade>("/salao-cabeleireiro/identidade/").then((resposta) => {
+      const id = normalizeAgendaVisual(resposta.data.agenda_visual);
       setForm(normalizar(resposta.data));
-      setVisual(normalizeAgendaVisual(resposta.data.agenda_visual));
+      setVisual(id);
+      lembrarVisual(slug, id);
     }).catch(() => setErro("Não foi possível carregar a identidade visual."));
-  }, []);
+  }, [slug]);
 
   async function gravar() {
     if (!form) return;
@@ -91,11 +93,13 @@ export default function AparenciaSalaoPage() {
       cor_secundaria: hexCor(form.cor_secundaria, "#4c1d78"),
       cor_fundo_pagina: hexCor(form.cor_fundo_pagina, "#fbf6f4"),
       agenda_status_colors: cores,
+      agenda_visual: visual,
     };
     try {
       const resposta = await apiClient.patch<Identidade>("/salao-cabeleireiro/identidade/", corpo);
       const gravado = normalizar(resposta.data);
       setForm(gravado);
+      lembrarVisual(slug, visual);
       window.dispatchEvent(new CustomEvent("salao-identidade", { detail: gravado }));
       setAviso("A identidade visual ficou gravada neste salão.");
     } catch (exc) {
@@ -139,16 +143,22 @@ export default function AparenciaSalaoPage() {
               iniciarAberta
               altura={720}
               construirAmostras={amostrasDoSalao}
-              onChange={(id) => {
-                setVisual(id);
-                apiClient.patch("/salao-cabeleireiro/identidade/", { agenda_visual: id }).then(() => setAviso("O visual da agenda ficou gravado neste salão.")).catch(() => setErro("Não foi possível gravar o visual da agenda."));
-              }}
+            onChange={(id) => {
+              setVisual(id);
+              lembrarVisual(slug, id);
+              apiClient.patch("/salao-cabeleireiro/identidade/", { agenda_visual: id }).then(() => setAviso("O visual da agenda ficou gravado neste salão.")).catch(() => setErro("Não foi possível gravar o visual da agenda."));
+            }}
             />
           </section>
         </div>
       ) : null}
     </div>
   );
+}
+
+function lembrarVisual(slug: string, id: AgendaVisualId) {
+  try { window.sessionStorage.setItem(`lwk:salao-agenda-visual:${slug}`, id); } catch { /* o navegador pode bloquear a sessão */ }
+  window.dispatchEvent(new CustomEvent("salao-agenda-visual", { detail: id }));
 }
 
 function normalizar(dados: Identidade): Identidade {

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import apiClient from "@/lib/api-client";
 import { agendaVisualStyleVars, normalizeAgendaVisual, type AgendaVisualId } from "@/lib/clinica-agenda-visual";
 import { STATUS_PADRAO, useStatusSalao } from "@/components/salao/cores-salao";
@@ -155,8 +155,33 @@ export default function AgendaSalaoPage() {
 
   useEffect(() => { carregar(); }, [carregar]);
   useEffect(() => {
-    apiClient.get<{ agenda_visual?: string }>("/salao-cabeleireiro/identidade/").then((resposta) => setVisual(normalizeAgendaVisual(resposta.data.agenda_visual))).catch(() => undefined);
-  }, []);
+    const chave = `lwk:salao-agenda-visual:${slug}`;
+    try {
+      const guardado = window.sessionStorage.getItem(chave);
+      if (guardado) setVisual(normalizeAgendaVisual(guardado));
+    } catch { /* o navegador pode bloquear a sessão */ }
+    let vivo = true;
+    const carregar = () => {
+      apiClient.get<{ agenda_visual?: string }>("/salao-cabeleireiro/identidade/").then((resposta) => {
+        if (!vivo) return;
+        const id = normalizeAgendaVisual(resposta.data.agenda_visual);
+        setVisual(id);
+        try { window.sessionStorage.setItem(chave, id); } catch { /* ignora */ }
+      }).catch(() => undefined);
+    };
+    const aoTrocar = (evento: Event) => {
+      const id = normalizeAgendaVisual((evento as CustomEvent<string>).detail);
+      setVisual(id);
+    };
+    carregar();
+    window.addEventListener("salao-agenda-visual", aoTrocar);
+    window.addEventListener("focus", carregar);
+    return () => {
+      vivo = false;
+      window.removeEventListener("salao-agenda-visual", aoTrocar);
+      window.removeEventListener("focus", carregar);
+    };
+  }, [slug]);
   useEffect(() => {
     SalaoAPI.formas().then((lista) => { if (lista.length) setFormasPagamento(lista); }).catch(() => undefined);
   }, []);
@@ -458,37 +483,45 @@ export default function AgendaSalaoPage() {
 
   const horas = Array.from({ length: HORA_FIM - HORA_INICIO }, (_, indice) => HORA_INICIO + indice);
 
+  const tema = agendaVisualStyleVars(visual);
+  const botao = (ativo: boolean): CSSProperties => ({
+    borderRadius: "var(--agenda-radius, 999px)",
+    borderColor: "var(--agenda-border, #e5e7eb)",
+    background: ativo ? "var(--agenda-accent)" : "#fff",
+    color: ativo ? "var(--agenda-accent-fg)" : "inherit",
+  });
+
   return (
-    <div className={modo === "mes" ? "flex h-[calc(100dvh-2rem)] flex-col sm:h-[calc(100dvh-2.5rem)]" : undefined}>
+    <div className={`agenda-grade-root ${modo === "mes" ? "flex h-[calc(100dvh-2rem)] flex-col sm:h-[calc(100dvh-2.5rem)]" : ""}`} data-agenda-visual={visual} style={tema}>
       <div className="mb-3 flex shrink-0 flex-wrap items-center justify-between gap-2">
         <div>
           <h1 className="text-3xl font-semibold">Agenda</h1>
           <p className="text-sm text-[#8a6e74]">Dia por profissional, semana por dia e mês. O horário ocupado não aceita outro atendimento.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <button type="button" className="rounded-full border bg-white px-3 py-1.5 text-sm" onClick={() => setCursor(new Date())}>Hoje</button>
-          <button type="button" className="rounded-full border bg-white px-3 py-1.5 text-sm" onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate() - (modo === "mes" ? 30 : modo === "semana" ? 7 : 1)))}>Anterior</button>
-          <button type="button" className="rounded-full border bg-white px-3 py-1.5 text-sm" onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate() + (modo === "mes" ? 30 : modo === "semana" ? 7 : 1)))}>Próxima</button>
-          <button type="button" className={`rounded-full border px-3 py-1.5 text-sm ${lista ? "bg-[#7a3044] text-white" : "bg-white"}`} onClick={() => setLista((aberta) => !aberta)}>Lista</button>
-          <select className="rounded-full border bg-white px-3 py-1.5 text-sm" value={filtroProfissional} aria-label="Profissional" onChange={(evento) => setFiltroProfissional(evento.target.value)}>
+          <button type="button" className="border bg-white px-3 py-1.5 text-sm" style={botao(false)} onClick={() => setCursor(new Date())}>Hoje</button>
+          <button type="button" className="border bg-white px-3 py-1.5 text-sm" style={botao(false)} onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate() - (modo === "mes" ? 30 : modo === "semana" ? 7 : 1)))}>Anterior</button>
+          <button type="button" className="border bg-white px-3 py-1.5 text-sm" style={botao(false)} onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate() + (modo === "mes" ? 30 : modo === "semana" ? 7 : 1)))}>Próxima</button>
+          <button type="button" className="border px-3 py-1.5 text-sm" style={botao(lista)} onClick={() => setLista((aberta) => !aberta)}>Lista</button>
+          <select className="border bg-white px-3 py-1.5 text-sm" style={botao(false)} value={filtroProfissional} aria-label="Profissional" onChange={(evento) => setFiltroProfissional(evento.target.value)}>
             <option value="todos">Todos os profissionais</option>
             {profissionais.map((pessoa) => <option key={pessoa.id} value={pessoa.id}>{pessoa.nome}</option>)}
           </select>
-          <Link href={`/loja/${slug}/salao-cabeleireiro/configuracoes/aparencia`} className="rounded-full border bg-white px-3 py-1.5 text-sm">Configurar</Link>
-          <button type="button" className="rounded-full border bg-white px-3 py-1.5 text-sm" onClick={abrirFolga}>Bloquear</button>
+          <Link href={`/loja/${slug}/salao-cabeleireiro/configuracoes/aparencia`} className="border bg-white px-3 py-1.5 text-sm" style={botao(false)}>Configurar</Link>
+          <button type="button" className="border bg-white px-3 py-1.5 text-sm" style={botao(false)} onClick={abrirFolga}>Bloquear</button>
           {(["dia", "semana", "mes"] as const).map((item) => (
-            <button key={item} type="button" className={`rounded-full px-3 py-1.5 text-sm ${modo === item ? "bg-[#7a3044] text-white" : "bg-white"}`} onClick={() => { setModo(item); setLista(false); }}>
+            <button key={item} type="button" className="border px-3 py-1.5 text-sm" style={botao(modo === item && !lista)} onClick={() => { setModo(item); setLista(false); }}>
               {item === "dia" ? "Dia" : item === "semana" ? "Semana" : "Mês"}
             </button>
           ))}
-          <button type="button" className="rounded-full bg-[#7a3044] px-3 py-1.5 text-sm text-white" onClick={() => abrirNovo(cursor)}>+ Novo agendamento</button>
+          <button type="button" className="border px-3 py-1.5 text-sm" style={botao(true)} onClick={() => abrirNovo(cursor)}>+ Novo agendamento</button>
         </div>
       </div>
       {erro ? <p className="mb-2 text-sm text-red-700">{erro}</p> : null}
       {aviso ? <p className="mb-2 text-sm text-[#1f8a4c]">{aviso}</p> : null}
       {profissionais.length === 0 ? <p className="mb-2 text-sm text-[#8a6e74]">Cadastre um profissional para abrir as colunas do dia.</p> : null}
       {lista ? (
-        <ul className="space-y-2 rounded-2xl border bg-white p-3" style={agendaVisualStyleVars(visual)}>
+        <ul className="space-y-2 border bg-white p-3" style={{ ...tema, borderColor: "var(--agenda-border)", borderRadius: "var(--agenda-radius, 16px)" }}>
           {eventos.filter((item) => item.status !== "CANCELLED" && (filtroProfissional === "todos" || String(item.profissional) === filtroProfissional)).length === 0 ? <li className="text-sm text-[#8a6e74]">Nenhum horário neste período.</li> : null}
           {eventos.filter((item) => item.status !== "CANCELLED" && (filtroProfissional === "todos" || String(item.profissional) === filtroProfissional)).map((item) => (
             <li key={item.id}>
@@ -500,11 +533,11 @@ export default function AgendaSalaoPage() {
           ))}
         </ul>
       ) : modo === "mes" ? (
-        <div style={agendaVisualStyleVars(visual)}>
+        <div className="min-h-0 flex-1" style={tema}>
           <Mes cursor={cursor} eventos={eventos.filter((item) => filtroProfissional === "todos" || String(item.profissional) === filtroProfissional)} statusCores={statusCores} aoAbrir={(data) => { setCursor(data); setModo("dia"); }} />
         </div>
       ) : (
-        <div className="overflow-auto rounded-2xl border bg-white" style={{ ...agendaVisualStyleVars(visual), borderColor: "var(--agenda-border, #f0e4e6)" }}>
+        <div className="overflow-auto border bg-white" style={{ ...tema, borderColor: "var(--agenda-border, #e5e7eb)", borderRadius: "var(--agenda-radius, 16px)" }}>
           <div className="grid" style={{ gridTemplateColumns: `64px repeat(${Math.max(colunas.length, 1)}, minmax(140px, 1fr))` }}>
             <div />
             {colunas.map((coluna) => {
@@ -545,7 +578,13 @@ export default function AgendaSalaoPage() {
                   abrirNovo(data, modo === "dia" ? coluna.id : "");
                 }}
               >
-                {horas.map((hora) => <div key={hora} style={{ height: ALTURA_HORA }} className="border-b border-[#f0e4e6]" />)}
+                {horas.map((hora) => <div key={hora} style={{ height: ALTURA_HORA, borderColor: "var(--agenda-border)" }} className="border-b" />)}
+                {(() => {
+                  const agora = new Date();
+                  const hora = agora.getHours() + agora.getMinutes() / 60;
+                  if (coluna.data.toDateString() !== agora.toDateString() || hora < HORA_INICIO || hora > HORA_FIM) return null;
+                  return <div className="pointer-events-none absolute right-0 left-0 z-10 h-0.5" style={{ top: (hora - HORA_INICIO) * ALTURA_HORA, background: "var(--agenda-now, #ef4444)" }} />;
+                })()}
                 {modo === "dia" ? (() => {
                   const faixa = intervaloDoProfissional(jornadas, coluna.id, coluna.data);
                   if (!faixa) return null;
@@ -915,16 +954,16 @@ function Mes({ cursor, eventos, statusCores, aoAbrir }: { cursor: Date; eventos:
         <div key={nome} className="px-1 text-center text-[11px] capitalize text-[#8a6e74]">{nome}</div>
       ))}
       {celulas.map((dia, indice) => {
-        if (!dia) return <div key={`vazio-${indice}`} className="min-h-28 rounded-xl border border-[#f0e4e6] bg-white" />;
+        if (!dia) return <div key={`vazio-${indice}`} className="min-h-28 border bg-white" style={{ borderRadius: "var(--agenda-card-radius, 12px)", borderColor: "var(--agenda-border, #e5e7eb)" }} />;
         const data = new Date(cursor.getFullYear(), cursor.getMonth(), dia);
         const doDia = eventos.filter((item) => new Date(item.inicio).toDateString() === data.toDateString() && item.status !== "CANCELLED");
         const hoje = data.toDateString() === new Date().toDateString();
         return (
-          <button key={dia} type="button" className="min-h-28 rounded-xl border bg-white p-2 text-left" style={hoje ? { background: "var(--agenda-today-bg, #fff)" } : undefined} onClick={() => aoAbrir(data)}>
-            <span className={`text-sm ${hoje ? "font-semibold" : ""}`}>{dia}</span>
+          <button key={dia} type="button" className="min-h-28 border bg-white p-2 text-left" style={{ borderRadius: "var(--agenda-card-radius, 12px)", borderColor: hoje ? "var(--agenda-accent, #ad46ff)" : "var(--agenda-border, #e5e7eb)", background: hoje ? "var(--agenda-today-bg, #fff)" : "#fff" }} onClick={() => aoAbrir(data)}>
+            <span className={`text-sm ${hoje ? "font-semibold" : ""}`} style={hoje ? { color: "var(--agenda-focus-text)" } : undefined}>{dia}</span>
             <span className="mt-1 block space-y-0.5">
               {doDia.slice(0, 3).map((item) => (
-                <span key={item.id} className="block truncate text-[10px] text-white" style={{ background: statusCores[item.status] || STATUS_PADRAO.SCHEDULED, borderRadius: 4, padding: "1px 4px" }}>{dois(new Date(item.inicio).getHours())}:{dois(new Date(item.inicio).getMinutes())} {item.cliente_nome}</span>
+                <span key={item.id} className="block truncate px-1 text-[10px] text-white" style={{ background: statusCores[item.status] || STATUS_PADRAO.SCHEDULED, borderRadius: "var(--agenda-card-radius, 4px)", padding: "1px 4px" }}>{dois(new Date(item.inicio).getHours())}:{dois(new Date(item.inicio).getMinutes())} {item.cliente_nome}</span>
               ))}
               {doDia.length > 3 ? <span className="block text-[10px] text-[#8a6e74]">mais +{doDia.length - 3}</span> : null}
             </span>

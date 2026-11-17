@@ -243,6 +243,31 @@ class CaixaSalaoTest(unittest.TestCase):
         self.assertIsNotNone(caixa)
         self.assertGreater(float(caixa.group(1)), 500)
 
+    def test_a_logomarca_salva_entra_no_pdf_e_no_html(self):
+        from io import BytesIO
+        from unittest.mock import patch
+
+        from PIL import Image
+
+        buf = BytesIO()
+        Image.new("RGB", (8, 8), (191, 49, 49)).save(buf, format="PNG")
+        dados = {
+            "numero": 6,
+            "quando": "",
+            "cliente": "Ana",
+            "valor": "10.00",
+            "desconto": "0",
+            "servicos": [],
+            "produtos": [],
+            "formas": [],
+            "salao": {"nome": "Salão", "logo": "https://media.lwksistemas.com.br/files/1/admin/fotos/a.png", "cor": "#BF3131"},
+        }
+        with patch("salao_cabeleireiro.comprovante_layout._bytes_da_logo", return_value=buf.getvalue()):
+            pdf = pdf_comprovante(dados)
+            pagina = html_comprovante(dados)
+        self.assertIn(b"/Image", pdf)
+        self.assertIn("data:image/png;base64,", pagina)
+
     def test_quantidade_do_mesmo_produto_soma(self):
         pedidos = agrupar_pedidos([{"produto": 3, "quantidade": 1}, {"produto": "3", "quantidade": 2}])
         self.assertEqual(pedidos, [{"produto": 3, "quantidade": 3}])

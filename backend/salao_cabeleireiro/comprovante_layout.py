@@ -51,6 +51,52 @@ def _cor(valor: str) -> str:
     return "#7A3044"
 
 
+def _logo_exibicao(url: str) -> str:
+    """A mídia exige assinatura. O endereço cru do cadastro não abre no navegador nem no PDF."""
+    texto = _texto(url)
+    if not texto:
+        return ""
+    try:
+        from core.media_storage import assinar_url_midia, is_media_url
+
+        if is_media_url(texto):
+            return assinar_url_midia(texto)
+    except Exception:
+        return texto
+    return texto
+
+
+def _bytes_da_logo(url: str) -> bytes | None:
+    texto = _texto(url)
+    if not texto:
+        return None
+    try:
+        from clinica_beleza.pdf_common.logo import baixar_logo
+
+        conteudo = baixar_logo(texto, timeout=8)
+    except Exception:
+        return None
+    if not conteudo or len(conteudo) > 2_000_000:
+        return None
+    return conteudo
+
+
+def _src_logo(url: str) -> str:
+    conteudo = _bytes_da_logo(url)
+    if conteudo:
+        import base64
+
+        tipo = "image/png"
+        if conteudo.startswith(b"\xff\xd8"):
+            tipo = "image/jpeg"
+        elif conteudo.startswith(b"GIF8"):
+            tipo = "image/gif"
+        elif conteudo.startswith(b"RIFF") and conteudo[8:12] == b"WEBP":
+            tipo = "image/webp"
+        return f"data:{tipo};base64,{base64.b64encode(conteudo).decode('ascii')}"
+    return _logo_exibicao(url)
+
+
 def cabecalho_da_loja(loja) -> dict:
     """Nome, endereço, contato e cor saem do cadastro. Sem logomarca, o desenho usa a tesoura do modelo."""
     from superadmin.loja_utils import contato_publico_loja
@@ -80,7 +126,7 @@ def cabecalho_da_loja(loja) -> dict:
     subtitulo = _texto(getattr(tipo, "nome", "")) if tipo is not None else ""
     if subtitulo.casefold().startswith("salão de "):
         subtitulo = subtitulo[9:].strip()
-    logo = _texto(getattr(loja, "recibo_logo", "")) or _texto(getattr(loja, "logo", ""))
+    logo = _logo_exibicao(_texto(getattr(loja, "recibo_logo", "")) or _texto(getattr(loja, "logo", "")))
     cor = _cor(_texto(getattr(loja, "recibo_cor", "")) or _texto(getattr(loja, "cor_primaria", "")))
     return {
         "nome": _texto(getattr(loja, "nome", "")) or "Salão",
@@ -283,8 +329,8 @@ def html_comprovante(dados: dict) -> str:
     cor = _cor(salao.get("cor") or "")
     nome = html.escape(salao.get("nome") or "Salão")
     subtitulo = html.escape((salao.get("subtitulo") or "").upper())
-    logo = salao.get("logo") or ""
-    if isinstance(logo, str) and logo.startswith(("http://", "https://", "/")):
+    logo = _src_logo(str(salao.get("logo") or ""))
+    if logo.startswith(("http://", "https://", "/", "data:")):
         marca = f'<img src="{html.escape(logo, quote=True)}" alt="" style="height:64px;width:auto;max-width:88px;object-fit:contain" />'
     else:
         marca = _tesoura_svg(cor, 64)
@@ -538,19 +584,24 @@ def pdf_comprovante(dados: dict) -> bytes:
         pagina.restoreState()
 
     centro = largura / 2
-    logo = salao.get("logo") or ""
     desenhou_logo = False
-    if isinstance(logo, str) and logo.startswith("https://"):
+    conteudo = _bytes_da_logo(str(salao.get("logo") or ""))
+    if conteudo:
         try:
-            import urllib.request
+            from PIL import Image as PILImage
             from reportlab.lib.utils import ImageReader
-            with urllib.request.urlopen(logo, timeout=3) as resposta:
-                imagem = ImageReader(BytesIO(resposta.read(2_000_000)))
+
+            pil = PILImage.open(BytesIO(conteudo))
+            if pil.mode not in ("RGB", "RGBA"):
+                pil = pil.convert("RGBA")
+            buf = BytesIO()
+            pil.save(buf, format="PNG")
+            buf.seek(0)
+            imagem = ImageReader(buf)
             iw, ih = imagem.getSize()
             alt = 46
             larg = min(70, alt * iw / max(ih, 1))
-            imagem_x = centro - 108
-            pagina.drawImage(imagem, imagem_x, y - 40, width=larg, height=alt, mask="auto", preserveAspectRatio=True, anchor="c")
+            pagina.drawImage(imagem, centro - 108, y - 40, width=larg, height=alt, mask="auto", preserveAspectRatio=True, anchor="c")
             desenhou_logo = True
         except Exception:
             desenhou_logo = False

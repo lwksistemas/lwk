@@ -1,26 +1,35 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { SalaoAPI, type ServicoSalao } from "@/lib/salao-api";
+import { SalaoAPI, type CategoriaSalao, type ServicoSalao } from "@/lib/salao-api";
 
 const CAMPO = "w-full rounded-lg border px-2 py-2";
-const VAZIO = { nome: "", categoria: "Corte", duracao_minutos: "60", preco: "", descricao: "" };
+const VAZIO = { nome: "", categoria: "", duracao_minutos: "60", preco: "", descricao: "" };
 
 export default function ServicosSalaoPage() {
   const [lista, setLista] = useState<ServicoSalao[]>([]);
+  const [categorias, setCategorias] = useState<CategoriaSalao[]>([]);
+  const [nomeCategoria, setNomeCategoria] = useState("");
+  const [editando, setEditando] = useState<number | null>(null);
+  const [nomeEdicao, setNomeEdicao] = useState("");
   const [escolhido, setEscolhido] = useState<number | null>(null);
   const [form, setForm] = useState(VAZIO);
   const [aberto, setAberto] = useState(false);
   const [erro, setErro] = useState("");
 
   function carregar() {
-    SalaoAPI.servicos().then(setLista).catch((exc: Error) => setErro(exc.message));
+    Promise.all([SalaoAPI.servicos(), SalaoAPI.categorias()])
+      .then(([servicos, grupos]) => {
+        setLista(servicos);
+        setCategorias(grupos);
+      })
+      .catch((exc: Error) => setErro(exc.message));
   }
   useEffect(() => { carregar(); }, []);
 
   function novo() {
     setEscolhido(null);
-    setForm(VAZIO);
+    setForm({ ...VAZIO, categoria: categorias[0]?.nome || "" });
     setErro("");
     setAberto(true);
   }
@@ -62,6 +71,39 @@ export default function ServicosSalaoPage() {
     }
   }
 
+  async function adicionarCategoria(evento: React.FormEvent) {
+    evento.preventDefault();
+    setErro("");
+    try {
+      await SalaoAPI.criarCategoria(nomeCategoria);
+      setNomeCategoria("");
+      carregar();
+    } catch (exc) {
+      setErro(exc instanceof Error ? exc.message : "Não foi possível criar a categoria.");
+    }
+  }
+
+  async function gravarCategoria(id: number) {
+    setErro("");
+    try {
+      await SalaoAPI.renomearCategoria(id, nomeEdicao);
+      setEditando(null);
+      carregar();
+    } catch (exc) {
+      setErro(exc instanceof Error ? exc.message : "Não foi possível renomear a categoria.");
+    }
+  }
+
+  async function arquivarCategoria(id: number) {
+    setErro("");
+    try {
+      await SalaoAPI.arquivarCategoria(id);
+      carregar();
+    } catch (exc) {
+      setErro(exc instanceof Error ? exc.message : "Não foi possível arquivar a categoria.");
+    }
+  }
+
   async function arquivar() {
     if (!escolhido) return;
     try {
@@ -83,20 +125,48 @@ export default function ServicosSalaoPage() {
         <button type="button" className="rounded-full bg-[#7a3044] px-4 py-2 text-sm text-white" onClick={novo}>Adicionar serviço</button>
       </div>
       {!aberto && erro ? <p className="mb-2 text-sm text-red-700">{erro}</p> : null}
+      <section className="mb-6 rounded-3xl border border-[#f0e4e6] bg-white p-4">
+        <h2 className="font-medium">Categorias</h2>
+        <p className="mt-1 text-sm text-[#8a6e74]">O agendamento escolhe a categoria e, depois, o procedimento.</p>
+        <form className="mt-3 flex flex-wrap gap-2" onSubmit={adicionarCategoria}>
+          <input className="min-w-48 flex-1 rounded-lg border px-3 py-2 text-sm" value={nomeCategoria} onChange={(evento) => setNomeCategoria(evento.target.value)} placeholder="Nova categoria" />
+          <button className="rounded-full bg-[#7a3044] px-4 py-2 text-sm text-white" type="submit">Adicionar categoria</button>
+        </form>
+        <ul className="mt-3 grid gap-2 sm:grid-cols-2">
+          {categorias.map((item) => (
+            <li key={item.id} className="flex items-center gap-2 rounded-2xl border border-[#f0e4e6] px-3 py-2 text-sm">
+              {editando === item.id ? (
+                <input className="min-w-0 flex-1 rounded-lg border px-2 py-1" value={nomeEdicao} onChange={(evento) => setNomeEdicao(evento.target.value)} />
+              ) : <span className="min-w-0 flex-1">{item.nome}</span>}
+              {editando === item.id ? (
+                <button type="button" className="text-[#7a3044]" onClick={() => void gravarCategoria(item.id)}>Salvar</button>
+              ) : (
+                <button type="button" className="text-[#7a3044]" onClick={() => { setEditando(item.id); setNomeEdicao(item.nome); }}>Renomear</button>
+              )}
+              <button type="button" className="text-[#8a6e74]" onClick={() => void arquivarCategoria(item.id)}>Arquivar</button>
+            </li>
+          ))}
+        </ul>
+      </section>
       {lista.length === 0 ? <p className="text-sm text-[#8a6e74]">Nenhum serviço registrado.</p> : null}
-      <ul className="grid gap-3 md:grid-cols-2">
-        {lista.map((item) => (
-          <li key={item.id}>
-            <button type="button" className="flex h-full w-full items-start justify-between gap-3 rounded-3xl border border-[#f0e4e6] bg-white px-4 py-3 text-left hover:bg-[#fbf6f4]" onClick={() => abrir(item)}>
-              <span>
-                <span className="block font-medium">{item.nome}</span>
-                <span className="mt-0.5 block text-sm text-[#8a6e74]">{item.categoria} · {item.duracao_minutos} min</span>
-              </span>
-              <span className="shrink-0 text-sm">R$ {item.preco}</span>
-            </button>
-          </li>
-        ))}
-      </ul>
+      {categorias.filter((grupo) => lista.some((item) => item.categoria === grupo.nome)).map((grupo) => (
+        <section key={grupo.id} className="mb-5">
+          <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-[#7a3044]">{grupo.nome}</h2>
+          <ul className="grid gap-3 md:grid-cols-2">
+            {lista.filter((item) => item.categoria === grupo.nome).map((item) => (
+              <li key={item.id}>
+                <button type="button" className="flex h-full w-full items-start justify-between gap-3 rounded-3xl border border-[#f0e4e6] bg-white px-4 py-3 text-left hover:bg-[#fbf6f4]" onClick={() => abrir(item)}>
+                  <span>
+                    <span className="block font-medium">{item.nome}</span>
+                    <span className="mt-0.5 block text-sm text-[#8a6e74]">{item.duracao_minutos} min</span>
+                  </span>
+                  <span className="shrink-0 text-sm">R$ {item.preco}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))}
       {aberto ? (
         <div className="fixed inset-0 z-40 grid place-items-center bg-black/40 p-4" role="dialog" aria-modal="true" aria-labelledby="servico-formulario" onClick={(evento) => { if (evento.target === evento.currentTarget) fechar(); }}>
           <form className="max-h-[90vh] w-full max-w-lg overflow-auto rounded-3xl bg-white p-5" onSubmit={salvar}>
@@ -107,7 +177,10 @@ export default function ServicosSalaoPage() {
                 <input className={`mt-1 ${CAMPO}`} value={form.nome} onChange={(evento) => setForm({ ...form, nome: evento.target.value })} required />
               </label>
               <label className="text-sm">Categoria
-                <input className={`mt-1 ${CAMPO}`} value={form.categoria} onChange={(evento) => setForm({ ...form, categoria: evento.target.value })} />
+                <select className={`mt-1 ${CAMPO}`} value={form.categoria} onChange={(evento) => setForm({ ...form, categoria: evento.target.value })} required>
+                  <option value="">Escolha</option>
+                  {categorias.map((item) => <option key={item.id} value={item.nome}>{item.nome}</option>)}
+                </select>
               </label>
               <label className="text-sm">Minutos
                 <input className={`mt-1 ${CAMPO}`} inputMode="numeric" value={form.duracao_minutos} onChange={(evento) => setForm({ ...form, duracao_minutos: evento.target.value })} required />

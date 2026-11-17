@@ -349,6 +349,55 @@ class CaixaFechamentoTest(unittest.TestCase):
         self.assertNotIn("Total pago", html)
 
 
+class ProcedimentosHorarioTest(unittest.TestCase):
+    def test_varios_procedimentos_somam_preco_e_nome(self):
+        from decimal import Decimal
+        from salao_cabeleireiro.procedimentos_service import nomes_do_agendamento, preco_do_agendamento, resolver_servicos
+
+        class Servico:
+            def __init__(self, nome, preco):
+                self.nome = nome
+                self.preco = Decimal(preco)
+
+        class Itens:
+            def __init__(self, servicos):
+                self.servicos = servicos
+
+            def all(self):
+                return [type("Item", (), {"servico": servico})() for servico in self.servicos]
+
+        class Horario:
+            def __init__(self, servicos):
+                self.servico = servicos[0]
+                self.procedimentos = Itens(servicos)
+
+        mechas = Servico("Mechas / luzes", "220.00")
+        hidratacao = Servico("Hidratação", "90.00")
+        escova = Servico("Escova e finalização", "80.00")
+        horario = Horario([mechas, hidratacao, escova])
+        self.assertEqual(nomes_do_agendamento(horario), "Mechas / luzes, Hidratação, Escova e finalização")
+        self.assertEqual(preco_do_agendamento(horario), Decimal("390.00"))
+        with self.assertRaises(ValueError):
+            resolver_servicos([])
+        with self.assertRaises(ValueError):
+            resolver_servicos([3, 3])
+
+    def test_horario_antigo_continua_com_o_servico_unico(self):
+        from decimal import Decimal
+        from salao_cabeleireiro.procedimentos_service import nomes_do_agendamento, preco_do_agendamento
+
+        class Itens:
+            def all(self):
+                return []
+
+        class Horario:
+            servico = type("Servico", (), {"nome": "Barba", "preco": Decimal("40.00")})()
+            procedimentos = Itens()
+
+        self.assertEqual(nomes_do_agendamento(Horario()), "Barba")
+        self.assertEqual(preco_do_agendamento(Horario()), Decimal("40.00"))
+
+
 class PainelSalaoTest(unittest.TestCase):
     def test_so_os_tres_paineis(self):
         self.assertTrue(painel_valido("operacao"))

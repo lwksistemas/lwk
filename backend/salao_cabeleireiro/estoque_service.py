@@ -28,7 +28,7 @@ def gravar(modelo, **kwargs):
     return modelo.objects.create(**kwargs)
 
 from .caixa_service import (
-    comissao_do_atendimento,
+    comissao_do_agendamento,
     fatiar_partes,
     interpretar_formas,
     motivo_bloqueio_recebimento,
@@ -131,16 +131,17 @@ def registrar_venda(dados, agendamentos, papel: str, local: str, origem: str, op
             produto = produtos[pedido["produto"]]
             if produto.saldo < pedido["quantidade"]:
                 raise ValueError(f"{produto.nome} tem {produto.saldo} no estoque.")
+        from .procedimentos_service import preco_do_agendamento
+
         descontos = repartir_desconto(
-            [item.servico.preco for item in agendamentos],
+            [preco_do_agendamento(item) for item in agendamentos],
             (dados.get("desconto") or 0) if agendamentos else 0,
         )
         recibos_previstos = []
         for agendamento, desconto_item in zip(agendamentos, descontos):
-            valor_item, comissao, percentual = comissao_do_atendimento(
+            valor_item, comissao, percentual = comissao_do_agendamento(
                 agendamento.profissional,
-                agendamento.servico_id,
-                agendamento.servico.preco,
+                agendamento,
                 desconto_item,
             )
             recibos_previstos.append((agendamento, desconto_item, valor_item, comissao, percentual))
@@ -163,7 +164,7 @@ def registrar_venda(dados, agendamentos, papel: str, local: str, origem: str, op
                 Recebimento,
                 agendamento=agendamento,
                 profissional=agendamento.profissional,
-                valor_servico=agendamento.servico.preco,
+                valor_servico=preco_do_agendamento(agendamento),
                 desconto=desconto_item,
                 valor=valor_item,
                 forma=fatia[0]["forma"] if fatia else (partes[0]["forma"] if partes else "dinheiro"),
@@ -293,14 +294,7 @@ def publico_venda(venda: Venda) -> dict:
         "estornado": not venda.is_active,
         "forma_label": rotulo_formas(venda.partes, venda.forma),
         "quando": timezone.localtime(venda.created_at).strftime("%d/%m/%Y %H:%M"),
-        "servicos": [
-            {
-                "nome": item.agendamento.servico.nome,
-                "profissional": item.profissional.nome,
-                "total": f"{quantia(item.valor):.2f}",
-            }
-            for item in recibos
-        ],
+        "servicos": comprovante.get("servicos") or [],
         "itens": [
             {"nome": item.nome, "quantidade": item.quantidade, "total": f"{quantia(item.total):.2f}"}
             for item in venda.itens.all()

@@ -168,6 +168,20 @@ export type ProfissionalSalao = {
   comissoes: ComissaoProcedimentoSalao[];
 };
 
+export type CategoriaSalao = {
+  id: number;
+  nome: string;
+  ordem: number;
+};
+
+export type ProcedimentoHorario = {
+  id: number;
+  nome: string;
+  categoria: string;
+  duracao_minutos: number;
+  preco: string;
+};
+
 export type ServicoSalao = {
   id: number;
   nome: string;
@@ -212,6 +226,7 @@ export type AgendamentoSalao = {
   servico: number;
   servico_nome: string;
   preco: string;
+  procedimentos?: ProcedimentoHorario[];
   observacoes: string;
   aviso?: string;
   recebido?: {
@@ -417,6 +432,12 @@ export const SalaoAPI = {
       method: id ? "PATCH" : "POST",
       body: JSON.stringify(corpo),
     }),
+  categorias: () => salaoFetch<CategoriaSalao[]>("/categorias/"),
+  criarCategoria: (nome: string) =>
+    salaoFetch<CategoriaSalao>("/categorias/", { method: "POST", body: JSON.stringify({ nome }) }),
+  renomearCategoria: (id: number, nome: string) =>
+    salaoFetch<CategoriaSalao>(`/categorias/${id}/`, { method: "PATCH", body: JSON.stringify({ nome }) }),
+  arquivarCategoria: (id: number) => salaoFetch(`/categorias/${id}/`, { method: "DELETE" }),
   servicos: () => salaoFetch<ServicoSalao[]>("/servicos/"),
   salvarServico: (corpo: Record<string, unknown>, id?: number) =>
     salaoFetch<ServicoSalao>(id ? `/servicos/${id}/` : "/servicos/", {

@@ -10,7 +10,9 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .agenda_service import conflito_horario, interpretar_inicio
-from .caixa_service import comissao_do_atendimento, gravar_comissoes, interpretar_formas, motivo_bloqueio_recebimento, quantia, rotulo_formas
+from .caixa_service import comissao_do_agendamento, gravar_comissoes, interpretar_formas, motivo_bloqueio_recebimento, quantia, rotulo_formas
+from .categoria_service import arquivar_categoria, criar_categoria, listar_categorias, renomear_categoria
+from .procedimentos_service import duracao_dos, gravar_procedimentos, nomes_do_agendamento, preco_do_agendamento, resolver_servicos
 from .formas_service import codigos_ativos, criar_forma, excluir_forma, listar_formas, renomear_forma, rotulos_conhecidos
 from .comunicacao_service import avisar_mudanca, enviar_evento, regras_de, validar_regras, whatsapp_pronto
 from .catalogo import garantir_catalogo_inicial
@@ -254,6 +256,39 @@ class ServicoDetailView(GetObjectMixin, APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+class CategoriaListCreateView(APIView):
+    def get_permissions(self):
+        if self.request.method == "GET":
+            return [IsAuthenticated(), IsSalaoMembro()]
+        return [IsAuthenticated(), IsSalaoAdmin()]
+
+    def get(self, request):
+        return Response(listar_categorias())
+
+    def post(self, request):
+        try:
+            return Response(criar_categoria(request.data.get("nome")), status=status.HTTP_201_CREATED)
+        except ValueError as exc:
+            return _erro(str(exc))
+
+
+class CategoriaDetailView(APIView):
+    permission_classes = [IsAuthenticated, IsSalaoAdmin]
+
+    def patch(self, request, pk):
+        try:
+            return Response(renomear_categoria(pk, request.data.get("nome")))
+        except ValueError as exc:
+            return _erro(str(exc))
+
+    def delete(self, request, pk):
+        try:
+            arquivar_categoria(pk)
+        except ValueError as exc:
+            return _erro(str(exc))
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
 def _cliente_do_payload(dados):
     cliente_id = dados.get("cliente") or dados.get("cliente_id")
     if cliente_id:
@@ -277,7 +312,7 @@ class AgendaView(APIView):
     def get(self, request):
         inicio = request.query_params.get("start")
         fim = request.query_params.get("end")
-        qs = Agendamento.objects.select_related("cliente", "profissional", "servico").prefetch_related("recebimentos")
+        qs = Agendamento.objects.select_related("cliente", "profissional", "servico").prefetch_related("recebimentos", "procedimentos__servico")
         try:
             if inicio:
                 qs = qs.filter(inicio__gte=interpretar_inicio(inicio))
@@ -298,15 +333,22 @@ class AgendaView(APIView):
             inicio = interpretar_inicio(str(request.data.get("inicio") or ""))
         except ValueError as exc:
             return _erro(str(exc))
-        servico = Servico.objects.filter(pk=request.data.get("servico"), is_active=True).first()
+        ids = request.data.get("servicos")
+        if not isinstance(ids, list):
+            unico = request.data.get("servico")
+            ids = [] if unico in (None, "", 0, "0") else [unico]
+        try:
+            servicos = resolver_servicos(ids)
+        except ValueError as exc:
+            return _erro(str(exc))
         profissional = Profissional.objects.filter(pk=request.data.get("profissional"), is_active=True).first()
-        if servico is None or profissional is None:
-            return _erro("Escolha o serviço e o profissional.")
+        if profissional is None:
+            return _erro("Escolha o profissional.")
         try:
             cliente = _cliente_do_payload(request.data)
         except ValueError as exc:
             return _erro(str(exc))
-        duracao = int(request.data.get("duracao_minutos") or servico.duracao_minutos)
+        duracao = duracao_dos(servicos)
         fim = inicio + timedelta(minutes=duracao)
         mensagem = conflito_horario(profissional.id, inicio, fim)
         if mensagem:
@@ -317,10 +359,12 @@ class AgendaView(APIView):
             status="SCHEDULED",
             cliente=cliente,
             profissional=profissional,
-            servico=servico,
+            servico=servicos[0],
             observacoes=(request.data.get("observacoes") or "").strip(),
         )
-        return Response(AgendamentoSerializer(agendamento).data, status=status.HTTP_201_CREATED)
+        gravar_procedimentos(agendamento, servicos)
+        agendamento.save(update_fields=["servico", "duracao_minutos"])
+        return Response(AgendamentoSerializer(_agendamento_completo(agendamento.pk)).data, status=status.HTTP_201_CREATED)
 
 
 class AgendamentoDetailView(GetObjectMixin, APIView):
@@ -330,7 +374,7 @@ class AgendamentoDetailView(GetObjectMixin, APIView):
 
     def get_object(self, pk):
         try:
-            return Agendamento.objects.select_related("cliente", "profissional", "servico").prefetch_related("recebimentos").get(pk=pk)
+            return Agendamento.objects.select_related("cliente", "profissional", "servico").prefetch_related("recebimentos", "procedimentos__servico").get(pk=pk)
         except Agendamento.DoesNotExist:
             return None
 
@@ -339,7 +383,7 @@ class AgendamentoDetailView(GetObjectMixin, APIView):
         if agendamento is None:
             return _erro(self.not_found_message, status.HTTP_404_NOT_FOUND)
         if agendamento.recebimentos.filter(is_active=True).exists() and any(
-            chave in request.data for chave in ("status", "inicio", "profissional", "servico", "duracao_minutos")
+            chave in request.data for chave in ("status", "inicio", "profissional", "servico", "servicos", "duracao_minutos")
         ):
             return _erro("Desfaça o recebimento antes de alterar este atendimento.")
         inicio_anterior = agendamento.inicio
@@ -359,13 +403,17 @@ class AgendamentoDetailView(GetObjectMixin, APIView):
             if profissional is None:
                 return _erro("Profissional não encontrado.")
             agendamento.profissional = profissional
-        if request.data.get("servico"):
-            servico = Servico.objects.filter(pk=request.data.get("servico"), is_active=True).first()
-            if servico is None:
-                return _erro("Serviço não encontrado.")
-            agendamento.servico = servico
-            if not request.data.get("duracao_minutos"):
-                agendamento.duracao_minutos = servico.duracao_minutos
+        servicos_novos = None
+        if isinstance(request.data.get("servicos"), list) or request.data.get("servico"):
+            ids = request.data.get("servicos")
+            if not isinstance(ids, list):
+                ids = [request.data.get("servico")]
+            try:
+                servicos_novos = resolver_servicos(ids)
+            except ValueError as exc:
+                return _erro(str(exc))
+            agendamento.servico = servicos_novos[0]
+            agendamento.duracao_minutos = duracao_dos(servicos_novos)
         if request.data.get("duracao_minutos"):
             agendamento.duracao_minutos = int(request.data.get("duracao_minutos"))
         if "observacoes" in request.data:
@@ -379,6 +427,8 @@ class AgendamentoDetailView(GetObjectMixin, APIView):
             )
             if mensagem:
                 return _erro(mensagem, status.HTTP_409_CONFLICT)
+        if servicos_novos is not None:
+            gravar_procedimentos(agendamento, servicos_novos)
         agendamento.save()
         return _resposta_agenda(agendamento, avisar_mudanca(
             agendamento,
@@ -601,11 +651,13 @@ class ResumoView(APIView):
             Agendamento.objects.filter(inicio__gte=inicio_dia, inicio__lt=fim_dia)
             .exclude(status="CANCELLED")
             .select_related("cliente", "servico", "profissional")
+            .prefetch_related("procedimentos__servico")
             .order_by("inicio")
         )
         recebidos_mes = list(
             Recebimento.objects.filter(is_active=True, created_at__gte=inicio_mes, created_at__lt=fim_mes)
             .select_related("agendamento__servico", "profissional")
+            .prefetch_related("agendamento__procedimentos__servico")
         )
         recebidos_dia = [
             item for item in recebidos_mes
@@ -623,7 +675,7 @@ class ResumoView(APIView):
         por_servico = {}
         por_profissional = {}
         for item in recebidos_mes:
-            chave = item.agendamento.servico.nome
+            chave = nomes_do_agendamento(item.agendamento)
             atual = por_servico.setdefault(chave, {"nome": chave, "quantidade": 0, "receita": Decimal("0")})
             atual["quantidade"] += 1
             atual["receita"] += item.valor
@@ -703,7 +755,7 @@ class ResumoView(APIView):
                     "id": item.id,
                     "hora": timezone.localtime(item.inicio).strftime("%H:%M"),
                     "cliente": item.cliente.nome,
-                    "servico": item.servico.nome,
+                    "servico": nomes_do_agendamento(item),
                     "profissional": item.profissional.nome,
                     "status": item.status,
                     "status_label": item.get_status_display(),
@@ -716,7 +768,7 @@ class ResumoView(APIView):
 def _agendamento_completo(pk):
     return (
         Agendamento.objects.select_related("cliente", "profissional", "servico")
-        .prefetch_related("recebimentos")
+        .prefetch_related("recebimentos", "procedimentos__servico")
         .filter(pk=pk)
         .first()
     )
@@ -747,10 +799,9 @@ class ReceberAgendamentoView(APIView):
             return _erro(motivo, status.HTTP_403_FORBIDDEN)
         try:
             desconto = quantia(request.data.get("desconto") or 0)
-            valor, comissao, percentual = comissao_do_atendimento(
+            valor, comissao, percentual = comissao_do_agendamento(
                 agendamento.profissional,
-                agendamento.servico_id,
-                agendamento.servico.preco,
+                agendamento,
                 desconto,
             )
             partes = interpretar_formas(request.data, valor, codigos_ativos())
@@ -759,7 +810,7 @@ class ReceberAgendamentoView(APIView):
         Recebimento.objects.create(
             agendamento=agendamento,
             profissional=agendamento.profissional,
-            valor_servico=agendamento.servico.preco,
+            valor_servico=preco_do_agendamento(agendamento),
             desconto=desconto,
             valor=valor,
             forma=partes[0]["forma"] if partes else "dinheiro",
@@ -988,7 +1039,7 @@ class CaixaView(APIView):
                     "id": item.id,
                     "quando": timezone.localtime(item.created_at).strftime("%d/%m %H:%M"),
                     "cliente": item.agendamento.cliente.nome,
-                    "servico": item.agendamento.servico.nome,
+                    "servico": nomes_do_agendamento(item.agendamento),
                     "profissional": item.profissional.nome,
                     "forma": item.forma,
                     "forma_label": rotulo_formas(item.partes, item.forma),
@@ -1041,7 +1092,7 @@ def _estornos_do_caixa(inicio, fim):
             "id": item.id,
             "quando": timezone.localtime(item.created_at).strftime("%d/%m %H:%M"),
             "cliente": item.agendamento.cliente.nome,
-            "servico": item.agendamento.servico.nome,
+            "servico": nomes_do_agendamento(item.agendamento),
             "valor": _dinheiro(item.valor),
             "forma_label": rotulo_formas(item.partes, item.forma),
             **_dados_do_comprovante(_venda_ligada(item)),

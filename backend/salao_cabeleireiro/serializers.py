@@ -193,14 +193,20 @@ class ServicoSerializer(serializers.ModelSerializer):
         return preco
 
     def validate_categoria(self, valor):
-        return (valor or "").strip() or "Serviço"
+        from .categoria_service import categoria_valida
+
+        nome = categoria_valida(valor)
+        if not nome:
+            raise serializers.ValidationError("Escolha uma categoria cadastrada.")
+        return nome
 
 
 class AgendamentoSerializer(serializers.ModelSerializer):
     cliente_nome = serializers.CharField(source="cliente.nome", read_only=True)
     profissional_nome = serializers.CharField(source="profissional.nome", read_only=True)
-    servico_nome = serializers.CharField(source="servico.nome", read_only=True)
-    preco = serializers.DecimalField(source="servico.preco", max_digits=10, decimal_places=2, read_only=True)
+    servico_nome = serializers.SerializerMethodField()
+    preco = serializers.SerializerMethodField()
+    procedimentos = serializers.SerializerMethodField()
     fim = serializers.DateTimeField(read_only=True)
     status_label = serializers.CharField(source="get_status_display", read_only=True)
     recebido = serializers.SerializerMethodField()
@@ -221,8 +227,35 @@ class AgendamentoSerializer(serializers.ModelSerializer):
             "servico",
             "servico_nome",
             "preco",
+            "procedimentos",
             "observacoes",
             "recebido",
+        ]
+
+    def get_servico_nome(self, obj):
+        from .procedimentos_service import nomes_do_agendamento
+
+        return nomes_do_agendamento(obj)
+
+    def get_preco(self, obj):
+        from .caixa_service import quantia
+        from .procedimentos_service import preco_do_agendamento
+
+        return f"{quantia(preco_do_agendamento(obj)):.2f}"
+
+    def get_procedimentos(self, obj):
+        from .caixa_service import quantia
+        from .procedimentos_service import servicos_do_agendamento
+
+        return [
+            {
+                "id": servico.id,
+                "nome": servico.nome,
+                "categoria": servico.categoria,
+                "duracao_minutos": servico.duracao_minutos,
+                "preco": f"{quantia(servico.preco):.2f}",
+            }
+            for servico in servicos_do_agendamento(obj)
         ]
 
     def get_recebido(self, obj):

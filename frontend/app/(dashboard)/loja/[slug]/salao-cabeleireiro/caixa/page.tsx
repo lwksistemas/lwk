@@ -851,7 +851,7 @@ export default function CaixaPdvPage() {
                 operador,
                 valor: total.toFixed(2),
                 desconto: valorDesconto.toFixed(2),
-                servicos: selecionados.map((item) => ({ nome: item.servico_nome, profissional: item.profissional_nome, total: item.preco })),
+                servicos: selecionados.flatMap((item) => (item.procedimentos?.length ? item.procedimentos : [{ nome: item.servico_nome, preco: item.preco }]).map((procedimento) => ({ nome: procedimento.nome, profissional: item.profissional_nome, total: procedimento.preco }))),
                 produtos: carrinho.map((item) => ({ nome: item.nome, quantidade: item.quantidade, total: (lerReais(item.preco) * item.quantidade).toFixed(2) })),
                 formas: (formaRapida === "multiplas" ? linhas : [{ id: "1", forma: formaRapida, valor: String(total) }]).filter((linha) => lerReais(linha.valor) > 0).map((linha) => ({ nome: rotulo[linha.forma] || linha.forma, valor: lerReais(linha.valor).toFixed(2) })),
                 salao: cabecalho || undefined,

@@ -108,6 +108,23 @@ def _formas(partes) -> list[dict]:
     return linhas
 
 
+def _linhas_do_recibo(recibo) -> list[dict]:
+    from .procedimentos_service import servicos_do_agendamento
+
+    servicos = servicos_do_agendamento(recibo.agendamento)
+    profissional = recibo.profissional.nome
+    if len(servicos) <= 1:
+        return [{
+            "nome": servicos[0].nome,
+            "profissional": profissional,
+            "total": f"{quantia(recibo.valor):.2f}",
+        }]
+    return [
+        {"nome": servico.nome, "profissional": profissional, "total": f"{quantia(servico.preco):.2f}"}
+        for servico in servicos
+    ]
+
+
 def congelar_venda(venda, recibos, itens) -> dict:
     quando = timezone.localtime(venda.created_at).strftime("%d/%m/%Y às %H:%M")
     return {
@@ -118,14 +135,7 @@ def congelar_venda(venda, recibos, itens) -> dict:
         "desconto": f"{quantia(venda.desconto):.2f}",
         "valor": f"{quantia(venda.valor):.2f}",
         "cancelado": False,
-        "servicos": [
-            {
-                "nome": item.agendamento.servico.nome,
-                "profissional": item.profissional.nome,
-                "total": f"{quantia(item.valor):.2f}",
-            }
-            for item in recibos
-        ],
+        "servicos": [linha for item in recibos for linha in _linhas_do_recibo(item)],
         "produtos": [
             {"nome": item.nome, "quantidade": item.quantidade, "total": f"{quantia(item.total):.2f}"}
             for item in itens
@@ -194,14 +204,7 @@ def comprovante_da_venda(venda) -> dict:
         "desconto": f"{quantia(venda.desconto):.2f}",
         "valor": f"{quantia(venda.valor):.2f}",
         "cancelado": not venda.is_active,
-        "servicos": [
-            {
-                "nome": item.agendamento.servico.nome,
-                "profissional": item.profissional.nome,
-                "total": f"{quantia(item.valor):.2f}",
-            }
-            for item in recibos
-        ],
+        "servicos": [linha for item in recibos for linha in _linhas_do_recibo(item)],
         "produtos": [
             {"nome": item.nome, "quantidade": item.quantidade, "total": f"{quantia(item.total):.2f}"}
             for item in venda.itens.all()

@@ -66,6 +66,7 @@ export default function AgendaSalaoPage() {
   const [eventos, setEventos] = useState<AgendamentoSalao[]>([]);
   const [erro, setErro] = useState("");
   const [form, setForm] = useState<Record<string, string> | null>(null);
+  const [escolhidos, setEscolhidos] = useState<number[]>([]);
   const [selecionado, setSelecionado] = useState<AgendamentoSalao | null>(null);
   const [desconto, setDesconto] = useState("");
   const [receberAberto, setReceberAberto] = useState(false);
@@ -189,6 +190,7 @@ export default function AgendaSalaoPage() {
       cliente_telefone: "",
       observacoes: "",
     });
+    setEscolhidos([]);
   }
 
   useEffect(() => {
@@ -209,12 +211,16 @@ export default function AgendaSalaoPage() {
 
   async function salvar() {
     if (!form) return;
+    if (escolhidos.length === 0) {
+      setErro("Escolha ao menos um procedimento.");
+      return;
+    }
     setErro("");
     setAviso("");
     const corpo: Record<string, unknown> = {
       inicio: form.inicio,
       profissional: Number(form.profissional),
-      servico: Number(form.servico),
+      servicos: escolhidos,
       observacoes: form.observacoes,
     };
     if (form.cliente) corpo.cliente = Number(form.cliente);
@@ -356,6 +362,7 @@ export default function AgendaSalaoPage() {
       cliente_telefone: "",
       observacoes: selecionado.observacoes,
     });
+    setEscolhidos(selecionado.procedimentos?.length ? selecionado.procedimentos.map((item) => item.id) : [selecionado.servico]);
   }
 
   async function soltar(eventoId: number, data: Date, profissionalId?: string) {
@@ -586,6 +593,8 @@ export default function AgendaSalaoPage() {
           clientes={clientes}
           profissionais={profissionais}
           servicos={servicos}
+          escolhidos={escolhidos}
+          aoEscolhidos={setEscolhidos}
           erro={erro}
           aoSalvar={salvar}
           aoFechar={() => { setForm(null); setErro(""); if (!selecionado) setConfirmarExclusao(false); }}
@@ -656,7 +665,7 @@ export default function AgendaSalaoPage() {
 }
 
 function Formulario({
-  titulo, form, setForm, clientes, profissionais, servicos, erro, aoSalvar, aoFechar,
+  titulo, form, setForm, clientes, profissionais, servicos, escolhidos, aoEscolhidos, erro, aoSalvar, aoFechar,
 }: {
   titulo: string;
   form: Record<string, string>;
@@ -664,10 +673,22 @@ function Formulario({
   clientes: ClienteSalao[];
   profissionais: ProfissionalSalao[];
   servicos: ServicoSalao[];
+  escolhidos: number[];
+  aoEscolhidos: (ids: number[]) => void;
   erro: string;
   aoSalvar: () => void;
   aoFechar: () => void;
 }) {
+  const categorias = [...new Set(servicos.map((item) => item.categoria))].sort((a, b) => a.localeCompare(b, "pt-BR"));
+  const [categoria, setCategoria] = useState(categorias[0] || "");
+  useEffect(() => {
+    if (!categoria && categorias[0]) setCategoria(categorias[0]);
+  }, [categoria, categorias]);
+  const daCategoria = servicos.filter((item) => item.categoria === categoria && !escolhidos.includes(item.id));
+  const [procedimento, setProcedimento] = useState(String(daCategoria[0]?.id || ""));
+  const escolhidosServico = escolhidos.map((id) => servicos.find((item) => item.id === id)).filter((item): item is ServicoSalao => Boolean(item));
+  const minutos = escolhidosServico.reduce((acc, item) => acc + item.duracao_minutos, 0);
+  const total = escolhidosServico.reduce((acc, item) => acc + lerReais(item.preco), 0);
   return (
     <div className="fixed inset-0 z-40 grid place-items-center bg-black/40 p-4" role="dialog" aria-modal="true" aria-labelledby="agenda-formulario" onClick={(evento) => { if (evento.target === evento.currentTarget) aoFechar(); }}>
     <form className="max-h-[90vh] w-full max-w-lg overflow-auto rounded-3xl bg-white p-5" onSubmit={(evento) => { evento.preventDefault(); aoSalvar(); }}>
@@ -691,11 +712,33 @@ function Formulario({
           {profissionais.map((item) => <option key={item.id} value={item.id}>{item.nome}</option>)}
         </select>
       </label>
-      <label className="text-sm">Serviço
-        <select className="mt-1 w-full rounded-lg border px-2 py-2" value={form.servico} onChange={(evento) => setForm({ ...form, servico: evento.target.value })}>
-          {servicos.map((item) => <option key={item.id} value={item.id}>{item.nome} · {item.duracao_minutos} min</option>)}
-        </select>
-      </label>
+      <div className="rounded-2xl border border-[#eadfe2] p-3">
+        <p className="text-sm font-medium">Procedimentos</p>
+        <div className="mt-2 grid gap-2 sm:grid-cols-2">
+          <label className="text-sm">Categoria
+            <select className="mt-1 w-full rounded-lg border px-2 py-2" value={categoria} onChange={(evento) => { setCategoria(evento.target.value); setProcedimento(""); }}>
+              {categorias.map((item) => <option key={item} value={item}>{item}</option>)}
+            </select>
+          </label>
+          <label className="text-sm">Procedimento
+            <select className="mt-1 w-full rounded-lg border px-2 py-2" value={procedimento} onChange={(evento) => setProcedimento(evento.target.value)}>
+              <option value="">Escolha</option>
+              {daCategoria.map((item) => <option key={item.id} value={item.id}>{item.nome} · {item.duracao_minutos} min · {reais(lerReais(item.preco))}</option>)}
+            </select>
+          </label>
+        </div>
+        <button type="button" className="mt-2 text-sm text-[#7a3044]" onClick={() => { const id = Number(procedimento); if (id && !escolhidos.includes(id)) aoEscolhidos([...escolhidos, id]); setProcedimento(""); }}>Adicionar procedimento</button>
+        <ul className="mt-2">
+          {escolhidosServico.length === 0 ? <li className="text-sm text-[#8a6e74]">Nenhum procedimento neste horário.</li> : null}
+          {escolhidosServico.map((item) => (
+            <li key={item.id} className="flex items-center justify-between gap-2 border-t border-[#f0e4e6] py-2 text-sm">
+              <span><span className="block font-medium">{item.nome}</span><span className="text-[#8a6e74]">{item.categoria} · {item.duracao_minutos} min</span></span>
+              <span className="flex items-center gap-3"><span>{reais(lerReais(item.preco))}</span><button type="button" className="text-[#8a6e74]" onClick={() => aoEscolhidos(escolhidos.filter((id) => id !== item.id))}>Remover</button></span>
+            </li>
+          ))}
+        </ul>
+        <p className="mt-2 text-sm">Duração {minutos} min · Total {reais(total)}</p>
+      </div>
       <label className="text-sm">Data e hora<input type="datetime-local" className="mt-1 w-full rounded-lg border px-2 py-2" value={form.inicio} onChange={(evento) => setForm({ ...form, inicio: evento.target.value })} /></label>
       <div className="mt-2 flex items-center justify-end gap-2">
         <button type="button" className="rounded-full border px-4 py-2 text-sm" onClick={aoFechar}>Cancelar</button>

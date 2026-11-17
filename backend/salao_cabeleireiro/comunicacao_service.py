@@ -52,7 +52,9 @@ def whatsapp_pronto(loja_id) -> bool:
 def _texto(agendamento, evento, salao):
     inicio = timezone.localtime(agendamento.inicio)
     nome = agendamento.cliente.nome
-    servico = agendamento.servico.nome
+    from .procedimentos_service import nomes_do_agendamento
+
+    servico = nomes_do_agendamento(agendamento)
     profissional = agendamento.profissional.nome
     if evento == "confirmacao":
         return texto_confirmacao(nome=nome, servico=servico, profissional=profissional, inicio=inicio, salao=salao)

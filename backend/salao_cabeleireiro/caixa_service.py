@@ -198,3 +198,27 @@ def comissao_do_atendimento(profissional, servico_id, preco, desconto) -> tuple[
         return valor, comissao, Decimal("0")
     valor, comissao = calcular_recebimento(preco, desconto, base)
     return valor, comissao, quantia(base)
+
+
+def comissao_do_agendamento(profissional, agendamento, desconto) -> tuple[Decimal, Decimal, Decimal]:
+    """Cada procedimento usa a própria comissão. O desconto se divide entre eles."""
+    from .procedimentos_service import servicos_do_agendamento
+
+    servicos = servicos_do_agendamento(agendamento)
+    fatias = repartir_desconto([item.preco for item in servicos], desconto)
+    total_valor = Decimal("0")
+    total_comissao = Decimal("0")
+    percentual = None
+    for servico, fatia in zip(servicos, fatias):
+        valor, comissao, perc = comissao_do_atendimento(profissional, servico.id, servico.preco, fatia)
+        total_valor += valor
+        total_comissao += comissao
+        if percentual is None:
+            percentual = perc
+        elif percentual != perc:
+            percentual = Decimal("0")
+    return (
+        total_valor.quantize(CENTAVO, rounding=ROUND_HALF_UP),
+        total_comissao.quantize(CENTAVO, rounding=ROUND_HALF_UP),
+        percentual or Decimal("0"),
+    )

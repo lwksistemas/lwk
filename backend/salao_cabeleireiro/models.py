@@ -200,6 +200,62 @@ class Agendamento(models.Model):
         super().save(*args, **kwargs)
 
 
+class Categoria(models.Model):
+    """Agrupa os procedimentos do salão. O serviço guarda o nome escolhido aqui."""
+
+    loja_id = models.IntegerField(db_index=True)
+    nome = models.CharField(max_length=100)
+    ordem = models.PositiveSmallIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+    objects = LojaIsolationManager()
+
+    class Meta:
+        verbose_name = "Categoria de procedimento"
+        ordering = ["ordem", "nome"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["loja_id", "nome"],
+                condition=models.Q(is_active=True),
+                name="salao_categoria_ativa",
+            ),
+        ]
+
+    def save(self, *args, **kwargs):
+        from tenants.middleware import get_current_loja_id
+
+        if not self.loja_id:
+            atual = get_current_loja_id()
+            if atual:
+                self.loja_id = atual
+        super().save(*args, **kwargs)
+
+
+class AgendamentoProcedimento(models.Model):
+    """Um procedimento dentro do horário. Vários entram juntos, na ordem escolhida."""
+
+    loja_id = models.IntegerField(db_index=True)
+    agendamento = models.ForeignKey(Agendamento, on_delete=models.CASCADE, related_name="procedimentos")
+    servico = models.ForeignKey(Servico, on_delete=models.PROTECT, related_name="usos")
+    ordem = models.PositiveSmallIntegerField(default=0)
+    objects = LojaIsolationManager()
+
+    class Meta:
+        verbose_name = "Procedimento do horário"
+        ordering = ["ordem", "id"]
+        constraints = [
+            models.UniqueConstraint(fields=["agendamento", "servico"], name="salao_horario_procedimento"),
+        ]
+
+    def save(self, *args, **kwargs):
+        from tenants.middleware import get_current_loja_id
+
+        if not self.loja_id:
+            atual = get_current_loja_id()
+            if atual:
+                self.loja_id = atual
+        super().save(*args, **kwargs)
+
+
 class Recebimento(models.Model):
     """Dinheiro que entrou no caixa. O preço do serviço, sozinho, não é receita."""
 

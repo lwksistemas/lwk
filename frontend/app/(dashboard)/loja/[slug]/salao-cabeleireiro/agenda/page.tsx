@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
 import apiClient from "@/lib/api-client";
+import { CLINICA_AGENDA_DURACAO_MIN_MIN, CLINICA_AGENDA_DURACAO_SNAP_MIN } from "@/lib/clinica-beleza-constants";
 import { agendaVisualStyleVars, normalizeAgendaVisual, type AgendaVisualId } from "@/lib/clinica-agenda-visual";
 import { STATUS_PADRAO, useStatusSalao } from "@/components/salao/cores-salao";
 import { ModalBloqueioHorario } from "@/components/clinica-beleza/modal-bloqueio-horario/ModalBloqueioHorario";
@@ -54,6 +55,14 @@ function corpoBloqueioSalao(body: Record<string, unknown>) {
 function horaDecimal(texto: string) {
   const [hora, minuto] = texto.split(":");
   return Number(hora) + Number(minuto || 0) / 60;
+}
+
+function duracaoPeloPonteiro(origemMin: number, origemY: number, clientY: number, inicio: Date) {
+  const bruto = origemMin + ((clientY - origemY) / ALTURA_HORA) * 60;
+  const snap = Math.round(bruto / CLINICA_AGENDA_DURACAO_SNAP_MIN) * CLINICA_AGENDA_DURACAO_SNAP_MIN;
+  const inicioMin = inicio.getHours() * 60 + inicio.getMinutes();
+  const teto = Math.max(CLINICA_AGENDA_DURACAO_MIN_MIN, HORA_FIM * 60 - inicioMin);
+  return Math.min(Math.max(snap, CLINICA_AGENDA_DURACAO_MIN_MIN), teto);
 }
 
 function isoDoDia(data: Date) {
@@ -129,6 +138,10 @@ export default function AgendaSalaoPage() {
   const searchParams = useSearchParams();
   const horarioAberto = useRef(false);
   const novoPedido = useRef("");
+  const ignorarClique = useRef(false);
+  const redimensionando = useRef<{ id: number; origemMin: number; origemY: number; minutos: number; inicio: Date } | null>(null);
+  const limparResize = useRef<(() => void) | null>(null);
+  const [previewDuracao, setPreviewDuracao] = useState<{ id: number; minutos: number } | null>(null);
   const [modo, setModo] = useState<"dia" | "semana" | "mes">("semana");
   const [visual, setVisual] = useState<AgendaVisualId>("pulse");
   const [filtroProfissional, setFiltroProfissional] = useState("todos");
@@ -468,6 +481,48 @@ export default function AgendaSalaoPage() {
     setEscolhidos(selecionado.procedimentos?.length ? selecionado.procedimentos.map((item) => item.id) : [selecionado.servico]);
   }
 
+  useEffect(() => () => limparResize.current?.(), []);
+
+  function iniciarRedimensionar(evento: ReactPointerEvent, item: AgendamentoSalao) {
+    evento.preventDefault();
+    evento.stopPropagation();
+    limparResize.current?.();
+    const inicio = new Date(item.inicio);
+    redimensionando.current = { id: item.id, origemMin: item.duracao_minutos, origemY: evento.clientY, minutos: item.duracao_minutos, inicio };
+    setPreviewDuracao({ id: item.id, minutos: item.duracao_minutos });
+    const mover = (ponteiro: PointerEvent) => {
+      const atual = redimensionando.current;
+      if (!atual) return;
+      atual.minutos = duracaoPeloPonteiro(atual.origemMin, atual.origemY, ponteiro.clientY, atual.inicio);
+      setPreviewDuracao({ id: atual.id, minutos: atual.minutos });
+    };
+    const encerrar = () => {
+      limparResize.current = null;
+      window.removeEventListener("pointermove", mover);
+      window.removeEventListener("pointerup", encerrar);
+      const atual = redimensionando.current;
+      redimensionando.current = null;
+      setPreviewDuracao(null);
+      ignorarClique.current = true;
+      window.setTimeout(() => { ignorarClique.current = false; }, 450);
+      if (!atual || atual.minutos === atual.origemMin) return;
+      const minutos = atual.minutos;
+      void SalaoAPI.atualizarAgendamento(atual.id, { duracao_minutos: minutos })
+        .then(() => {
+          setAviso(`Tempo ajustado para ${minutos} min.`);
+          carregar();
+        })
+        .catch((exc: Error) => setErro(exc.message || "Não foi possível ajustar o tempo."));
+    };
+    limparResize.current = () => {
+      window.removeEventListener("pointermove", mover);
+      window.removeEventListener("pointerup", encerrar);
+      redimensionando.current = null;
+    };
+    window.addEventListener("pointermove", mover);
+    window.addEventListener("pointerup", encerrar);
+  }
+
   async function soltar(eventoId: number, data: Date, profissionalId?: string) {
     const atual = eventos.find((item) => item.id === eventoId);
     if (!atual) return;
@@ -618,6 +673,7 @@ export default function AgendaSalaoPage() {
                   soltar(id, data, modo === "dia" ? coluna.id : undefined);
                 }}
                 onClick={(evento) => {
+                  if (ignorarClique.current) return;
                   if ((evento.target as HTMLElement).dataset.evento) return;
                   const retangulo = evento.currentTarget.getBoundingClientRect();
                   const hora = HORA_INICIO + (evento.clientY - retangulo.top) / ALTURA_HORA;
@@ -663,7 +719,8 @@ export default function AgendaSalaoPage() {
                   return modo === "dia" ? mesmoDia && String(item.profissional) === coluna.id : mesmoDia;
                 }).map((item) => {
                   const inicio = new Date(item.inicio);
-                  const fim = new Date(item.fim);
+                  const minutos = previewDuracao?.id === item.id ? previewDuracao.minutos : item.duracao_minutos;
+                  const fim = new Date(inicio.getTime() + minutos * 60_000);
                   const faixa = `${dois(inicio.getHours())}:${dois(inicio.getMinutes())}–${dois(fim.getHours())}:${dois(fim.getMinutes())}`;
                   const topo = ((inicio.getHours() + inicio.getMinutes() / 60) - HORA_INICIO) * ALTURA_HORA;
                   return (
@@ -671,16 +728,33 @@ export default function AgendaSalaoPage() {
                       key={item.id}
                       type="button"
                       data-evento="1"
-                      draggable
-                      onDragStart={(evento) => evento.dataTransfer.setData("text/plain", String(item.id))}
-                      onClick={(evento) => { evento.stopPropagation(); setForm(null); setConfirmarExclusao(false); setSelecionado(item); }}
-                      title={`${faixa} · Profissional ${item.profissional_nome} · Cliente ${item.cliente_nome}`}
+                      draggable={!item.recebido}
+                      onDragStart={(evento) => {
+                        if ((evento.target as HTMLElement).closest("[data-resize]")) {
+                          evento.preventDefault();
+                          return;
+                        }
+                        evento.dataTransfer.setData("text/plain", String(item.id));
+                      }}
+                      onClick={(evento) => { evento.stopPropagation(); if (ignorarClique.current) return; setForm(null); setConfirmarExclusao(false); setSelecionado(item); }}
+                      title={`${faixa} · ${minutos} min · Profissional ${item.profissional_nome} · Cliente ${item.cliente_nome}`}
                       className="absolute right-1 left-1 overflow-hidden px-1.5 py-0.5 text-left text-[11px] leading-tight text-white"
-                      style={{ top: Math.max(0, topo), height: Math.max(48, (item.duracao_minutos / 60) * ALTURA_HORA), background: statusCores[item.status] || STATUS_PADRAO.SCHEDULED, borderRadius: "var(--agenda-card-radius, 12px)", boxShadow: "var(--agenda-card-shadow, none)", zIndex: 1 }}
+                      style={{ top: Math.max(0, topo), height: Math.max(48, (minutos / 60) * ALTURA_HORA), background: statusCores[item.status] || STATUS_PADRAO.SCHEDULED, borderRadius: "var(--agenda-card-radius, 12px)", boxShadow: "var(--agenda-card-shadow, none)", zIndex: 1 }}
                     >
                       <span className="block truncate font-medium">{faixa}</span>
                       <span className="block truncate uppercase">{item.cliente_nome}</span>
                       <span className="block truncate">{item.servico_nome}{modo === "semana" ? ` · ${item.profissional_nome}` : ""}</span>
+                      {item.recebido ? null : (
+                        <span
+                          data-resize="1"
+                          className="absolute right-0 bottom-0 left-0 z-10 flex h-3 cursor-ns-resize touch-none items-end justify-center"
+                          title="Arraste para aumentar ou diminuir o tempo"
+                          onPointerDown={(evento) => iniciarRedimensionar(evento, item)}
+                          onClick={(evento) => evento.stopPropagation()}
+                        >
+                          <span className="mb-0.5 block h-1 w-8 rounded-full bg-white/70" />
+                        </span>
+                      )}
                     </button>
                   );
                 })}

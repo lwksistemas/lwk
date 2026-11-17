@@ -962,12 +962,10 @@ export default function CaixaPdvPage() {
                 <button type="button" onClick={() => void enviarRecibo(sucesso, "email")} disabled={!sucesso.email || enviando !== null} className="flex flex-col items-center gap-2 rounded-xl border border-[#eadfe2] p-4 hover:bg-[#f6eef0] disabled:opacity-40">
                   <Mail size={24} />
                   <span className="text-xs font-medium">{enviando === "email" ? "Enviando..." : "Enviar por e-mail"}</span>
-                  <span className="text-center text-[11px] text-[#8a6e74]">{sucesso.email ? "Enviar o recibo por e-mail" : "Cliente sem e-mail"}</span>
                 </button>
                 <button type="button" onClick={() => void enviarRecibo(sucesso, "whatsapp")} disabled={!numeroWhatsapp(sucesso.telefone) || enviando !== null} className="flex flex-col items-center gap-2 rounded-xl border border-[#eadfe2] p-4 hover:bg-[#f6eef0] disabled:opacity-40">
                   <MessageCircle size={24} />
-                  <span className="text-xs font-medium">{enviando === "whatsapp" ? "Enviando..." : "Enviar por WhatsApp"}</span>
-                  <span className="text-center text-[11px] text-[#8a6e74]">{numeroWhatsapp(sucesso.telefone) ? "Enviar o recibo pelo WhatsApp" : "Cliente sem telefone"}</span>
+                  <span className="text-xs font-medium">{enviando === "whatsapp" ? "Enviando..." : "WhatsApp"}</span>
                 </button>
               </div>
               {avisoEntrega ? <p className={`text-sm ${avisoOk ? "text-green-700" : "text-red-700"}`}>{avisoEntrega}</p> : null}

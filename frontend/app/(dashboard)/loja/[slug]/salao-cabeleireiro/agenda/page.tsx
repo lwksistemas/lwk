@@ -531,7 +531,7 @@ export default function AgendaSalaoPage() {
   });
 
   return (
-    <div className={`agenda-grade-root ${modo === "mes" ? "flex h-[calc(100dvh-2rem)] flex-col sm:h-[calc(100dvh-2.5rem)]" : ""}`} data-agenda-visual={visual} style={tema}>
+    <div className={`agenda-grade-root ${modo === "mes" ? "flex h-[calc(100dvh-2rem)] flex-col overflow-hidden sm:h-[calc(100dvh-2.5rem)]" : ""}`} data-agenda-visual={visual} style={tema}>
       <div className="mb-3 flex shrink-0 flex-wrap items-center justify-between gap-2">
         <div>
           <h1 className="text-3xl font-semibold">Agenda</h1>
@@ -579,7 +579,7 @@ export default function AgendaSalaoPage() {
           ))}
         </ul>
       ) : modo === "mes" ? (
-        <div className="min-h-0 flex-1" style={tema}>
+        <div className="flex min-h-0 flex-1 flex-col" style={tema}>
           <Mes cursor={cursor} eventos={eventos.filter((item) => filtroProfissional === "todos" || String(item.profissional) === filtroProfissional)} bloqueios={bloqueios.filter((item) => bloqueioCabeNoFiltro(item, filtroProfissional))} statusCores={statusCores} aoAbrir={(data) => { setCursor(data); setModo("dia"); }} />
         </div>
       ) : (
@@ -980,36 +980,48 @@ function ModalReceber({
   );
 }
 
-function Mes({ cursor, eventos, bloqueios, statusCores, aoAbrir }: { cursor: Date; eventos: AgendamentoSalao[]; bloqueios: BloqueioSalao[]; statusCores: Record<string, string>; aoAbrir: (data: Date) => void }) {
-  const primeiro = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
-  const dias = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0).getDate();
+function gradeDoMes(cursor: Date) {
+  const ano = cursor.getFullYear();
+  const mes = cursor.getMonth();
+  const primeiro = new Date(ano, mes, 1);
+  const quantidade = new Date(ano, mes + 1, 0).getDate();
   const offset = (primeiro.getDay() + 6) % 7;
-  const celulas: Array<number | null> = [...Array(offset).fill(null), ...Array.from({ length: dias }, (_, indice) => indice + 1)];
-  while (celulas.length % 7 !== 0) celulas.push(null);
+  const inicio = new Date(ano, mes, 1 - offset);
+  const total = Math.ceil((offset + quantidade) / 7) * 7;
+  return Array.from({ length: total }, (_, indice) => {
+    const data = new Date(inicio);
+    data.setDate(inicio.getDate() + indice);
+    return data;
+  });
+}
+
+function Mes({ cursor, eventos, bloqueios, statusCores, aoAbrir }: { cursor: Date; eventos: AgendamentoSalao[]; bloqueios: BloqueioSalao[]; statusCores: Record<string, string>; aoAbrir: (data: Date) => void }) {
+  const dias = gradeDoMes(cursor);
+  const linhas = dias.length / 7;
   return (
-    <div className="grid grid-cols-7 gap-2">
+    <div className="grid h-full min-h-0 flex-1 grid-cols-7 gap-1.5" style={{ gridTemplateRows: `auto repeat(${linhas}, minmax(0, 1fr))` }}>
       {["segunda-feira", "terça-feira", "quarta-feira", "quinta-feira", "sexta-feira", "sábado", "domingo"].map((nome) => (
         <div key={nome} className="px-1 text-center text-[11px] capitalize text-[#8a6e74]">{nome}</div>
       ))}
-      {celulas.map((dia, indice) => {
-        if (!dia) return <div key={`vazio-${indice}`} className="min-h-28 border bg-white" style={{ borderRadius: "var(--agenda-card-radius, 12px)", borderColor: "var(--agenda-border, #e5e7eb)" }} />;
-        const data = new Date(cursor.getFullYear(), cursor.getMonth(), dia);
+      {dias.map((data) => {
+        const desteMes = data.getMonth() === cursor.getMonth();
         const iso = isoDoDia(data);
-        const doDia = eventos.filter((item) => new Date(item.inicio).toDateString() === data.toDateString() && item.status !== "CANCELLED");
-        const folgas = bloqueios.filter((item) => item.data_inicio <= iso && item.data_fim >= iso);
+        const doDia = desteMes ? eventos.filter((item) => new Date(item.inicio).toDateString() === data.toDateString() && item.status !== "CANCELLED") : [];
+        const folgas = desteMes ? bloqueios.filter((item) => item.data_inicio <= iso && item.data_fim >= iso) : [];
         const hoje = data.toDateString() === new Date().toDateString();
         const total = doDia.length + folgas.length;
+        const visiveis = 6;
         return (
-          <button key={dia} type="button" className="min-h-28 border bg-white p-2 text-left" style={{ borderRadius: "var(--agenda-card-radius, 12px)", borderColor: hoje ? "var(--agenda-accent, #ad46ff)" : "var(--agenda-border, #e5e7eb)", background: hoje ? "var(--agenda-today-bg, #fff)" : "#fff" }} onClick={() => aoAbrir(data)}>
-            <span className={`text-sm ${hoje ? "font-semibold" : ""}`} style={hoje ? { color: "var(--agenda-focus-text)" } : undefined}>{dia}</span>
-            <span className="mt-1 block space-y-0.5">
-              {folgas.slice(0, 3).map((item) => (
+          <button key={iso} type="button" className="flex h-full min-h-0 w-full flex-col overflow-hidden border p-1.5 text-left" style={{ borderRadius: "var(--agenda-card-radius, 12px)", borderColor: hoje ? "var(--agenda-accent, #ad46ff)" : "var(--agenda-border, #e5e7eb)", background: hoje ? "var(--agenda-today-bg, #fff)" : desteMes ? "#fff" : "#f6f1f2" }} onClick={() => aoAbrir(data)}>
+            <span className={`text-sm ${hoje ? "font-semibold" : ""} ${desteMes ? "" : "text-[#b9a4aa]"}`} style={hoje ? { color: "var(--agenda-focus-text)" } : undefined}>{data.getDate()}</span>
+            <span className="mt-1 block min-h-0 flex-1 space-y-0.5 overflow-hidden">
+              {folgas.slice(0, visiveis).map((item) => (
                 <span key={`b-${item.id}`} className="block truncate px-1 text-[10px] text-[#7a3044]" style={{ background: "#f6e4e8", borderRadius: "var(--agenda-card-radius, 4px)", padding: "1px 4px" }}>{item.horario_inicio ? item.horario_inicio.slice(0, 5) : "Dia"} {item.titulo}</span>
               ))}
-              {doDia.slice(0, Math.max(0, 3 - folgas.length)).map((item) => (
+              {doDia.slice(0, Math.max(0, visiveis - folgas.length)).map((item) => (
                 <span key={item.id} className="block truncate px-1 text-[10px] text-white" style={{ background: statusCores[item.status] || STATUS_PADRAO.SCHEDULED, borderRadius: "var(--agenda-card-radius, 4px)", padding: "1px 4px" }}>{dois(new Date(item.inicio).getHours())}:{dois(new Date(item.inicio).getMinutes())} {item.cliente_nome}</span>
               ))}
-              {total > 3 ? <span className="block text-[10px] text-[#8a6e74]">mais +{total - 3}</span> : null}
+              {total > visiveis ? <span className="block text-[10px] text-[#8a6e74]">mais +{total - visiveis}</span> : null}
             </span>
           </button>
         );

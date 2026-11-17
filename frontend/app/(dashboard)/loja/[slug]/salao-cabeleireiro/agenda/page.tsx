@@ -527,11 +527,11 @@ export default function AgendaSalaoPage() {
       {aviso ? <p className="mb-2 text-sm text-[#1f8a4c]">{aviso}</p> : null}
       {profissionais.length === 0 ? <p className="mb-2 text-sm text-[#8a6e74]">Cadastre um profissional para abrir as colunas do dia.</p> : null}
       {lista ? (
-        <ul className="space-y-2 border bg-white p-3" style={{ ...tema, borderColor: "var(--agenda-border)", borderRadius: "var(--agenda-radius, 16px)" }}>
-          {eventos.filter((item) => item.status !== "CANCELLED" && (filtroProfissional === "todos" || String(item.profissional) === filtroProfissional)).length === 0 ? <li className="text-sm text-[#8a6e74]">Nenhum horário neste período.</li> : null}
+        <ul className={`border bg-white p-3 ${filtroProfissional === "todos" ? "grid grid-cols-1 gap-2 sm:grid-cols-2" : "space-y-2"}`} style={{ ...tema, borderColor: "var(--agenda-border)", borderRadius: "var(--agenda-radius, 16px)" }}>
+          {eventos.filter((item) => item.status !== "CANCELLED" && (filtroProfissional === "todos" || String(item.profissional) === filtroProfissional)).length === 0 ? <li className={`text-sm text-[#8a6e74] ${filtroProfissional === "todos" ? "sm:col-span-2" : ""}`}>Nenhum horário neste período.</li> : null}
           {eventos.filter((item) => item.status !== "CANCELLED" && (filtroProfissional === "todos" || String(item.profissional) === filtroProfissional)).map((item) => (
             <li key={item.id}>
-              <button type="button" className="flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2 text-left text-sm text-white" style={{ background: statusCores[item.status] || STATUS_PADRAO.SCHEDULED, borderRadius: "var(--agenda-card-radius, 12px)" }} onClick={() => { setForm(null); setSelecionado(item); }}>
+              <button type="button" className="flex h-full w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm text-white" style={{ background: statusCores[item.status] || STATUS_PADRAO.SCHEDULED, borderRadius: "var(--agenda-card-radius, 12px)" }} onClick={() => { setForm(null); setSelecionado(item); }}>
                 <span>{new Date(item.inicio).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })} · {item.cliente_nome}</span>
                 <span className="truncate">{item.servico_nome} · {item.profissional_nome}</span>
               </button>

@@ -69,6 +69,28 @@ def bloqueio_impede_agendamento(data_inicio, data_fim, professional_id):
     return False
 
 
+def agendamento_igual_no_minuto(professional, patient, date_start):
+    """O mesmo paciente, profissional e minuto já está na agenda.
+
+    A fila offline reenvia a criação quando a resposta se perde. Nesse caso
+    o horário "ocupado" é o próprio agendamento, não um conflito novo.
+    """
+    if not professional or not patient or not date_start:
+        return None
+    inicio = date_start.replace(second=0, microsecond=0)
+    return (
+        Appointment.objects.filter(
+            professional=professional,
+            patient=patient,
+            date__gte=inicio,
+            date__lt=inicio + timedelta(minutes=1),
+        )
+        .exclude(status__in=("CANCELLED", "NO_SHOW"))
+        .order_by("-id")
+        .first()
+    )
+
+
 def validar_regras_agendamento(evento: str, professional, date_start, date_end, appointment_id=None):
     """Executa o motor de regras para o evento (AGENDAMENTO_CRIADO ou AGENDAMENTO_ATUALIZADO).
     Lança AgendaValidationError se alguma regra falhar.

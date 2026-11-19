@@ -8,6 +8,7 @@ from rest_framework.views import APIView
 from clinica_beleza.agenda_service import (
     AgendaConflictError,
     AgendaValidationError,
+    agendamento_igual_no_minuto,
     atualizar_agendamento,
     detectar_conflito,
     horario_agendamento_passou,
@@ -188,6 +189,15 @@ class AgendaCreateView(APIView):
             )
             return Response(AgendaEventSerializer(appointment).data, status=status.HTTP_201_CREATED)
         except AgendaValidationError as e:
+            if "já ocupado" in (e.message or ""):
+                dados = serializer.validated_data
+                existente = agendamento_igual_no_minuto(
+                    dados.get("professional"),
+                    dados.get("patient"),
+                    dados.get("date"),
+                )
+                if existente is not None:
+                    return Response(AgendaEventSerializer(existente).data, status=status.HTTP_200_OK)
             return Response({"error": e.message}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             logger.exception("Erro ao criar agendamento: %s", e)

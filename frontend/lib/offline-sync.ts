@@ -2,7 +2,7 @@
  * Sincronização automática da fila offline quando voltar online.
  */
 
-import { obterFilaSync, removerItemFilaSync } from './offline-db';
+import { getLojaSlug, obterFilaSync, removerItemFilaSync } from './offline-db';
 import { clinicaBelezaFetch } from './clinica-beleza-api';
 import { isBrowserOffline } from './clinica-beleza-offline';
 import { logger } from './logger';
@@ -80,6 +80,10 @@ export async function sincronizarFila(): Promise<{ enviados: number; erros: numb
       const key = item.id;
       if (key == null) continue;
 
+      const slugAtual = getLojaSlug();
+      if (item.lojaSlug && slugAtual && item.lojaSlug !== slugAtual) {
+        continue;
+      }
       logger.log(`🔄 [offline-sync] Processando ${item.tipo} (key: ${key})...`);
 
       try {
@@ -95,8 +99,10 @@ export async function sincronizarFila(): Promise<{ enviados: number; erros: numb
             if (res.status === 400) {
               const errorMsg = (data as { error?: string }).error || JSON.stringify(data);
               logger.warn(`⚠️ [offline-sync] Erro de validação (400), mantendo na fila: ${errorMsg}`);
-              erros++;
-              if (typeof window !== 'undefined') {
+              const aviso = `lwk:sync-aviso:${key}`;
+              const jaAvisou = typeof window !== 'undefined' && sessionStorage.getItem(aviso) === '1';
+              if (!jaAvisou && typeof window !== 'undefined') {
+                sessionStorage.setItem(aviso, '1');
                 alert(`❌ Agendamento não pôde ser sincronizado:\n\n${errorMsg}\n\nO item permanece na fila. Corrija (ex.: outro horário) e clique em 🔄 Sincronizar agora.`);
               }
               continue;

@@ -10,7 +10,7 @@ export const DASHBOARD_STATUS_COLORS: Record<string, string> = {
 
 /** Paleta dos gráficos — 1ª cor = primária da loja. */
 export function getDashboardChartColors(primary: string = CLINICA_BELEZA_PRIMARY): string[] {
-  return [primary, "#A64D63", "#C4727E", "#E8A0B0", "#D4A574"];
+  return [primary, "#A64D63", "#C4727E", "#E8A0B0", "#D4A574", "#8B5E3C", "#C47A8A", "#6B4C7A"];
 }
 
 export function currentDashboardMesAno(): string {

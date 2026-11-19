@@ -166,15 +166,15 @@ function ClinicaBelezaDashboardInner({ loja, onLogout }: { loja: LojaInfo; onLog
                 action={<LinkPainel href={`/loja/${slug}/agenda`}>Ver agenda</LinkPainel>}
               >
                 {appointments.length > 0 ? (
-                  appointments
-                    .slice(0, 5)
-                    .map((appt) => (
+                  <div className="flex h-full flex-col justify-between">
+                    {appointments.slice(0, 5).map((appt) => (
                       <AppointmentItem
                         key={appt.id}
                         appt={appt}
                         href={`/loja/${slug}/agenda?agendamento=${appt.id}`}
                       />
-                    ))
+                    ))}
+                  </div>
                 ) : (
                   <p className="text-sm text-gray-400 dark:text-gray-500 text-center py-6">
                     Nenhum agendamento próximo
@@ -193,7 +193,7 @@ function ClinicaBelezaDashboardInner({ loja, onLogout }: { loja: LojaInfo; onLog
                 }
               >
                 {topProcedures.length > 0 ? (
-                  <ProcedureBars procedures={topProcedures.slice(0, 5)} colors={chartColors} />
+                  <ProcedureBars procedures={topProcedures.slice(0, 8)} colors={chartColors} />
                 ) : (
                   <p className="text-sm text-gray-400 dark:text-gray-500 text-center py-6">
                     Sem atendimentos concluídos no período

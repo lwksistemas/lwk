@@ -29,7 +29,7 @@ export function PainelCard({
         <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-100 leading-snug">{title}</h3>
         {action}
       </div>
-      <div className="min-w-0 flex-1">{children}</div>
+      <div className="min-w-0 flex-1 flex flex-col">{children}</div>
     </section>
   );
 }
@@ -217,7 +217,7 @@ export function ProcedureBars({
 }) {
   const max = procedures[0]?.count || 1;
   return (
-    <div className="flex flex-col gap-2.5">
+    <div className="flex h-full flex-col justify-between gap-2.5">
       {procedures.map((proc, i) => {
         const pct = Math.max(8, Math.round((proc.count / max) * 100));
         return (
@@ -259,6 +259,8 @@ export function ResumoFinanceiroLista({
   aReceber: number;
   aPrazo: number;
 }) {
+  const naoRecebido = aReceber + aPrazo;
+  const faturamentoBruto = faturamento + naoRecebido;
   const resultado = [
     { label: "Faturamento", valor: faturamento, deducao: false, destaque: false },
     { label: "Descontos", valor: desconto, deducao: true, destaque: false },
@@ -266,12 +268,13 @@ export function ResumoFinanceiroLista({
     { label: "Lucro líquido", valor: lucro, deducao: false, destaque: true },
   ];
   const pendencias = [
-    { label: "A receber", valor: aReceber },
-    { label: "A prazo", valor: aPrazo },
+    { label: "A receber", valor: aReceber, subtotal: false },
+    { label: "A prazo", valor: aPrazo, subtotal: false },
+    { label: "Não recebido", valor: naoRecebido, subtotal: true },
   ];
 
   return (
-    <div>
+    <div className="flex h-full flex-col justify-between gap-3">
       <div>
       {resultado.map((linha) => (
         <div
@@ -308,13 +311,32 @@ export function ResumoFinanceiroLista({
       <div>
       <div className="border-t border-gray-100 dark:border-gray-700 my-2" />
       {pendencias.map((linha) => (
-        <div key={linha.label} className="flex justify-between items-center gap-3 py-1 text-sm">
-          <span className="text-gray-500 dark:text-gray-400">{linha.label}</span>
+        <div
+          key={linha.label}
+          className={`flex justify-between items-center gap-3 py-1 text-sm ${
+            linha.subtotal ? "mt-1 border-t border-gray-100 pt-2 dark:border-gray-700" : ""
+          }`}
+        >
+          <span className={linha.subtotal ? "font-medium text-gray-700 dark:text-gray-200" : "text-gray-500 dark:text-gray-400"}>
+            {linha.label}
+          </span>
           <span className="font-semibold shrink-0 tabular-nums text-gray-800 dark:text-gray-100">
             {formatCurrency(linha.valor)}
           </span>
         </div>
       ))}
+      </div>
+      <div
+        className="rounded-xl px-3 py-2.5"
+        style={{ backgroundColor: ICONE_FUNDO }}
+      >
+        <div className="flex justify-between items-center gap-3">
+          <span className="text-sm font-semibold" style={{ color: COR_PRIMARIA }}>Faturamento bruto</span>
+          <span className="text-base font-bold tabular-nums shrink-0" style={{ color: COR_PRIMARIA }}>
+            {formatCurrency(faturamentoBruto)}
+          </span>
+        </div>
+        <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">Recebido + a receber + a prazo</p>
       </div>
     </div>
   );

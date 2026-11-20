@@ -1,6 +1,7 @@
 """Regras da agenda do salão: intervalo, conflito e leitura de data."""
 from datetime import datetime, timedelta
 
+from django.db.models import Q
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 
@@ -51,17 +52,23 @@ def conflito_horario(profissional_id: int, inicio, fim, ignorar_id=None) -> str 
     mensagem_jornada = _fora_da_jornada(profissional_id, inicio, fim)
     if mensagem_jornada:
         return mensagem_jornada
-    qs = Agendamento.objects.filter(
-        profissional_id=profissional_id,
+    from .procedimentos_service import linhas_do_agendamento, montar_fatias
+
+    candidatos = Agendamento.objects.filter(
         status__in=STATUS_OCUPA_HORARIO,
         inicio__lt=fim,
         inicio__gte=inicio - timedelta(hours=12),
-    )
+    ).filter(
+        Q(profissional_id=profissional_id) | Q(procedimentos__profissional_id=profissional_id)
+    ).distinct().prefetch_related("procedimentos__servico", "procedimentos__profissional")
     if ignorar_id:
-        qs = qs.exclude(pk=ignorar_id)
-    for outro in qs:
-        if intervalos_conflitam(inicio, fim, outro.inicio, outro.fim):
-            return "Este horário já está ocupado para este profissional."
+        candidatos = candidatos.exclude(pk=ignorar_id)
+    for outro in candidatos:
+        for fatia in montar_fatias(outro.inicio, linhas_do_agendamento(outro))[0]:
+            if getattr(fatia["profissional"], "id", None) != int(profissional_id):
+                continue
+            if intervalos_conflitam(inicio, fim, fatia["inicio"], fatia["fim"]):
+                return "Este horário já está ocupado para este profissional."
     bloqueios = Bloqueio.objects.filter(
         is_active=True,
         data_inicio__lte=timezone.localtime(fim).date(),

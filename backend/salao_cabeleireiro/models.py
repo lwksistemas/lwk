@@ -242,6 +242,14 @@ class AgendamentoProcedimento(models.Model):
     loja_id = models.IntegerField(db_index=True)
     agendamento = models.ForeignKey(Agendamento, on_delete=models.CASCADE, related_name="procedimentos")
     servico = models.ForeignKey(Servico, on_delete=models.PROTECT, related_name="usos")
+    profissional = models.ForeignKey(
+        "Profissional",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="procedimentos_do_horario",
+        verbose_name="Profissional",
+    )
     ordem = models.PositiveSmallIntegerField(default=0)
     objects = LojaIsolationManager()
 

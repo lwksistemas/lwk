@@ -13,6 +13,28 @@ import { diaTemAtendimento } from "@/components/salao/PaineisSalao";
 import { SalaoAgendaCalendario } from "@/components/salao/SalaoAgendaCalendario";
 import { SalaoAPI, type AgendamentoSalao, type BloqueioSalao, type ClienteSalao, type FormaPagamentoSalao, type JornadaDia, type LocalRecebimentoSalao, type ProfissionalSalao, type ServicoSalao } from "@/lib/salao-api";
 
+type LinhaFormulario = { servico: number; profissional: string };
+
+function fatiasDe(item: AgendamentoSalao) {
+  if (item.fatias && item.fatias.length > 0) return item.fatias;
+  return [{
+    profissional: item.profissional,
+    profissional_nome: item.profissional_nome,
+    servico_nome: item.servico_nome,
+    inicio: item.inicio,
+    fim: item.fim,
+    duracao_minutos: item.duracao_minutos,
+  }];
+}
+
+function duracaoDaVisita(linhas: { profissional: string; minutos: number }[]) {
+  const porPessoa = new Map<string, number>();
+  for (const linha of linhas) {
+    porPessoa.set(linha.profissional, (porPessoa.get(linha.profissional) || 0) + linha.minutos);
+  }
+  return Math.max(0, ...porPessoa.values());
+}
+
 const HORA_INICIO = 8;
 const HORA_FIM = 20;
 const ALTURA_HORA = 52;
@@ -161,7 +183,7 @@ export default function AgendaSalaoPage() {
   const [eventos, setEventos] = useState<AgendamentoSalao[]>([]);
   const [erro, setErro] = useState("");
   const [form, setForm] = useState<Record<string, string> | null>(null);
-  const [escolhidos, setEscolhidos] = useState<number[]>([]);
+  const [escolhidos, setEscolhidos] = useState<LinhaFormulario[]>([]);
   const [selecionado, setSelecionado] = useState<AgendamentoSalao | null>(null);
   const [desconto, setDesconto] = useState("");
   const [receberAberto, setReceberAberto] = useState(false);
@@ -343,8 +365,9 @@ export default function AgendaSalaoPage() {
     setAviso("");
     const corpo: Record<string, unknown> = {
       inicio: form.inicio,
-      profissional: Number(form.profissional),
-      servicos: escolhidos,
+      profissional: Number(escolhidos[0]?.profissional || form.profissional),
+      servicos: escolhidos.map((linha) => linha.servico),
+      procedimentos: escolhidos.map((linha) => ({ servico: linha.servico, profissional: Number(linha.profissional) })),
       observacoes: form.observacoes,
     };
     if (form.cliente) corpo.cliente = Number(form.cliente);
@@ -486,7 +509,9 @@ export default function AgendaSalaoPage() {
       cliente_telefone: "",
       observacoes: selecionado.observacoes,
     });
-    setEscolhidos(selecionado.procedimentos?.length ? selecionado.procedimentos.map((item) => item.id) : [selecionado.servico]);
+    setEscolhidos(selecionado.procedimentos?.length
+      ? selecionado.procedimentos.map((item) => ({ servico: item.id, profissional: String(item.profissional || selecionado.profissional) }))
+      : [{ servico: selecionado.servico, profissional: String(selecionado.profissional) }]);
   }
 
   useEffect(() => () => limparResize.current?.(), []);
@@ -548,9 +573,10 @@ export default function AgendaSalaoPage() {
     inicio.setFullYear(data.getFullYear(), data.getMonth(), data.getDate());
     inicio.setHours(data.getHours(), data.getMinutes(), 0, 0);
     try {
+      const varios = new Set(fatiasDe(atual).map((fatia) => fatia.profissional)).size > 1;
       await SalaoAPI.atualizarAgendamento(eventoId, {
         inicio: paraApi(inicio),
-        ...(profissionalId ? { profissional: Number(profissionalId) } : {}),
+        ...(profissionalId && !varios ? { profissional: Number(profissionalId) } : {}),
       });
       carregar();
     } catch (exc) {
@@ -597,7 +623,7 @@ export default function AgendaSalaoPage() {
     ultimo.setDate(ultimo.getDate() - 1);
     const fim = isoDoDia(ultimo);
     const compromissos = eventos
-      .filter((item) => item.status !== "CANCELLED" && (filtroProfissional === "todos" || String(item.profissional) === filtroProfissional))
+      .filter((item) => item.status !== "CANCELLED" && (filtroProfissional === "todos" || fatiasDe(item).some((fatia) => String(fatia.profissional) === filtroProfissional)))
       .map((item) => ({ chave: `a-${item.id}`, quando: new Date(item.inicio).getTime(), agenda: item, bloqueio: null as BloqueioSalao | null }));
     const folgas = bloqueios
       .filter((item) => item.data_inicio <= fim && item.data_fim >= ini && bloqueioCabeNoFiltro(item, filtroProfissional))
@@ -688,7 +714,7 @@ export default function AgendaSalaoPage() {
         </ul>
       ) : modo === "mes" ? (
         <div className="flex min-h-0 flex-1 flex-col" style={tema}>
-          <Mes cursor={cursor} eventos={eventos.filter((item) => filtroProfissional === "todos" || String(item.profissional) === filtroProfissional)} bloqueios={bloqueios.filter((item) => bloqueioCabeNoFiltro(item, filtroProfissional))} statusCores={statusCores} aoAbrir={(data) => { setCursor(data); setModo("dia"); }} />
+          <Mes cursor={cursor} eventos={eventos.filter((item) => filtroProfissional === "todos" || fatiasDe(item).some((fatia) => String(fatia.profissional) === filtroProfissional))} bloqueios={bloqueios.filter((item) => bloqueioCabeNoFiltro(item, filtroProfissional))} statusCores={statusCores} aoAbrir={(data) => { setCursor(data); setModo("dia"); }} />
         </div>
       ) : (
         <div className="overflow-auto border bg-white" style={{ ...tema, borderColor: "var(--agenda-border, #e5e7eb)", borderRadius: "var(--agenda-radius, 16px)" }}>
@@ -780,50 +806,52 @@ export default function AgendaSalaoPage() {
                     </button>
                   );
                 })}
-                {eventos.filter((item) => item.status !== "CANCELLED" && (filtroProfissional === "todos" || String(item.profissional) === filtroProfissional)).filter((item) => {
-                  const inicio = new Date(item.inicio);
-                  const mesmoDia = inicio.toDateString() === coluna.data.toDateString();
-                  return modo === "dia" ? mesmoDia && String(item.profissional) === coluna.id : mesmoDia;
-                }).map((item) => {
-                  const inicio = new Date(item.inicio);
-                  const minutos = previewDuracao?.id === item.id ? previewDuracao.minutos : item.duracao_minutos;
-                  const fim = new Date(inicio.getTime() + minutos * 60_000);
-                  const faixa = `${dois(inicio.getHours())}:${dois(inicio.getMinutes())}–${dois(fim.getHours())}:${dois(fim.getMinutes())}`;
-                  const topo = ((inicio.getHours() + inicio.getMinutes() / 60) - HORA_INICIO) * ALTURA_HORA;
-                  return (
-                    <button
-                      key={item.id}
-                      type="button"
-                      data-evento="1"
-                      draggable={!item.recebido}
-                      onDragStart={(evento) => {
-                        if ((evento.target as HTMLElement).closest("[data-resize]")) {
-                          evento.preventDefault();
-                          return;
-                        }
-                        evento.dataTransfer.setData("text/plain", String(item.id));
-                      }}
-                      onClick={(evento) => { evento.stopPropagation(); if (ignorarClique.current) return; setForm(null); setConfirmarExclusao(false); setSelecionado(item); }}
-                      title={`${faixa} · ${minutos} min · Profissional ${item.profissional_nome} · Cliente ${item.cliente_nome}`}
-                      className="absolute right-1 left-1 overflow-hidden px-1.5 py-0.5 text-left text-[11px] leading-tight text-white"
-                      style={{ top: Math.max(0, topo), height: Math.max(48, (minutos / 60) * ALTURA_HORA), background: statusCores[item.status] || STATUS_PADRAO.SCHEDULED, borderRadius: "var(--agenda-card-radius, 12px)", boxShadow: "var(--agenda-card-shadow, none)", zIndex: 1 }}
-                    >
-                      <span className="block truncate font-medium">{faixa}</span>
-                      <span className="block truncate uppercase">{item.cliente_nome}</span>
-                      <span className="block truncate">{item.servico_nome}{modo === "semana" ? ` · ${item.profissional_nome}` : ""}</span>
-                      {item.recebido ? null : (
-                        <span
-                          data-resize="1"
-                          className="absolute right-0 bottom-0 left-0 z-10 flex h-3 cursor-ns-resize touch-none items-end justify-center"
-                          title="Arraste para aumentar ou diminuir o tempo"
-                          onPointerDown={(evento) => iniciarRedimensionar(evento, item)}
-                          onClick={(evento) => evento.stopPropagation()}
-                        >
-                          <span className="mb-0.5 block h-1 w-8 rounded-full bg-white/70" />
-                        </span>
-                      )}
-                    </button>
-                  );
+                {eventos.filter((item) => item.status !== "CANCELLED").flatMap((item) => {
+                  const varios = fatiasDe(item).length > 1 && new Set(fatiasDe(item).map((fatia) => fatia.profissional)).size > 1;
+                  const pedacos = modo === "dia"
+                    ? fatiasDe(item).filter((fatia) => String(fatia.profissional) === coluna.id && diaLocalDeIso(fatia.inicio) === isoDoDia(coluna.data))
+                    : fatiasDe(item).filter((fatia) => diaLocalDeIso(fatia.inicio) === isoDoDia(coluna.data) && (filtroProfissional === "todos" || String(fatia.profissional) === filtroProfissional));
+                  return pedacos.map((fatia, indice) => {
+                    const inicio = new Date(fatia.inicio);
+                    const minutos = !varios && previewDuracao?.id === item.id ? previewDuracao.minutos : fatia.duracao_minutos;
+                    const fim = new Date(inicio.getTime() + minutos * 60_000);
+                    const faixa = `${dois(inicio.getHours())}:${dois(inicio.getMinutes())}–${dois(fim.getHours())}:${dois(fim.getMinutes())}`;
+                    const topo = ((inicio.getHours() + inicio.getMinutes() / 60) - HORA_INICIO) * ALTURA_HORA;
+                    return (
+                      <button
+                        key={`${item.id}-${fatia.profissional}-${indice}`}
+                        type="button"
+                        data-evento="1"
+                        draggable={!item.recebido}
+                        onDragStart={(evento) => {
+                          if ((evento.target as HTMLElement).closest("[data-resize]")) {
+                            evento.preventDefault();
+                            return;
+                          }
+                          evento.dataTransfer.setData("text/plain", String(item.id));
+                        }}
+                        onClick={(evento) => { evento.stopPropagation(); if (ignorarClique.current) return; setForm(null); setConfirmarExclusao(false); setSelecionado(item); }}
+                        title={`${faixa} · ${minutos} min · Profissional ${fatia.profissional_nome} · Cliente ${item.cliente_nome}`}
+                        className="absolute right-1 left-1 overflow-hidden px-1.5 py-0.5 text-left text-[11px] leading-tight text-white"
+                        style={{ top: Math.max(0, topo), height: Math.max(48, (minutos / 60) * ALTURA_HORA), background: statusCores[item.status] || STATUS_PADRAO.SCHEDULED, borderRadius: "var(--agenda-card-radius, 12px)", boxShadow: "var(--agenda-card-shadow, none)", zIndex: 1 }}
+                      >
+                        <span className="block truncate font-medium">{faixa}</span>
+                        <span className="block truncate uppercase">{item.cliente_nome}</span>
+                        <span className="block truncate">{fatia.servico_nome}{modo === "semana" ? ` · ${fatia.profissional_nome}` : ""}</span>
+                        {item.recebido || varios ? null : (
+                          <span
+                            data-resize="1"
+                            className="absolute right-0 bottom-0 left-0 z-10 flex h-3 cursor-ns-resize touch-none items-end justify-center"
+                            title="Arraste para aumentar ou diminuir o tempo"
+                            onPointerDown={(evento) => iniciarRedimensionar(evento, item)}
+                            onClick={(evento) => evento.stopPropagation()}
+                          >
+                            <span className="mb-0.5 block h-1 w-8 rounded-full bg-white/70" />
+                          </span>
+                        )}
+                      </button>
+                    );
+                  });
                 })}
               </div>
             ))}
@@ -954,8 +982,8 @@ function Formulario({
   clientes: ClienteSalao[];
   profissionais: ProfissionalSalao[];
   servicos: ServicoSalao[];
-  escolhidos: number[];
-  aoEscolhidos: (ids: number[]) => void;
+  escolhidos: LinhaFormulario[];
+  aoEscolhidos: (linhas: LinhaFormulario[]) => void;
   erro: string;
   aoSalvar: () => void;
   aoFechar: () => void;
@@ -965,11 +993,11 @@ function Formulario({
   useEffect(() => {
     if (!categoria && categorias[0]) setCategoria(categorias[0]);
   }, [categoria, categorias]);
-  const daCategoria = servicos.filter((item) => item.categoria === categoria && !escolhidos.includes(item.id));
+  const daCategoria = servicos.filter((item) => item.categoria === categoria && !escolhidos.some((linha) => linha.servico === item.id));
   const [procedimento, setProcedimento] = useState(String(daCategoria[0]?.id || ""));
-  const escolhidosServico = escolhidos.map((id) => servicos.find((item) => item.id === id)).filter((item): item is ServicoSalao => Boolean(item));
-  const minutos = escolhidosServico.reduce((acc, item) => acc + item.duracao_minutos, 0);
-  const total = escolhidosServico.reduce((acc, item) => acc + lerReais(item.preco), 0);
+  const escolhidosServico = escolhidos.map((linha) => ({ linha, servico: servicos.find((item) => item.id === linha.servico) })).filter((item): item is { linha: LinhaFormulario; servico: ServicoSalao } => Boolean(item.servico));
+  const minutos = duracaoDaVisita(escolhidosServico.map((item) => ({ profissional: item.linha.profissional, minutos: item.servico.duracao_minutos })));
+  const total = escolhidosServico.reduce((acc, item) => acc + lerReais(item.servico.preco), 0);
   return (
     <div className="fixed inset-0 z-40 grid place-items-center bg-black/40 p-4" role="dialog" aria-modal="true" aria-labelledby="agenda-formulario" onClick={(evento) => { if (evento.target === evento.currentTarget) aoFechar(); }}>
     <form className="max-h-[90vh] w-full max-w-lg overflow-auto rounded-3xl bg-white p-5" onSubmit={(evento) => { evento.preventDefault(); aoSalvar(); }}>
@@ -988,11 +1016,12 @@ function Formulario({
           <label className="text-sm">Telefone<input className="mt-1 w-full rounded-lg border px-2 py-2" value={form.cliente_telefone} onChange={(evento) => setForm({ ...form, cliente_telefone: evento.target.value })} /></label>
         </>
       )}
-      <label className="text-sm">Profissional
+      <label className="text-sm">Profissional do próximo procedimento
         <select className="mt-1 w-full rounded-lg border px-2 py-2" value={form.profissional} onChange={(evento) => setForm({ ...form, profissional: evento.target.value })}>
           {profissionais.map((item) => <option key={item.id} value={item.id}>{item.nome}</option>)}
         </select>
       </label>
+      <p className="text-xs text-[#8a6e74]">Para o mesmo horário com outra pessoa, troque o profissional e adicione o procedimento.</p>
       <div className="rounded-2xl border border-[#eadfe2] p-3">
         <p className="text-sm font-medium">Procedimentos</p>
         <div className="mt-2 grid gap-2 sm:grid-cols-2">
@@ -1008,13 +1037,22 @@ function Formulario({
             </select>
           </label>
         </div>
-        <button type="button" className="mt-2 text-sm text-[#7a3044]" onClick={() => { const id = Number(procedimento); if (id && !escolhidos.includes(id)) aoEscolhidos([...escolhidos, id]); setProcedimento(""); }}>Adicionar procedimento</button>
+        <button type="button" className="mt-2 text-sm text-[#7a3044]" onClick={() => { const id = Number(procedimento); if (id && form.profissional && !escolhidos.some((linha) => linha.servico === id)) aoEscolhidos([...escolhidos, { servico: id, profissional: form.profissional }]); setProcedimento(""); }}>Adicionar procedimento</button>
         <ul className="mt-2">
           {escolhidosServico.length === 0 ? <li className="text-sm text-[#8a6e74]">Nenhum procedimento neste horário.</li> : null}
-          {escolhidosServico.map((item) => (
-            <li key={item.id} className="flex items-center justify-between gap-2 border-t border-[#f0e4e6] py-2 text-sm">
-              <span><span className="block font-medium">{item.nome}</span><span className="text-[#8a6e74]">{item.categoria} · {item.duracao_minutos} min</span></span>
-              <span className="flex items-center gap-3"><span>{reais(lerReais(item.preco))}</span><button type="button" className="text-[#8a6e74]" onClick={() => aoEscolhidos(escolhidos.filter((id) => id !== item.id))}>Remover</button></span>
+          {escolhidosServico.map(({ linha, servico }) => (
+            <li key={servico.id} className="flex items-center justify-between gap-2 border-t border-[#f0e4e6] py-2 text-sm">
+              <span>
+                <span className="block font-medium">{servico.nome}</span>
+                <span className="text-[#8a6e74]">{servico.categoria} · {servico.duracao_minutos} min</span>
+              </span>
+              <span className="flex items-center gap-2">
+                <select className="rounded-lg border px-2 py-1" value={linha.profissional} onChange={(evento) => aoEscolhidos(escolhidos.map((atual) => atual.servico === servico.id ? { ...atual, profissional: evento.target.value } : atual))} aria-label={`Profissional de ${servico.nome}`}>
+                  {profissionais.map((pessoa) => <option key={pessoa.id} value={pessoa.id}>{pessoa.nome}</option>)}
+                </select>
+                <span>{reais(lerReais(servico.preco))}</span>
+                <button type="button" className="text-[#8a6e74]" onClick={() => aoEscolhidos(escolhidos.filter((atual) => atual.servico !== servico.id))}>Remover</button>
+              </span>
             </li>
           ))}
         </ul>

@@ -9,10 +9,20 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .agenda_service import conflito_horario, interpretar_inicio
-from .caixa_service import comissao_do_agendamento, gravar_comissoes, interpretar_formas, motivo_bloqueio_recebimento, quantia, rotulo_formas
+from .agenda_service import interpretar_inicio
+from .caixa_service import comissao_do_agendamento, gravar_comissoes, interpretar_formas, motivo_bloqueio_recebimento, partes_comissao, quantia, rotulo_formas
 from .categoria_service import arquivar_categoria, criar_categoria, listar_categorias, renomear_categoria
-from .procedimentos_service import duracao_dos, gravar_procedimentos, nomes_do_agendamento, preco_do_agendamento, resolver_servicos
+from .procedimentos_service import (
+    gravar_procedimentos,
+    linhas_do_agendamento,
+    mensagem_conflito,
+    montar_fatias,
+    nomes_do_agendamento,
+    nomes_profissionais,
+    preco_do_agendamento,
+    resolver_linhas_pedido,
+    resolver_servicos,
+)
 from .formas_service import codigos_ativos, criar_forma, excluir_forma, listar_formas, renomear_forma, rotulos_conhecidos
 from .comunicacao_service import avisar_mudanca, enviar_evento, regras_de, validar_regras, whatsapp_pronto
 from .catalogo import garantir_catalogo_inicial
@@ -306,13 +316,44 @@ def _cliente_do_payload(dados):
     return serializer.save()
 
 
+def _profissional_pedido(dados):
+    return Profissional.objects.filter(pk=dados.get("profissional"), is_active=True).first()
+
+
+def _linhas_do_pedido(dados, agendamento=None):
+    """Linhas pedidas agora, ou as que o horário já tem quando a edição só muda a hora."""
+    brutas = dados.get("procedimentos")
+    if isinstance(brutas, list) and brutas and isinstance(brutas[0], dict) and brutas[0].get("servico"):
+        return resolver_linhas_pedido(brutas, _profissional_pedido(dados))
+    if isinstance(dados.get("servicos"), list) or dados.get("servico"):
+        ids = dados.get("servicos")
+        if not isinstance(ids, list):
+            ids = [dados.get("servico")]
+        servicos = resolver_servicos(ids)
+        profissional = _profissional_pedido(dados) or (agendamento.profissional if agendamento else None)
+        if profissional is None:
+            raise ValueError("Escolha o profissional.")
+        return [(servico, profissional) for servico in servicos]
+    if agendamento is None:
+        raise ValueError("Escolha ao menos um procedimento.")
+    linhas = linhas_do_agendamento(agendamento)
+    if dados.get("profissional"):
+        distintas = {prof.id for _servico, prof in linhas if getattr(prof, "id", None)}
+        if len(distintas) <= 1:
+            profissional = _profissional_pedido(dados)
+            if profissional is None:
+                raise ValueError("Profissional não encontrado.")
+            return [(servico, profissional) for servico, _prof in linhas]
+    return linhas
+
+
 class AgendaView(APIView):
     permission_classes = [IsAuthenticated, IsSalaoMembro]
 
     def get(self, request):
         inicio = request.query_params.get("start")
         fim = request.query_params.get("end")
-        qs = Agendamento.objects.select_related("cliente", "profissional", "servico").prefetch_related("recebimentos", "procedimentos__servico")
+        qs = Agendamento.objects.select_related("cliente", "profissional", "servico").prefetch_related("recebimentos", "procedimentos__servico", "procedimentos__profissional")
         try:
             if inicio:
                 qs = qs.filter(inicio__gte=interpretar_inicio(inicio))
@@ -325,7 +366,9 @@ class AgendaView(APIView):
             qs = qs.filter(inicio__gte=agora - timedelta(days=7), inicio__lte=agora + timedelta(days=60))
         profissional = request.query_params.get("profissional")
         if profissional:
-            qs = qs.filter(profissional_id=profissional)
+            qs = qs.filter(
+                Q(profissional_id=profissional) | Q(procedimentos__profissional_id=profissional)
+            ).distinct()
         return Response(AgendamentoSerializer(qs.order_by("inicio")[:500], many=True).data)
 
     def post(self, request):
@@ -333,36 +376,28 @@ class AgendaView(APIView):
             inicio = interpretar_inicio(str(request.data.get("inicio") or ""))
         except ValueError as exc:
             return _erro(str(exc))
-        ids = request.data.get("servicos")
-        if not isinstance(ids, list):
-            unico = request.data.get("servico")
-            ids = [] if unico in (None, "", 0, "0") else [unico]
         try:
-            servicos = resolver_servicos(ids)
+            linhas = _linhas_do_pedido(request.data)
         except ValueError as exc:
             return _erro(str(exc))
-        profissional = Profissional.objects.filter(pk=request.data.get("profissional"), is_active=True).first()
-        if profissional is None:
-            return _erro("Escolha o profissional.")
         try:
             cliente = _cliente_do_payload(request.data)
         except ValueError as exc:
             return _erro(str(exc))
-        duracao = duracao_dos(servicos)
-        fim = inicio + timedelta(minutes=duracao)
-        mensagem = conflito_horario(profissional.id, inicio, fim)
+        mensagem = mensagem_conflito(linhas, inicio)
         if mensagem:
             return _erro(mensagem, status.HTTP_409_CONFLICT)
+        _fatias, duracao = montar_fatias(inicio, linhas)
         agendamento = Agendamento.objects.create(
             inicio=inicio,
             duracao_minutos=duracao,
             status="SCHEDULED",
             cliente=cliente,
-            profissional=profissional,
-            servico=servicos[0],
+            profissional=linhas[0][1],
+            servico=linhas[0][0],
             observacoes=(request.data.get("observacoes") or "").strip(),
         )
-        gravar_procedimentos(agendamento, servicos)
+        gravar_procedimentos(agendamento, [servico for servico, _prof in linhas], [prof for _servico, prof in linhas])
         agendamento.save(update_fields=["servico", "duracao_minutos"])
         return Response(AgendamentoSerializer(_agendamento_completo(agendamento.pk)).data, status=status.HTTP_201_CREATED)
 
@@ -374,7 +409,7 @@ class AgendamentoDetailView(GetObjectMixin, APIView):
 
     def get_object(self, pk):
         try:
-            return Agendamento.objects.select_related("cliente", "profissional", "servico").prefetch_related("recebimentos", "procedimentos__servico").get(pk=pk)
+            return Agendamento.objects.select_related("cliente", "profissional", "servico").prefetch_related("recebimentos", "procedimentos__servico", "procedimentos__profissional").get(pk=pk)
         except Agendamento.DoesNotExist:
             return None
 
@@ -383,7 +418,7 @@ class AgendamentoDetailView(GetObjectMixin, APIView):
         if agendamento is None:
             return _erro(self.not_found_message, status.HTTP_404_NOT_FOUND)
         if agendamento.recebimentos.filter(is_active=True).exists() and any(
-            chave in request.data for chave in ("status", "inicio", "profissional", "servico", "servicos", "duracao_minutos")
+            chave in request.data for chave in ("status", "inicio", "profissional", "servico", "servicos", "procedimentos", "duracao_minutos")
         ):
             return _erro("Desfaça o recebimento antes de alterar este atendimento.")
         inicio_anterior = agendamento.inicio
@@ -398,37 +433,26 @@ class AgendamentoDetailView(GetObjectMixin, APIView):
                 agendamento.inicio = interpretar_inicio(str(request.data.get("inicio")))
             except ValueError as exc:
                 return _erro(str(exc))
-        if request.data.get("profissional"):
-            profissional = Profissional.objects.filter(pk=request.data.get("profissional"), is_active=True).first()
-            if profissional is None:
-                return _erro("Profissional não encontrado.")
-            agendamento.profissional = profissional
-        servicos_novos = None
-        if isinstance(request.data.get("servicos"), list) or request.data.get("servico"):
-            ids = request.data.get("servicos")
-            if not isinstance(ids, list):
-                ids = [request.data.get("servico")]
-            try:
-                servicos_novos = resolver_servicos(ids)
-            except ValueError as exc:
-                return _erro(str(exc))
-            agendamento.servico = servicos_novos[0]
-            agendamento.duracao_minutos = duracao_dos(servicos_novos)
-        if request.data.get("duracao_minutos"):
+        try:
+            linhas = _linhas_do_pedido(request.data, agendamento)
+        except ValueError as exc:
+            return _erro(str(exc))
+        pediu_linhas = isinstance(request.data.get("procedimentos"), list) or isinstance(request.data.get("servicos"), list) or bool(request.data.get("servico"))
+        if request.data.get("duracao_minutos") and len({prof.id for _servico, prof in linhas if getattr(prof, "id", None)}) <= 1:
             agendamento.duracao_minutos = int(request.data.get("duracao_minutos"))
+        else:
+            _fatias, duracao = montar_fatias(agendamento.inicio, linhas)
+            agendamento.duracao_minutos = duracao
+        agendamento.profissional = linhas[0][1]
+        agendamento.servico = linhas[0][0]
         if "observacoes" in request.data:
             agendamento.observacoes = (request.data.get("observacoes") or "").strip()
         if agendamento.status in STATUS_OCUPA_HORARIO:
-            mensagem = conflito_horario(
-                agendamento.profissional_id,
-                agendamento.inicio,
-                agendamento.fim,
-                ignorar_id=agendamento.id,
-            )
+            mensagem = mensagem_conflito(linhas, agendamento.inicio, ignorar_id=agendamento.id)
             if mensagem:
                 return _erro(mensagem, status.HTTP_409_CONFLICT)
-        if servicos_novos is not None:
-            gravar_procedimentos(agendamento, servicos_novos)
+        if pediu_linhas or request.data.get("profissional"):
+            gravar_procedimentos(agendamento, [servico for servico, _prof in linhas], [prof for _servico, prof in linhas])
         agendamento.save()
         return _resposta_agenda(agendamento, avisar_mudanca(
             agendamento,
@@ -658,13 +682,13 @@ class ResumoView(APIView):
             Agendamento.objects.filter(inicio__gte=inicio_dia, inicio__lt=fim_dia)
             .exclude(status="CANCELLED")
             .select_related("cliente", "servico", "profissional")
-            .prefetch_related("procedimentos__servico")
+            .prefetch_related("procedimentos__servico", "procedimentos__profissional")
             .order_by("inicio")
         )
         recebidos_mes = list(
             Recebimento.objects.filter(is_active=True, created_at__gte=inicio_mes, created_at__lt=fim_mes)
             .select_related("agendamento__servico", "profissional")
-            .prefetch_related("agendamento__procedimentos__servico")
+            .prefetch_related("agendamento__procedimentos__servico", "agendamento__procedimentos__profissional")
         )
         recebidos_dia = [
             item for item in recebidos_mes
@@ -684,7 +708,12 @@ class ResumoView(APIView):
         novos_anterior = Cliente.objects.filter(
             created_at__gte=inicio_anterior, created_at__lt=inicio_mes, is_active=True,
         ).count()
-        minutos = sum(item.duracao_minutos for item in do_dia if item.status in STATUS_OCUPA_HORARIO)
+        minutos = 0
+        for item in do_dia:
+            if item.status not in STATUS_OCUPA_HORARIO:
+                continue
+            fatias, _duracao = montar_fatias(item.inicio, linhas_do_agendamento(item))
+            minutos += sum(fatia["duracao_minutos"] for fatia in fatias) or item.duracao_minutos
         profissionais = max(Profissional.objects.filter(is_active=True).count(), 1)
         ocupacao = min(100, round(minutos / (profissionais * 10 * 60) * 100))
 
@@ -695,13 +724,14 @@ class ResumoView(APIView):
             atual = por_servico.setdefault(chave, {"nome": chave, "quantidade": 0, "receita": Decimal("0")})
             atual["quantidade"] += 1
             atual["receita"] += item.valor
-            comissao = por_profissional.setdefault(item.profissional_id, {
-                "nome": item.profissional.nome,
-                "quantidade": 0,
-                "comissao": Decimal("0"),
-            })
-            comissao["quantidade"] += 1
-            comissao["comissao"] += item.comissao_valor
+            for parte in partes_comissao(item):
+                comissao = por_profissional.setdefault(parte["id"], {
+                    "nome": parte["nome"],
+                    "quantidade": 0,
+                    "comissao": Decimal("0"),
+                })
+                comissao["quantidade"] += 1
+                comissao["comissao"] += parte["comissao"]
         comissoes = sorted(por_profissional.values(), key=lambda item: item["comissao"], reverse=True)
         servicos = sorted(por_servico.values(), key=lambda item: item["receita"], reverse=True)[:5]
 
@@ -778,7 +808,7 @@ class ResumoView(APIView):
                     "hora": timezone.localtime(item.inicio).strftime("%H:%M"),
                     "cliente": item.cliente.nome,
                     "servico": nomes_do_agendamento(item),
-                    "profissional": item.profissional.nome,
+                    "profissional": nomes_profissionais(item) or item.profissional.nome,
                     "status": item.status,
                     "status_label": item.get_status_display(),
                 }
@@ -790,7 +820,7 @@ class ResumoView(APIView):
 def _agendamento_completo(pk):
     return (
         Agendamento.objects.select_related("cliente", "profissional", "servico")
-        .prefetch_related("recebimentos", "procedimentos__servico")
+        .prefetch_related("recebimentos", "procedimentos__servico", "procedimentos__profissional")
         .filter(pk=pk)
         .first()
     )

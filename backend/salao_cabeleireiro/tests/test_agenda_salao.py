@@ -445,6 +445,33 @@ class ProcedimentosHorarioTest(unittest.TestCase):
         self.assertEqual(nomes_do_agendamento(Horario()), "Barba")
         self.assertEqual(preco_do_agendamento(Horario()), Decimal("40.00"))
 
+    def test_dois_profissionais_comecam_juntos(self):
+        from salao_cabeleireiro.procedimentos_service import montar_fatias
+
+        class Pessoa:
+            def __init__(self, numero, nome):
+                self.id = numero
+                self.nome = nome
+
+        class Servico:
+            def __init__(self, nome, minutos):
+                self.nome = nome
+                self.duracao_minutos = minutos
+
+        inicio = datetime(2026, 11, 20, 9, 0)
+        daniele = Pessoa(3, "Daniele Souza")
+        ricardo = Pessoa(1, "Ricardo Silva")
+        fatias, duracao = montar_fatias(inicio, [
+            (Servico("Corte", 45), daniele),
+            (Servico("Manicure", 40), ricardo),
+            (Servico("Escova", 30), daniele),
+        ])
+        self.assertEqual(duracao, 75)
+        self.assertEqual(fatias[0]["inicio"], inicio)
+        self.assertEqual(fatias[1]["inicio"], inicio)
+        self.assertEqual(fatias[2]["inicio"], inicio + timedelta(minutes=45))
+        self.assertEqual(fatias[1]["profissional"].nome, "Ricardo Silva")
+
 
 class PainelSalaoTest(unittest.TestCase):
     def test_so_os_tres_paineis(self):

@@ -117,31 +117,40 @@ export function SalaoAgendaCalendario({
 
   const eventosFc = useMemo(() => {
     const cartoes: AgendaEventData[] = eventos
-      .filter((item) => item.status !== "CANCELLED" && (filtroProfissional === "todos" || String(item.profissional) === filtroProfissional))
-      .map((item) => {
+      .filter((item) => item.status !== "CANCELLED")
+      .flatMap((item) => {
+        const fatias = item.fatias && item.fatias.length > 0
+          ? item.fatias
+          : [{ profissional: item.profissional, profissional_nome: item.profissional_nome, servico_nome: item.servico_nome, inicio: item.inicio, fim: item.fim, duracao_minutos: item.duracao_minutos }];
+        const visiveis = fatias.filter((fatia) => filtroProfissional === "todos" || String(fatia.profissional) === filtroProfissional);
+        const varios = new Set(fatias.map((fatia) => fatia.profissional)).size > 1;
         const cor = statusCores[item.status] || "#7a3044";
-        return {
-          id: String(item.id),
-          title: item.cliente_nome,
-          start: item.inicio,
-          end: item.fim,
-          color: cor,
-          contrastColor: "#fff",
-          backgroundColor: cor,
-          borderColor: cor,
-          textColor: "#fff",
-          editable: !item.recebido,
-          durationEditable: !item.recebido,
-          startEditable: !item.recebido,
-          extendedProps: {
-            dbId: item.id,
-            status: item.status,
-            patient_name: item.cliente_nome,
-            professional: item.profissional,
-            professional_name: item.profissional_nome,
-            procedure_name: item.servico_nome,
-          },
-        };
+        return visiveis.map((fatia, indice) => {
+          const offset = Math.round((new Date(fatia.inicio).getTime() - new Date(item.inicio).getTime()) / 60000);
+          return {
+            id: visiveis.length === 1 && fatias.length === 1 ? String(item.id) : `${item.id}-${indice}`,
+            title: item.cliente_nome,
+            start: fatia.inicio,
+            end: fatia.fim,
+            color: cor,
+            contrastColor: "#fff",
+            backgroundColor: cor,
+            borderColor: cor,
+            textColor: "#fff",
+            editable: !item.recebido,
+            durationEditable: !item.recebido && !varios,
+            startEditable: !item.recebido,
+            extendedProps: {
+              dbId: item.id,
+              offsetMinutos: offset,
+              status: item.status,
+              patient_name: item.cliente_nome,
+              professional: fatia.profissional,
+              professional_name: fatia.profissional_nome,
+              procedure_name: fatia.servico_nome,
+            },
+          };
+        });
       });
     const folgas: AgendaEventData[] = bloqueios.filter((item) => filtroProfissional === "todos" || !item.profissional || String(item.profissional) === filtroProfissional).map((item) => {
       const diaInteiro = !item.horario_inicio || !item.horario_fim;
@@ -240,20 +249,22 @@ export function SalaoAgendaCalendario({
                   if (folga) onAbrirBloqueio(folga);
                   return;
                 }
-                const item = eventos.find((agenda) => String(agenda.id) === info.event.id);
+                const item = eventos.find((agenda) => agenda.id === Number(props.dbId));
                 if (item) onAbrir(item);
               }}
               dateClick={(info: { date: Date }) => onNovo(info.date, umProfissional ? filtroProfissional : "")}
               eventDrop={(info: { event: { id: string; start: Date | null; extendedProps?: Record<string, unknown> } }) => {
                 const props = info.event.extendedProps || {};
                 if (props.isBloqueio || props.isIntervalo || !info.event.start) return;
-                onMover(Number(info.event.id), info.event.start);
+                const inicio = new Date(info.event.start);
+                inicio.setMinutes(inicio.getMinutes() - Number(props.offsetMinutos || 0));
+                onMover(Number(props.dbId), inicio);
               }}
               eventResize={(info: { event: { id: string; start: Date | null; end: Date | null; extendedProps?: Record<string, unknown> } }) => {
                 const props = info.event.extendedProps || {};
                 if (props.isBloqueio || props.isIntervalo || !info.event.start || !info.event.end) return;
                 const minutos = Math.max(5, Math.round((info.event.end.getTime() - info.event.start.getTime()) / 60000));
-                onRedimensionar(Number(info.event.id), minutos);
+                onRedimensionar(Number(props.dbId), minutos);
               }}
               datesSet={(arg: { view: { type: string; calendar: { getDate: () => Date } } }) => {
                 const data = arg.view.calendar.getDate();

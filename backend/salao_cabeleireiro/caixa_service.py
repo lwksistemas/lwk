@@ -201,16 +201,16 @@ def comissao_do_atendimento(profissional, servico_id, preco, desconto) -> tuple[
 
 
 def comissao_do_agendamento(profissional, agendamento, desconto) -> tuple[Decimal, Decimal, Decimal]:
-    """Cada procedimento usa a própria comissão. O desconto se divide entre eles."""
-    from .procedimentos_service import servicos_do_agendamento
+    """Cada procedimento usa a comissão de quem fez. O desconto se divide entre eles."""
+    from .procedimentos_service import linhas_do_agendamento
 
-    servicos = servicos_do_agendamento(agendamento)
-    fatias = repartir_desconto([item.preco for item in servicos], desconto)
+    linhas = linhas_do_agendamento(agendamento)
+    fatias = repartir_desconto([servico.preco for servico, _prof in linhas], desconto)
     total_valor = Decimal("0")
     total_comissao = Decimal("0")
     percentual = None
-    for servico, fatia in zip(servicos, fatias):
-        valor, comissao, perc = comissao_do_atendimento(profissional, servico.id, servico.preco, fatia)
+    for (servico, quem), fatia in zip(linhas, fatias):
+        valor, comissao, perc = comissao_do_atendimento(quem or profissional, servico.id, servico.preco, fatia)
         total_valor += valor
         total_comissao += comissao
         if percentual is None:
@@ -222,3 +222,42 @@ def comissao_do_agendamento(profissional, agendamento, desconto) -> tuple[Decima
         total_comissao.quantize(CENTAVO, rounding=ROUND_HALF_UP),
         percentual or Decimal("0"),
     )
+
+
+def partes_comissao(recebimento) -> list:
+    """Reparte a comissão gravada entre quem fez cada procedimento. O total continua o do recibo."""
+    from .procedimentos_service import linhas_do_agendamento
+
+    linhas = linhas_do_agendamento(recebimento.agendamento)
+    pessoas = []
+    for _servico, quem in linhas:
+        pessoa = quem or recebimento.profissional
+        if pessoa is None or any(item["id"] == pessoa.id for item in pessoas):
+            continue
+        pessoas.append({"id": pessoa.id, "nome": pessoa.nome})
+    if len(pessoas) <= 1:
+        return [{
+            "id": recebimento.profissional_id,
+            "nome": recebimento.profissional.nome,
+            "comissao": quantia(recebimento.comissao_valor),
+        }]
+    bruto = {item["id"]: Decimal("0") for item in pessoas}
+    fatias = repartir_desconto([servico.preco for servico, _prof in linhas], recebimento.desconto)
+    for (servico, quem), fatia in zip(linhas, fatias):
+        pessoa = quem or recebimento.profissional
+        _valor, comissao, _perc = comissao_do_atendimento(pessoa, servico.id, servico.preco, fatia)
+        bruto[pessoa.id] += comissao
+    soma = sum(bruto.values(), Decimal("0"))
+    gravado = quantia(recebimento.comissao_valor)
+    partes = []
+    acumulado = Decimal("0")
+    for indice, pessoa in enumerate(pessoas):
+        if indice == len(pessoas) - 1:
+            valor = gravado - acumulado
+        elif soma <= 0:
+            valor = Decimal("0")
+        else:
+            valor = (gravado * bruto[pessoa["id"]] / soma).quantize(CENTAVO, rounding=ROUND_HALF_UP)
+            acumulado += valor
+        partes.append({"id": pessoa["id"], "nome": pessoa["nome"], "comissao": valor})
+    return partes

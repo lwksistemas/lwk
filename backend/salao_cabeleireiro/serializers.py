@@ -211,10 +211,11 @@ class ServicoSerializer(serializers.ModelSerializer):
 
 class AgendamentoSerializer(serializers.ModelSerializer):
     cliente_nome = serializers.CharField(source="cliente.nome", read_only=True)
-    profissional_nome = serializers.CharField(source="profissional.nome", read_only=True)
+    profissional_nome = serializers.SerializerMethodField()
     servico_nome = serializers.SerializerMethodField()
     preco = serializers.SerializerMethodField()
     procedimentos = serializers.SerializerMethodField()
+    fatias = serializers.SerializerMethodField()
     fim = serializers.DateTimeField(read_only=True)
     status_label = serializers.CharField(source="get_status_display", read_only=True)
     recebido = serializers.SerializerMethodField()
@@ -238,6 +239,7 @@ class AgendamentoSerializer(serializers.ModelSerializer):
             "procedimentos",
             "observacoes",
             "recebido",
+            "fatias",
         ]
 
     def get_servico_nome(self, obj):
@@ -251,9 +253,14 @@ class AgendamentoSerializer(serializers.ModelSerializer):
 
         return f"{quantia(preco_do_agendamento(obj)):.2f}"
 
+    def get_profissional_nome(self, obj):
+        from .procedimentos_service import nomes_profissionais
+
+        return nomes_profissionais(obj) or obj.profissional.nome
+
     def get_procedimentos(self, obj):
         from .caixa_service import quantia
-        from .procedimentos_service import servicos_do_agendamento
+        from .procedimentos_service import linhas_do_agendamento
 
         return [
             {
@@ -262,8 +269,26 @@ class AgendamentoSerializer(serializers.ModelSerializer):
                 "categoria": servico.categoria,
                 "duracao_minutos": servico.duracao_minutos,
                 "preco": f"{quantia(servico.preco):.2f}",
+                "profissional": getattr(profissional, "id", None) or obj.profissional_id,
+                "profissional_nome": getattr(profissional, "nome", "") or obj.profissional.nome,
             }
-            for servico in servicos_do_agendamento(obj)
+            for servico, profissional in linhas_do_agendamento(obj)
+        ]
+
+    def get_fatias(self, obj):
+        from .procedimentos_service import linhas_do_agendamento, montar_fatias
+
+        fatias, _duracao = montar_fatias(obj.inicio, linhas_do_agendamento(obj))
+        return [
+            {
+                "profissional": getattr(fatia["profissional"], "id", None) or obj.profissional_id,
+                "profissional_nome": getattr(fatia["profissional"], "nome", "") or obj.profissional.nome,
+                "servico_nome": fatia["servico"].nome,
+                "inicio": fatia["inicio"].isoformat(),
+                "fim": fatia["fim"].isoformat(),
+                "duracao_minutos": fatia["duracao_minutos"],
+            }
+            for fatia in fatias
         ]
 
     def get_recebido(self, obj):

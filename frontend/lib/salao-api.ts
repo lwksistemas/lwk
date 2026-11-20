@@ -182,6 +182,17 @@ export type ProcedimentoHorario = {
   categoria: string;
   duracao_minutos: number;
   preco: string;
+  profissional?: number;
+  profissional_nome?: string;
+};
+
+export type FatiaHorario = {
+  profissional: number;
+  profissional_nome: string;
+  servico_nome: string;
+  inicio: string;
+  fim: string;
+  duracao_minutos: number;
 };
 
 export type ServicoSalao = {
@@ -230,6 +241,7 @@ export type AgendamentoSalao = {
   servico_nome: string;
   preco: string;
   procedimentos?: ProcedimentoHorario[];
+  fatias?: FatiaHorario[];
   observacoes: string;
   aviso?: string;
   recebido?: {

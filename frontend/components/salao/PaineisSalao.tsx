@@ -216,8 +216,8 @@ function PainelSemana({ resumo, slug, cadastro, demonstracao = false }: { resumo
   }, [demonstracao, semana]);
 
   const termo = busca.trim().toLocaleLowerCase();
-  const visiveis = (filtro === "todos" ? eventos : eventos.filter((item) => item.profissional === filtro))
-    .filter((item) => !termo || `${item.cliente_nome} ${item.servico_nome} ${item.profissional_nome}`.toLocaleLowerCase().includes(termo));
+  const visiveis = (filtro === "todos" ? eventos : eventos.filter((item) => fatiasDo(item).some((fatia) => fatia.profissional === filtro)))
+    .filter((item) => !termo || `${item.cliente_nome} ${item.servico_nome} ${item.profissional_nome} ${fatiasDo(item).map((fatia) => `${fatia.servico_nome} ${fatia.profissional_nome}`).join(" ")}`.toLocaleLowerCase().includes(termo));
   const jornadaFiltro = filtro === "todos" ? Object.values(jornadas).flat() : jornadas[filtro];
   const faixa = faixaHoras(Array.isArray(jornadaFiltro) ? jornadaFiltro : undefined);
   const horas = Array.from({ length: Math.max(faixa.fim - faixa.inicio, 1) }, (_, indice) => faixa.inicio + indice);
@@ -288,7 +288,9 @@ function PainelSemana({ resumo, slug, cadastro, demonstracao = false }: { resumo
                       </div>
                     );
                   }
-                  const lista = visiveis.filter((item) => mesmoDia(new Date(item.inicio), dia) && new Date(item.inicio).getHours() === hora);
+                  const lista = visiveis.flatMap((item) => fatiasDo(item)
+                    .filter((fatia) => (filtro === "todos" || fatia.profissional === filtro) && mesmoDia(new Date(fatia.inicio), dia) && new Date(fatia.inicio).getHours() === hora)
+                    .map((fatia) => ({ ...item, profissional: fatia.profissional, profissional_nome: fatia.profissional_nome, servico_nome: fatia.servico_nome, inicio: fatia.inicio })));
                   const vaga = vagaDaHora(filtro, profissionais, jornadas, bloqueios, dia, hora);
                   const ocupados = new Set(lista.map((item) => item.profissional));
                   const podeCriar = vaga === "livre" && (filtro === "todos"
@@ -301,7 +303,7 @@ function PainelSemana({ resumo, slug, cadastro, demonstracao = false }: { resumo
                   return (
                     <div key={`${hora}-${dia.toDateString()}`} className={`min-h-12 border-t border-[#f3eef8] p-0.5 ${fundo}`}>
                       {lista.map((item) => (
-                        <Link key={item.id} href={`${base}/agenda?horario=${item.id}&dia=${dataLocal(new Date(item.inicio))}`} className="mb-0.5 block truncate rounded px-1 py-0.5 text-[10px] leading-tight" style={{ background: `${coresProfissional.get(item.profissional) || "#4c1d78"}22`, color: coresProfissional.get(item.profissional) || "#4c1d78" }} title={`${new Date(item.inicio).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })} · ${item.profissional_nome} · ${item.servico_nome} · ${item.cliente_nome}`}>
+                        <Link key={`${item.id}-${item.profissional}-${item.inicio}`} href={`${base}/agenda?horario=${item.id}&dia=${dataLocal(new Date(item.inicio))}`} className="mb-0.5 block truncate rounded px-1 py-0.5 text-[10px] leading-tight" style={{ background: `${coresProfissional.get(item.profissional) || "#4c1d78"}22`, color: coresProfissional.get(item.profissional) || "#4c1d78" }} title={`${new Date(item.inicio).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })} · ${item.profissional_nome} · ${item.servico_nome} · ${item.cliente_nome}`}>
                           <span className="block truncate font-medium">{primeiro(item.profissional_nome)} · {item.servico_nome}</span>
                           <span className="block truncate">{item.cliente_nome}</span>
                         </Link>
@@ -565,6 +567,29 @@ function equipeEspecialidade(profissionais: ProfissionalSalao[], nome: string) {
   return profissionais.find((pessoa) => pessoa.nome === nome)?.especialidade || "";
 }
 
+function fatiasDo(item: AgendamentoSalao) {
+  if (item.fatias && item.fatias.length > 0) return item.fatias;
+  return [{
+    profissional: item.profissional,
+    profissional_nome: item.profissional_nome,
+    servico_nome: item.servico_nome,
+    inicio: item.inicio,
+    fim: item.fim,
+    duracao_minutos: item.duracao_minutos,
+  }];
+}
+
+function horaOcupada(item: AgendamentoSalao, profissionalId: number, dia: Date, hora: number) {
+  return fatiasDo(item).some((fatia) => {
+    if (fatia.profissional !== profissionalId || !mesmoDia(new Date(fatia.inicio), dia)) return false;
+    const inicio = new Date(fatia.inicio);
+    const fim = new Date(fatia.fim);
+    const comeco = inicio.getHours() + inicio.getMinutes() / 60;
+    const termina = fim.getHours() + fim.getMinutes() / 60;
+    return comeco < hora + 1 && termina > hora;
+  });
+}
+
 function horariosLivres(profissionais: ProfissionalSalao[], jornadas: Record<number, JornadaDia[]>, agenda: AgendamentoSalao[], baseAgenda: string) {
   const agora = new Date();
   const vagas: { hora: string; rotulo: string; profissional: string; profissionalId: number; href: string }[] = [];
@@ -573,7 +598,7 @@ function horariosLivres(profissionais: ProfissionalSalao[], jornadas: Record<num
     for (let hora = agora.getHours(); hora < 20; hora += 1) {
       if (hora === agora.getHours() && agora.getMinutes() > 40) continue;
       if (situacaoHora(jornadas[pessoa.id] || [], [], pessoa.id, agora, hora) !== "livre") continue;
-      const ocupado = agenda.some((item) => item.profissional === pessoa.id && mesmoDia(new Date(item.inicio), agora) && new Date(item.inicio).getHours() === hora);
+      const ocupado = agenda.some((item) => horaOcupada(item, pessoa.id, agora, hora));
       if (ocupado) continue;
       const momento = new Date(agora);
       momento.setHours(hora, 0, 0, 0);

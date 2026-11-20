@@ -1,8 +1,6 @@
 "use client";
 
-import { lazy, Suspense, useEffect, useMemo, useState, type CSSProperties } from "react";
-import { makeAgendaFcEventContent } from "@/hooks/clinica-beleza/agenda-data/agenda-fc-event-content";
-import { eventosParaFullCalendar } from "@/hooks/clinica-beleza/agenda-data/agenda-event-mappers";
+import { lazy, Suspense, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import {
   agendaVisualStyleVars,
   loadAgendaVisualTheme,
@@ -48,6 +46,60 @@ function vistaInicial(modo: Vista) {
   if (modo === "semana") return "timeGridWeek";
   if (modo === "mes") return "dayGridMonth";
   return "timeGridDay";
+}
+
+const ROTULO_STATUS: Record<string, string> = {
+  SCHEDULED: "Aguardando",
+  CONFIRMED: "Confirmado",
+  IN_PROGRESS: "Em atendimento",
+  COMPLETED: "Concluído",
+  CANCELLED: "Cancelado",
+  NO_SHOW: "Faltou",
+};
+
+function rotuloDoEvento(props: Record<string, unknown>) {
+  if (props.isBloqueio) return "Folga";
+  if (props.isIntervalo) return "Almoço";
+  return ROTULO_STATUS[String(props.status || "")] || "Aguardando";
+}
+
+function conteudoEventoSalao(arg: {
+  event: { title: string; extendedProps?: Record<string, unknown> };
+  timeText: string;
+  view: { type: string };
+}): ReactNode {
+  const props = arg.event.extendedProps || {};
+  const folga = Boolean(props.isBloqueio);
+  const almoco = Boolean(props.isIntervalo);
+  const status = rotuloDoEvento(props);
+  const hora = (arg.timeText || "").replace(" - ", "–").trim();
+  const titulo = folga
+    ? String(props.motivo || arg.event.title || "Folga")
+    : almoco
+      ? String(props.professional_name || "Almoço")
+      : String(props.patient_name || arg.event.title || "");
+  const detalhe = folga
+    ? String(props.professional_name || "")
+    : almoco
+      ? ""
+      : [props.procedure_name, props.professional_name].filter(Boolean).join(" · ");
+  if ((arg.view?.type || "").startsWith("dayGrid")) {
+    return (
+      <div className={`agenda-fc-event-inner agenda-fc-event-month${folga ? " is-bloqueio" : ""}`}>
+        {hora ? <span className="agenda-fc-event-time">{hora}</span> : null}
+        <span className="agenda-fc-event-status">{status}</span>
+        <span className="agenda-fc-event-title">{titulo}</span>
+      </div>
+    );
+  }
+  return (
+    <div className={`agenda-fc-event-inner${folga ? " is-bloqueio" : ""}${almoco ? " is-intervalo" : ""}`}>
+      {hora ? <div className="agenda-fc-event-time">{hora}</div> : null}
+      <div className="agenda-fc-event-status">{status}</div>
+      <div className="agenda-fc-event-title">{titulo}</div>
+      {detalhe ? <div className="agenda-fc-event-proc">{detalhe}</div> : null}
+    </div>
+  );
 }
 
 export function SalaoAgendaCalendario({
@@ -117,7 +169,6 @@ export function SalaoAgendaCalendario({
 
   const eventosFc = useMemo(() => {
     const cartoes: AgendaEventData[] = eventos
-      .filter((item) => item.status !== "CANCELLED")
       .flatMap((item) => {
         const fatias = item.fatias && item.fatias.length > 0
           ? item.fatias
@@ -162,7 +213,6 @@ export function SalaoAgendaCalendario({
         start: `${item.data_inicio}T${inicio}:00`,
         end: `${item.data_fim}T${fim}:00`,
         allDay: false,
-        display: "background",
         color: "#f6e4e8",
         contrastColor: "#7a3044",
         backgroundColor: "#f6e4e8",
@@ -184,13 +234,8 @@ export function SalaoAgendaCalendario({
       comoHorario(jornadas[pessoa.id] || []),
       pessoa.nome,
     ));
-    return eventosParaFullCalendar([...cartoes, ...folgas, ...almoco], umProfissional ? filtroProfissional : "");
-  }, [bloqueios, eventos, filtroProfissional, jornadas, pessoas, statusCores, umProfissional]);
-
-  const eventContent = useMemo(
-    () => makeAgendaFcEventContent({ showProfessional: !umProfissional }),
-    [umProfissional],
-  );
+    return [...cartoes, ...folgas, ...almoco];
+  }, [bloqueios, eventos, filtroProfissional, jornadas, pessoas, statusCores]);
 
   const horas = horarios.filter((item) => item.ativo);
   const slotMinTime = horas.length
@@ -232,11 +277,11 @@ export function SalaoAgendaCalendario({
               nowIndicator
               weekends
               events={eventosFc}
-              eventContent={eventContent as never}
+              eventContent={conteudoEventoSalao as never}
               eventClassNames={(arg: { event: { extendedProps?: Record<string, unknown> } }) => {
                 const props = arg.event.extendedProps || {};
                 const classes = ["agenda-fc-event"];
-                if (props.isBloqueio) classes.push("agenda-fc-event-bloqueio");
+                if (props.isBloqueio) classes.push("agenda-fc-event-bloqueio", "agenda-fc-event-folga");
                 if (props.isIntervalo) classes.push("agenda-fc-event-intervalo");
                 return classes;
               }}

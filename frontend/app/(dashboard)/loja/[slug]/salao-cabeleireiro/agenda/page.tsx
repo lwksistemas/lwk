@@ -36,6 +36,15 @@ function duracaoDaVisita(linhas: { minutos: number }[]) {
   return linhas.reduce((acc, linha) => acc + linha.minutos, 0);
 }
 
+function rotuloStatus(status: string) {
+  if (status === "CONFIRMED") return "Confirmado";
+  if (status === "IN_PROGRESS") return "Em atendimento";
+  if (status === "COMPLETED") return "Concluído";
+  if (status === "CANCELLED") return "Cancelado";
+  if (status === "NO_SHOW") return "Faltou";
+  return "Aguardando";
+}
+
 function faixaDaLinha(inicio: string, minutosAntes: number, minutos: number) {
   const base = new Date(inicio);
   if (Number.isNaN(base.getTime())) return "";
@@ -820,7 +829,7 @@ export default function AgendaSalaoPage() {
                     </button>
                   );
                 })}
-                {eventos.filter((item) => item.status !== "CANCELLED").flatMap((item) => {
+                {eventos.flatMap((item) => {
                   const varios = fatiasDe(item).length > 1 && new Set(fatiasDe(item).map((fatia) => fatia.profissional)).size > 1;
                   const pedacos = modo === "dia"
                     ? fatiasDe(item).filter((fatia) => String(fatia.profissional) === coluna.id && diaLocalDeIso(fatia.inicio) === isoDoDia(coluna.data))
@@ -850,6 +859,7 @@ export default function AgendaSalaoPage() {
                         style={{ top: Math.max(0, topo), height: Math.max(48, (minutos / 60) * ALTURA_HORA), background: statusCores[item.status] || STATUS_PADRAO.SCHEDULED, borderRadius: "var(--agenda-card-radius, 12px)", boxShadow: "var(--agenda-card-shadow, none)", zIndex: 1 }}
                       >
                         <span className="block truncate font-medium">{faixa}</span>
+                        <span className="block truncate font-semibold">{rotuloStatus(item.status)}</span>
                         <span className="block truncate uppercase">{item.cliente_nome}</span>
                         <span className="block truncate">{fatia.servico_nome}{modo === "semana" ? ` · ${fatia.profissional_nome}` : ""}</span>
                         {item.recebido || varios ? null : (

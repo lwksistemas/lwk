@@ -638,6 +638,12 @@ html.dark {
   white-space: nowrap;
 }
 
+.agenda-v7-root .agenda-fc-event-status {
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
 .agenda-v7-root .agenda-fc-event-title {
   font-size: 11px;
   font-weight: 600;
@@ -711,10 +717,12 @@ html.dark {
   box-shadow: inset 0 0 0 1px rgb(220 38 38 / 0.55);
 }
 
-.agenda-v7-root .fc-timegrid-event.agenda-fc-event-bloqueio,
-.agenda-v7-root .fc-daygrid-event.agenda-fc-event-bloqueio {
-  opacity: 0.85;
-  font-style: italic;
+.agenda-v7-root .fc-timegrid-event.agenda-fc-event-folga,
+.agenda-v7-root .fc-daygrid-event.agenda-fc-event-folga {
+  border-style: dashed !important;
+  border-left-width: 3px !important;
+  opacity: 1;
+  font-style: normal;
 }
 
 .agenda-v7-root .fc-popover {

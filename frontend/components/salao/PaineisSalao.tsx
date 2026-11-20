@@ -107,7 +107,7 @@ function PainelOperacao({ resumo, slug, cadastro, demonstracao = false }: { resu
     <div>
       <Cabeca titulo="Dashboard" texto="Gestão do salão de beleza" acao={{ href: `${base}/agenda`, nome: "Novo agendamento", cor: "#7A3044" }} />
       <AvisosCadastro slug={slug} cadastro={cadastro} />
-      <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Cartao titulo="Agendamentos de hoje" valor={resumo.hoje.agendamentos} cor="#7A3044" icone={<CalendarDays size={16} />} detalhe={textoVariacao(resumo.hoje.agendamentos, resumo.hoje.agendamentos_ontem, "em relação a ontem")} />
         <Cartao titulo="Faturamento do mês" valor={resumo.mes.receita} cor="#7A3044" icone={<Wallet size={16} />} detalhe={textoVariacao(resumo.mes.receita_valor, resumo.mes.receita_anterior_valor, "em relação ao mês anterior")} />
         <Cartao titulo="Clientes ativos" valor={resumo.mes.clientes_ativos} cor="#7A3044" icone={<Users size={16} />} detalhe="Total cadastrado" />
@@ -241,7 +241,7 @@ function PainelSemana({ resumo, slug, cadastro, demonstracao = false }: { resumo
         <Link href={`${base}/agenda`} className="rounded-full bg-[#4c1d78] px-4 py-2 text-sm text-white">Novo agendamento</Link>
       </div>
       <AvisosCadastro slug={slug} cadastro={cadastro} />
-      <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-5">
         <Cartao titulo="Atendimentos hoje" valor={resumo.hoje.agendamentos} cor="#4c1d78" icone={<CalendarDays size={16} />} detalhe={textoVariacao(resumo.hoje.agendamentos, resumo.hoje.agendamentos_ontem, "em relação a ontem")} />
         <Cartao titulo="Em atendimento" valor={resumo.hoje.em_andamento} cor="#7c3aed" icone={<Clock size={16} />} />
         <Cartao titulo="Concluídos" valor={resumo.hoje.concluidos} cor="#059669" icone={<Check size={16} />} />
@@ -400,7 +400,7 @@ function PainelGestao({ resumo, slug, cadastro }: { resumo: ResumoSalao; slug: s
         </Link>
       </div>
       <AvisosCadastro slug={slug} cadastro={cadastro} />
-      <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Cartao titulo="Receita do mês" valor={resumo.mes.receita} cor="#3d5244" icone={<Wallet size={16} />} detalhe={textoVariacao(resumo.mes.receita_valor, resumo.mes.receita_anterior_valor, "em relação ao mês anterior")} />
         <Cartao titulo="Novos clientes" valor={resumo.mes.novos_clientes} cor="#3d5244" icone={<Users size={16} />} detalhe={textoVariacao(resumo.mes.novos_clientes, resumo.mes.novos_anterior, "em relação ao mês anterior")} />
         <Cartao titulo="Ticket médio" valor={resumo.mes.ticket} cor="#3d5244" icone={<Scissors size={16} />} detalhe="Por recebimento no mês" />
@@ -541,8 +541,7 @@ function primeiro(nome: string) {
 
 function textoVariacao(atual: number | undefined, anterior: number | undefined, complemento: string) {
   if (atual == null || anterior == null) return null;
-  if (anterior <= 0 && atual <= 0) return null;
-  if (anterior <= 0) return `+${atual} ${complemento}`.trim();
+  if (anterior <= 0) return null;
   const pct = Math.round(((atual - anterior) / anterior) * 100);
   const sinal = pct > 0 ? "+" : "";
   return `${sinal}${pct}% ${complemento}`.trim();

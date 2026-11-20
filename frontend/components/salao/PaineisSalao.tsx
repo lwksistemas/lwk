@@ -1,9 +1,10 @@
 "use client";
 
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { CalendarPlus, Gift, Scissors, Users } from "lucide-react";
+import { CalendarDays, CalendarPlus, Check, Clock, Gift, Percent, Scissors, Search, Users, Wallet } from "lucide-react";
 import { STATUS_PADRAO, useStatusSalao } from "@/components/salao/cores-salao";
 import { SalaoAPI, type AgendamentoSalao, type BloqueioSalao, type JornadaDia, type PainelSalao, type ProfissionalSalao, type ResumoSalao } from "@/lib/salao-api";
 import { agendaDemonstracao, bloqueiosDemonstracao, jornadasDemonstracao, profissionaisDemonstracao, resumoDemonstracao } from "@/components/salao/demonstracao-salao";
@@ -41,7 +42,7 @@ export function PainelDoSalao({ painel, demonstracao = false }: { painel: Painel
     ? <PainelGestao resumo={resumo} slug={slug} cadastro={cadastro} />
     : painel === "semana"
       ? <PainelSemana resumo={resumo} slug={slug} cadastro={cadastro} demonstracao={demonstracao} />
-      : <PainelOperacao resumo={resumo} slug={slug} cadastro={cadastro} />;
+      : <PainelOperacao resumo={resumo} slug={slug} cadastro={cadastro} demonstracao={demonstracao} />;
   if (!demonstracao) return miolo;
   return (
     <div
@@ -71,20 +72,46 @@ function AvisosCadastro({ slug, cadastro }: { slug: string; cadastro: { profissi
   );
 }
 
-function PainelOperacao({ resumo, slug, cadastro }: { resumo: ResumoSalao; slug: string; cadastro: { profissionais: number; servicos: number } }) {
+function PainelOperacao({ resumo, slug, cadastro, demonstracao = false }: { resumo: ResumoSalao; slug: string; cadastro: { profissionais: number; servicos: number }; demonstracao?: boolean }) {
+  const [equipe, setEquipe] = useState<ProfissionalSalao[]>([]);
+  const [jornadas, setJornadas] = useState<Record<number, JornadaDia[]>>({});
+  const [agenda, setAgenda] = useState<AgendamentoSalao[]>([]);
   const maior = Math.max(...resumo.semana.map((dia) => dia.total), 1);
   const hoje = new Date();
   const rotuloHoje = hoje.toLocaleDateString("pt-BR", { weekday: "short", day: "numeric", month: "short" });
   const base = `/loja/${slug}/salao-cabeleireiro`;
+  const livres = useMemo(() => horariosLivres(equipe, jornadas, agenda, `${base}/agenda`), [equipe, jornadas, agenda, base]);
+
+  useEffect(() => {
+    if (demonstracao) {
+      setEquipe(profissionaisDemonstracao());
+      setJornadas(jornadasDemonstracao());
+      setAgenda(agendaDemonstracao());
+      return;
+    }
+    const inicio = new Date();
+    inicio.setHours(0, 0, 0, 0);
+    const fim = new Date(inicio);
+    fim.setDate(fim.getDate() + 1);
+    Promise.all([SalaoAPI.profissionais(), SalaoAPI.agenda(paraApi(inicio), paraApi(fim))])
+      .then(async ([lista, eventos]) => {
+        setEquipe(lista);
+        setAgenda(eventos);
+        const pares = await Promise.all(lista.map(async (pessoa) => [pessoa.id, await SalaoAPI.jornada(pessoa.id)] as const));
+        setJornadas(Object.fromEntries(pares));
+      })
+      .catch(() => undefined);
+  }, [demonstracao]);
+
   return (
     <div>
-      <Cabeca titulo="Dashboard" texto="Gestão do salão" acao={{ href: `${base}/agenda`, nome: "Novo agendamento", cor: "#7A3044" }} />
+      <Cabeca titulo="Dashboard" texto="Gestão do salão de beleza" acao={{ href: `${base}/agenda`, nome: "Novo agendamento", cor: "#7A3044" }} />
       <AvisosCadastro slug={slug} cadastro={cadastro} />
       <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Cartao titulo="Agendamentos de hoje" valor={resumo.hoje.agendamentos} cor="#7A3044" />
-        <Cartao titulo="Recebido hoje" valor={resumo.hoje.faturamento} cor="#a16207" />
-        <Cartao titulo="Clientes ativos" valor={resumo.mes.clientes_ativos} cor="#7A3044" />
-        <Cartao titulo="Taxa de ocupação" valor={`${resumo.hoje.ocupacao}%`} cor="#9a3412" />
+        <Cartao titulo="Agendamentos de hoje" valor={resumo.hoje.agendamentos} cor="#7A3044" icone={<CalendarDays size={16} />} detalhe={textoVariacao(resumo.hoje.agendamentos, resumo.hoje.agendamentos_ontem, "em relação a ontem")} />
+        <Cartao titulo="Faturamento do mês" valor={resumo.mes.receita} cor="#7A3044" icone={<Wallet size={16} />} detalhe={textoVariacao(resumo.mes.receita_valor, resumo.mes.receita_anterior_valor, "em relação ao mês anterior")} />
+        <Cartao titulo="Clientes ativos" valor={resumo.mes.clientes_ativos} cor="#7A3044" icone={<Users size={16} />} detalhe="Total cadastrado" />
+        <Cartao titulo="Taxa de ocupação" valor={`${resumo.hoje.ocupacao}%`} cor="#9a3412" icone={<Percent size={16} />} detalhe="Dos horários de hoje" />
       </div>
       <div className="grid gap-3 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,0.9fr)]">
         <section className="min-w-0 rounded-3xl border border-[#f0e4e6] bg-white p-4">
@@ -98,6 +125,7 @@ function PainelOperacao({ resumo, slug, cadastro }: { resumo: ResumoSalao; slug:
                 <span className="mb-1 text-xs text-[#8a6e74]">{dia.total}</span>
                 <i className="block w-full max-w-8 rounded-t-lg" style={{ height: `${Math.max(6, (dia.total / maior) * 130)}px`, background: diaDaSemana(dia.data) === hoje.getDay() ? "#7A3044" : "#e7b7c0" }} />
                 <span className="mt-2 truncate text-[11px] capitalize text-[#8a6e74] sm:text-xs">{diaCurto(dia.data)}</span>
+                <span className="truncate text-[10px] text-[#b08990]">{dataCurta(dia.data)}</span>
               </div>
             ))}
           </div>
@@ -110,29 +138,29 @@ function PainelOperacao({ resumo, slug, cadastro }: { resumo: ResumoSalao; slug:
           {resumo.agenda_hoje.length === 0 ? <Vazio texto="Nenhum agendamento hoje." href={`${base}/agenda`} acao="Novo agendamento" /> : null}
           <div className="max-h-72 overflow-auto">
             {resumo.agenda_hoje.map((item) => (
-              <Link key={item.id} href={`${base}/agenda?horario=${item.id}`} className="block border-t border-[#f6ecee] py-2 text-sm hover:bg-[#fbf6f4]">
-                <span className="flex items-start justify-between gap-2">
-                  <span className="min-w-0">
-                    <span className="font-medium">{item.hora}</span>
-                    <span className="ml-2">{item.cliente}</span>
-                    <small className="mt-0.5 block text-[#8a6e74]">{item.servico} · {item.profissional}</small>
-                  </span>
-                  <Selo status={item.status} texto={item.status_label} />
+              <Link key={item.id} href={`${base}/agenda?horario=${item.id}`} className="grid grid-cols-[3.2rem_auto_minmax(0,1fr)_auto] items-center gap-2 border-t border-[#f6ecee] py-2 text-sm hover:bg-[#fbf6f4]">
+                <span className="font-medium text-[#7A3044]">{item.hora}</span>
+                <Iniciais nome={item.cliente} cor="#7A3044" />
+                <span className="min-w-0">
+                  <span className="block truncate font-medium">{item.cliente}</span>
+                  <small className="block truncate text-[#8a6e74]">{item.servico}</small>
                 </span>
+                <Selo status={item.status} texto={item.status_label} />
               </Link>
             ))}
           </div>
         </section>
       </div>
       <section className="mt-3 rounded-3xl border border-[#f0e4e6] bg-white p-4">
-        <h2 className="mb-2 text-sm font-medium">Próximos horários</h2>
-        {proximos(resumo).length === 0 ? <p className="text-sm text-[#8a6e74]">Nenhum horário marcado daqui para frente.</p> : null}
-        {proximos(resumo).map((item) => (
-          <Link key={item.id} href={`${base}/agenda?horario=${item.id}`} className="grid grid-cols-1 gap-1 border-t border-[#f6ecee] py-2 text-sm hover:bg-[#fbf6f4] sm:grid-cols-[72px_1fr_auto] sm:items-center">
-            <span>{item.hora}</span>
-            <span>{item.servico}<small className="block text-[#8a6e74]">{item.cliente} · {item.profissional}</small></span>
-            <Selo status={item.status} texto={item.status_label} />
-          </Link>
+        <h2 className="mb-2 flex items-center gap-2 text-sm font-medium"><Clock size={16} /> Próximos horários</h2>
+        {livres.length === 0 ? <p className="text-sm text-[#8a6e74]">Nenhum horário livre no restante de hoje.</p> : null}
+        {livres.map((item) => (
+          <div key={`${item.profissionalId}-${item.hora}`} className="grid grid-cols-1 items-center gap-2 border-t border-[#f6ecee] py-2 text-sm sm:grid-cols-[72px_1fr_auto_auto]">
+            <span className="inline-flex items-center gap-1 text-[#7A3044]"><CalendarDays size={14} />{item.hora}</span>
+            <span>{item.rotulo}<small className="block text-[#8a6e74]">{item.profissional}</small></span>
+            <span className="text-emerald-600">Disponível</span>
+            <Link href={item.href} className="justify-self-start rounded-full bg-[#7A3044] px-3 py-1 text-xs text-white">Agendar</Link>
+          </div>
         ))}
       </section>
     </div>
@@ -146,17 +174,23 @@ function PainelSemana({ resumo, slug, cadastro, demonstracao = false }: { resumo
   const [bloqueios, setBloqueios] = useState<BloqueioSalao[]>([]);
   const [cursor, setCursor] = useState(() => inicioDaSemana(new Date()));
   const [filtro, setFiltro] = useState<number | "todos">("todos");
+  const [busca, setBusca] = useState("");
+  const [nomeUsuario, setNomeUsuario] = useState("");
+  const [visao, setVisao] = useState<"dia" | "semana">("semana");
   const semana = useMemo(() => {
     const inicio = inicioDaSemana(cursor);
     const fim = new Date(inicio);
     fim.setDate(fim.getDate() + 7);
     return { inicio, fim };
   }, [cursor]);
-  const dias = Array.from({ length: 7 }, (_, indice) => {
+  const diasSemana = Array.from({ length: 7 }, (_, indice) => {
     const data = new Date(semana.inicio);
     data.setDate(semana.inicio.getDate() + indice);
     return data;
-  }).filter((dia) => diaTemAtendimento(dia, filtro, profissionais, jornadas));
+  });
+  const hojeCalendario = new Date();
+  hojeCalendario.setHours(12, 0, 0, 0);
+  const dias = visao === "dia" ? [hojeCalendario] : diasSemana;
   const base = `/loja/${slug}/salao-cabeleireiro`;
 
   useEffect(() => {
@@ -167,6 +201,7 @@ function PainelSemana({ resumo, slug, cadastro, demonstracao = false }: { resumo
       setJornadas(jornadasDemonstracao());
       return;
     }
+    SalaoAPI.config().then((dados) => setNomeUsuario(dados.operador_nome || "")).catch(() => undefined);
     Promise.all([
       SalaoAPI.profissionais(),
       SalaoAPI.agenda(paraApi(semana.inicio), paraApi(semana.fim)),
@@ -180,31 +215,38 @@ function PainelSemana({ resumo, slug, cadastro, demonstracao = false }: { resumo
     }).catch(() => undefined);
   }, [demonstracao, semana]);
 
-  const visiveis = filtro === "todos" ? eventos : eventos.filter((item) => item.profissional === filtro);
+  const termo = busca.trim().toLocaleLowerCase();
+  const visiveis = (filtro === "todos" ? eventos : eventos.filter((item) => item.profissional === filtro))
+    .filter((item) => !termo || `${item.cliente_nome} ${item.servico_nome} ${item.profissional_nome}`.toLocaleLowerCase().includes(termo));
   const jornadaFiltro = filtro === "todos" ? Object.values(jornadas).flat() : jornadas[filtro];
   const faixa = faixaHoras(Array.isArray(jornadaFiltro) ? jornadaFiltro : undefined);
   const horas = Array.from({ length: Math.max(faixa.fim - faixa.inicio, 1) }, (_, indice) => faixa.inicio + indice);
   const emAtendimento = resumo.agenda_hoje.filter((item) => item.status === "IN_PROGRESS");
   const horaAgora = new Date().getHours();
   const saudacao = horaAgora < 12 ? "Bom dia" : horaAgora < 18 ? "Boa tarde" : "Boa noite";
-  const servicosVisiveis = [...new Map(visiveis.map((item) => [item.servico_nome, item.servico_nome])).values()];
+  const primeiroNome = nomeUsuario.trim().split(" ")[0];
+  const coresProfissional = new Map(profissionais.map((pessoa, indice) => [pessoa.id, COR_PROFISSIONAL[indice % COR_PROFISSIONAL.length]]));
 
   return (
     <div>
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <div className="min-w-0">
-          <h1 className="text-2xl font-semibold sm:text-3xl">{saudacao}</h1>
+          <h1 className="text-2xl font-semibold sm:text-3xl">{saudacao}{primeiroNome ? `, ${primeiroNome}!` : ""}</h1>
           <p className="text-sm text-[#6d6480]">Aqui está a agenda e a operação do seu salão hoje.</p>
         </div>
+        <label className="flex min-w-[14rem] flex-1 items-center gap-2 rounded-full border border-[#ece7f5] bg-white px-3 py-2 text-sm text-[#6d6480]">
+          <Search size={15} />
+          <input value={busca} onChange={(evento) => setBusca(evento.target.value)} placeholder="Buscar cliente, serviço, profissional..." className="w-full bg-transparent outline-none" />
+        </label>
         <Link href={`${base}/agenda`} className="rounded-full bg-[#4c1d78] px-4 py-2 text-sm text-white">Novo agendamento</Link>
       </div>
       <AvisosCadastro slug={slug} cadastro={cadastro} />
       <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
-        <Cartao titulo="Agendamentos hoje" valor={resumo.hoje.agendamentos} cor="#4c1d78" />
-        <Cartao titulo="Em atendimento" valor={resumo.hoje.em_andamento} cor="#7c3aed" />
-        <Cartao titulo="Concluídos" valor={resumo.hoje.concluidos} cor="#059669" />
-        <Cartao titulo="Taxa de ocupação" valor={`${resumo.hoje.ocupacao}%`} cor="#6d28d9" />
-        <Cartao titulo="Recebido hoje" valor={resumo.hoje.faturamento} cor="#4c1d78" />
+        <Cartao titulo="Atendimentos hoje" valor={resumo.hoje.agendamentos} cor="#4c1d78" icone={<CalendarDays size={16} />} detalhe={textoVariacao(resumo.hoje.agendamentos, resumo.hoje.agendamentos_ontem, "em relação a ontem")} />
+        <Cartao titulo="Em atendimento" valor={resumo.hoje.em_andamento} cor="#7c3aed" icone={<Clock size={16} />} />
+        <Cartao titulo="Concluídos" valor={resumo.hoje.concluidos} cor="#059669" icone={<Check size={16} />} />
+        <Cartao titulo="Taxa de ocupação" valor={`${resumo.hoje.ocupacao}%`} cor="#6d28d9" icone={<Percent size={16} />} detalhe="Dos horários de hoje" />
+        <Cartao titulo="Faturamento do dia" valor={resumo.hoje.faturamento} cor="#4c1d78" icone={<Wallet size={16} />} />
       </div>
       <div className="grid gap-3 xl:grid-cols-[minmax(0,1.5fr)_minmax(16rem,0.7fr)]">
         <section className="min-w-0 overflow-auto rounded-3xl border border-[#ece7f5] bg-white p-4">
@@ -212,7 +254,9 @@ function PainelSemana({ resumo, slug, cadastro, demonstracao = false }: { resumo
             <h2 className="text-sm font-medium">Agenda semanal</h2>
             <div className="flex flex-wrap items-center gap-2">
               <button type="button" className="rounded-full border px-3 py-1 text-xs" onClick={() => setCursor(new Date(semana.inicio.getFullYear(), semana.inicio.getMonth(), semana.inicio.getDate() - 7))}>Anterior</button>
-              <button type="button" className="rounded-full border px-3 py-1 text-xs" onClick={() => setCursor(new Date())}>Hoje</button>
+              <button type="button" className="rounded-full border px-3 py-1 text-xs" onClick={() => { setVisao("dia"); setCursor(inicioDaSemana(new Date())); }}>Dia</button>
+              <button type="button" className={`rounded-full border px-3 py-1 text-xs ${visao === "semana" ? "bg-[#4c1d78] text-white" : ""}`} onClick={() => setVisao("semana")}>Semana</button>
+              <Link href={`${base}/agenda`} className="rounded-full border px-3 py-1 text-xs">Mês</Link>
               <button type="button" className="rounded-full border px-3 py-1 text-xs" onClick={() => setCursor(new Date(semana.inicio.getFullYear(), semana.inicio.getMonth(), semana.inicio.getDate() + 7))}>Próxima</button>
               <span className="text-xs text-[#6d6480]">{(dias[0] || semana.inicio).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })} – {(dias[dias.length - 1] || new Date(semana.fim.getTime() - 86400000)).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}</span>
             </div>
@@ -236,6 +280,14 @@ function PainelSemana({ resumo, slug, cadastro, demonstracao = false }: { resumo
               <div key={hora} className="contents">
                 <span className="py-2 text-xs text-[#6d6480]">{String(hora).padStart(2, "0")}:00</span>
                 {dias.map((dia) => {
+                  const aberto = diaTemAtendimento(dia, filtro, profissionais, jornadas);
+                  if (!aberto) {
+                    return (
+                      <div key={`${hora}-${dia.toDateString()}`} className="grid min-h-12 place-items-center border-t border-[#f3eef8] bg-[#f7f5fb] text-[10px] text-[#b3a8c4]">
+                        {hora === horas[Math.floor(horas.length / 2)] ? "Fechado" : ""}
+                      </div>
+                    );
+                  }
                   const lista = visiveis.filter((item) => mesmoDia(new Date(item.inicio), dia) && new Date(item.inicio).getHours() === hora);
                   const vaga = vagaDaHora(filtro, profissionais, jornadas, bloqueios, dia, hora);
                   const ocupados = new Set(lista.map((item) => item.profissional));
@@ -249,9 +301,9 @@ function PainelSemana({ resumo, slug, cadastro, demonstracao = false }: { resumo
                   return (
                     <div key={`${hora}-${dia.toDateString()}`} className={`min-h-12 border-t border-[#f3eef8] p-0.5 ${fundo}`}>
                       {lista.map((item) => (
-                        <Link key={item.id} href={`${base}/agenda?horario=${item.id}&dia=${dataLocal(new Date(item.inicio))}`} className="mb-0.5 block truncate rounded px-1 py-0.5 text-[10px] leading-tight text-white" style={{ background: corServico(item.servico_nome) }} title={`${new Date(item.inicio).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })} · ${item.profissional_nome} · ${item.servico_nome} · ${item.cliente_nome}`}>
-                          <span className="block truncate">{item.profissional_nome}</span>
-                          <span className="block truncate opacity-80">{item.cliente_nome}</span>
+                        <Link key={item.id} href={`${base}/agenda?horario=${item.id}&dia=${dataLocal(new Date(item.inicio))}`} className="mb-0.5 block truncate rounded px-1 py-0.5 text-[10px] leading-tight" style={{ background: `${coresProfissional.get(item.profissional) || "#4c1d78"}22`, color: coresProfissional.get(item.profissional) || "#4c1d78" }} title={`${new Date(item.inicio).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })} · ${item.profissional_nome} · ${item.servico_nome} · ${item.cliente_nome}`}>
+                          <span className="block truncate font-medium">{primeiro(item.profissional_nome)} · {item.servico_nome}</span>
+                          <span className="block truncate">{item.cliente_nome}</span>
                         </Link>
                       ))}
                       {podeCriar ? <Link href={destino} className="block px-1 py-2 text-[10px] text-[#6d6480]" title="Novo agendamento">+</Link> : null}
@@ -263,10 +315,10 @@ function PainelSemana({ resumo, slug, cadastro, demonstracao = false }: { resumo
             ))}
           </div>
           <div className="mt-3 flex flex-wrap gap-3 text-xs text-[#6d6480]">
-            {servicosVisiveis.map((nome) => (
-              <span key={nome} className="inline-flex items-center gap-1">
-                <i className="h-2 w-2 rounded-full" style={{ background: corServico(nome) }} />
-                {nome}
+            {profissionais.map((pessoa) => (
+              <span key={pessoa.id} className="inline-flex items-center gap-1">
+                <i className="h-2 w-2 rounded-full" style={{ background: coresProfissional.get(pessoa.id) }} />
+                {primeiro(pessoa.nome)}
               </span>
             ))}
           </div>
@@ -295,7 +347,7 @@ function PainelSemana({ resumo, slug, cadastro, demonstracao = false }: { resumo
           </div>
           <div>
             <h2 className="text-sm font-medium">Ocupação do salão</h2>
-            <p className="text-xs text-[#6d6480]">{resumo.hoje.em_andamento} em atendimento · {resumo.hoje.concluidos} concluídos</p>
+            <p className="text-xs text-[#6d6480]">{resumo.hoje.em_andamento} em atendimento · {resumo.hoje.agendamentos - resumo.hoje.em_andamento - resumo.hoje.concluidos} agendados · {resumo.hoje.concluidos} concluídos</p>
           </div>
         </section>
         <section className="rounded-3xl border border-[#ece7f5] bg-white p-4">
@@ -315,7 +367,8 @@ function PainelSemana({ resumo, slug, cadastro, demonstracao = false }: { resumo
             {emAtendimento.map((item) => (
               <Link key={item.id} href={`${base}/agenda?horario=${item.id}`} className="text-center text-xs" title={`${item.cliente} · ${item.servico}`}>
                 <Iniciais nome={item.profissional} cor="#4c1d78" />
-                <span className="mt-1 block max-w-16 truncate">{item.profissional.split(" ")[0]}</span>
+                <span className="mt-1 block max-w-16 truncate">{primeiro(item.profissional)}</span>
+                <span className="block max-w-16 truncate text-[10px] text-[#6d6480]">{equipeEspecialidade(profissionais, item.profissional)}</span>
               </Link>
             ))}
           </div>
@@ -341,22 +394,23 @@ function PainelGestao({ resumo, slug, cadastro }: { resumo: ResumoSalao; slug: s
           <h1 className="text-2xl font-semibold sm:text-3xl">{saudacao}, equipe</h1>
           <p className="text-sm text-[#607064]">Recebido no caixa em {mes}. Atendimento concluído sem recebimento não entra aqui.</p>
         </div>
+        <span className="rounded-full border border-black/10 bg-white px-3 py-2 text-sm text-[#607064]">Este mês</span>
         <Link href={`${base}/clientes`} className="inline-flex items-center gap-1 rounded-full bg-[#3d5244] px-4 py-2 text-sm text-white">
           <Users size={15} /> Novo cliente
         </Link>
       </div>
       <AvisosCadastro slug={slug} cadastro={cadastro} />
       <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Cartao titulo="Recebido no mês" valor={resumo.mes.receita} cor="#3d5244" />
-        <Cartao titulo="Novos clientes" valor={resumo.mes.novos_clientes} cor="#3d5244" />
-        <Cartao titulo="Ticket médio" valor={resumo.mes.ticket} cor="#3d5244" />
-        <Cartao titulo="Clientes ativos" valor={resumo.mes.clientes_ativos} cor="#3d5244" />
+        <Cartao titulo="Receita do mês" valor={resumo.mes.receita} cor="#3d5244" icone={<Wallet size={16} />} detalhe={textoVariacao(resumo.mes.receita_valor, resumo.mes.receita_anterior_valor, "em relação ao mês anterior")} />
+        <Cartao titulo="Novos clientes" valor={resumo.mes.novos_clientes} cor="#3d5244" icone={<Users size={16} />} detalhe={textoVariacao(resumo.mes.novos_clientes, resumo.mes.novos_anterior, "em relação ao mês anterior")} />
+        <Cartao titulo="Ticket médio" valor={resumo.mes.ticket} cor="#3d5244" icone={<Scissors size={16} />} detalhe="Por recebimento no mês" />
+        <Cartao titulo="Clientes ativos" valor={resumo.mes.clientes_ativos} cor="#3d5244" icone={<Users size={16} />} detalhe="Total cadastrado" />
       </div>
       <div className="grid gap-3 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,0.8fr)]">
         <section className="min-w-0 rounded-3xl border border-[#e4eadf] bg-white p-4">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-sm font-medium">Recebimentos do período</h2>
-            <span className="text-sm text-[#3d5244]">{resumo.mes.receita}</span>
+            <h2 className="text-sm font-medium">Faturamento do período</h2>
+            <span className="text-sm text-[#3d5244]">{resumo.mes.receita} {textoVariacao(resumo.mes.receita_valor, resumo.mes.receita_anterior_valor, "")}</span>
           </div>
           {semReceita ? <Vazio texto="Nenhum recebimento no período." href={`${base}/agenda`} acao="Abrir a agenda" /> : null}
           <div className="mt-3 flex h-40 items-end gap-px overflow-x-auto">
@@ -373,16 +427,47 @@ function PainelGestao({ resumo, slug, cadastro }: { resumo: ResumoSalao; slug: s
         <section className="min-w-0 rounded-3xl border border-[#e4eadf] bg-white p-4">
           <h2 className="mb-2 flex items-center gap-2 text-sm font-medium"><Scissors size={16} /> Serviços mais vendidos</h2>
           {resumo.servicos.length === 0 ? <p className="text-sm text-[#607064]">Nenhum recebimento no período.</p> : null}
+          <div className="grid grid-cols-[28px_minmax(0,1fr)_72px_auto] gap-2 pb-1 text-[11px] uppercase tracking-wide text-[#8aaa78]">
+            <span />
+            <span>Serviço</span>
+            <span>Qtd.</span>
+            <span className="text-right">Receita</span>
+          </div>
           {resumo.servicos.map((item, indice) => (
-            <div key={item.nome} className="grid grid-cols-[20px_minmax(0,1fr)_auto] gap-2 border-t border-[#eef3ea] py-2 text-sm">
-              <span className="text-[#8aaa78]">{indice + 1}</span>
-              <span className="truncate">{item.nome}<small className="block text-[#607064]">{item.quantidade}</small></span>
-              <span>{item.receita}</span>
+            <div key={item.nome} className="grid grid-cols-[28px_minmax(0,1fr)_72px_auto] items-center gap-2 border-t border-[#eef3ea] py-2 text-sm">
+              <span className="grid h-5 w-5 place-items-center rounded-full bg-[#e7f0df] text-xs text-[#3d5244]">{indice + 1}</span>
+              <span className="truncate">{item.nome}</span>
+              <span className="text-[#607064]">{item.quantidade}</span>
+              <span className="text-right">{item.receita}</span>
             </div>
           ))}
         </section>
       </div>
-      <section className="mt-3 rounded-3xl border border-[#e4eadf] bg-white p-4">
+      <div className="mt-3 grid gap-3 lg:grid-cols-2">
+      <section className="rounded-3xl border border-[#e4eadf] bg-white p-4">
+        <h2 className="mb-2 flex items-center gap-2 text-sm font-medium"><Gift size={16} /> Aniversariantes do mês</h2>
+        {resumo.aniversariantes.length === 0 ? (
+          <Vazio texto="Nenhum aniversário com data cadastrada." href={`${base}/clientes`} acao="Cadastrar cliente" />
+        ) : null}
+        <div className="grid gap-2 md:grid-cols-2">
+          {resumo.aniversariantes.map((item) => {
+            const digitos = (item.telefone || "").replace(/\D/g, "");
+            const fone = digitos.startsWith("55") && digitos.length >= 12 ? digitos : `55${digitos}`;
+            const texto = `Parabéns, ${primeiro(item.nome)}! A equipe do salão deseja um ótimo dia.`;
+            return (
+              <div key={`${item.nome}-${item.dia}`} className="flex items-center justify-between gap-2 rounded-2xl bg-[#f7f4ee] px-3 py-2 text-sm">
+                <span className="inline-flex min-w-0 items-center gap-2"><Iniciais nome={item.nome} cor="#3d5244" /><span className="min-w-0"><span className="block truncate">{item.nome}</span><small className="text-[#607064]">{rotuloAniversario(item.dia)}</small></span></span>
+                {fone.length >= 10 ? (
+                  <a href={`https://wa.me/${fone}?text=${encodeURIComponent(texto)}`} target="_blank" rel="noreferrer" className="shrink-0 rounded-full border border-[#c5d4bc] px-3 py-1 text-xs text-[#3d5244]">Parabenizar</a>
+                ) : (
+                  <span className="shrink-0 text-xs text-[#607064]">Sem WhatsApp</span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </section>
+      <section className="rounded-3xl border border-[#e4eadf] bg-white p-4">
         <h2 className="mb-2 text-sm font-medium">Comissões do mês</h2>
         {(resumo.comissoes || []).length === 0 ? (
           <Vazio texto="A comissão entra quando o atendimento é recebido no caixa." href={`${base}/agenda`} acao="Abrir a agenda" />
@@ -394,20 +479,7 @@ function PainelGestao({ resumo, slug, cadastro }: { resumo: ResumoSalao; slug: s
           </div>
         ))}
       </section>
-      <section className="mt-3 rounded-3xl border border-[#e4eadf] bg-white p-4">
-        <h2 className="mb-2 flex items-center gap-2 text-sm font-medium"><Gift size={16} /> Aniversariantes do mês</h2>
-        {resumo.aniversariantes.length === 0 ? (
-          <Vazio texto="Nenhum aniversário com data cadastrada." href={`${base}/clientes`} acao="Cadastrar cliente" />
-        ) : null}
-        <div className="grid gap-2 md:grid-cols-2">
-          {resumo.aniversariantes.map((item) => (
-            <div key={`${item.nome}-${item.dia}`} className="flex items-center justify-between gap-2 rounded-2xl bg-[#f7f4ee] px-3 py-2 text-sm">
-              <span className="inline-flex min-w-0 items-center gap-2"><Iniciais nome={item.nome} cor="#3d5244" /><span className="truncate">{item.nome}</span></span>
-              <span className="shrink-0 text-[#607064]">{item.dia}</span>
-            </div>
-          ))}
-        </div>
-      </section>
+      </div>
     </div>
   );
 }
@@ -419,6 +491,7 @@ function Cabeca({ titulo, texto, acao }: { titulo: string; texto: string; acao: 
         <h1 className="text-2xl font-semibold sm:text-3xl">{titulo}</h1>
         <p className="text-sm text-[#8a6e74]">{texto}</p>
       </div>
+      <span className="rounded-full border border-black/10 bg-white px-3 py-2 text-sm text-[#6b5c60]">Este mês</span>
       <Link href={acao.href} className="inline-flex items-center gap-1 rounded-full px-4 py-2 text-sm text-white" style={{ background: acao.cor }}>
         <CalendarPlus size={15} /> {acao.nome}
       </Link>
@@ -426,11 +499,17 @@ function Cabeca({ titulo, texto, acao }: { titulo: string; texto: string; acao: 
   );
 }
 
-function Cartao({ titulo, valor, cor }: { titulo: string; valor: string | number; cor: string }) {
+function Cartao({ titulo, valor, cor, detalhe, icone }: { titulo: string; valor: string | number; cor: string; detalhe?: string | null; icone?: ReactNode }) {
+  const percentual = Boolean(detalhe?.includes("%"));
+  const queda = Boolean(detalhe?.startsWith("-"));
   return (
-    <article className="min-h-[92px] rounded-3xl border border-black/5 bg-white p-4">
-      <p className="text-sm text-[#8a6e74]">{titulo}</p>
-      <p className="mt-1 text-2xl font-semibold" style={{ color: cor }}>{valor}</p>
+    <article className="min-h-[104px] rounded-3xl border border-black/5 bg-white p-4">
+      <div className="mb-2 flex items-center gap-2">
+        <span className="grid h-8 w-8 place-items-center rounded-full text-white" style={{ background: cor }}>{icone}</span>
+        <p className="text-sm text-[#6b5c60]">{titulo}</p>
+      </div>
+      <p className="text-2xl font-semibold text-[#2b2426]">{valor}</p>
+      {detalhe ? <p className={`mt-1 text-xs font-medium ${percentual ? (queda ? "text-red-600" : "text-emerald-600") : "text-[#8a6e74]"}`}>{detalhe}</p> : null}
     </article>
   );
 }
@@ -454,10 +533,62 @@ function Selo({ status, texto }: { status: string; texto: string }) {
   return <span className="shrink-0 rounded-full px-2 py-0.5 text-[11px]" style={{ color: cor, background: `${cor}18` }}>{texto}</span>;
 }
 
-function proximos(resumo: ResumoSalao) {
+const COR_PROFISSIONAL = ["#7c3aed", "#059669", "#d97706", "#db2777", "#2563eb", "#0d9488"];
+
+function primeiro(nome: string) {
+  return nome.trim().split(" ")[0] || nome;
+}
+
+function textoVariacao(atual: number | undefined, anterior: number | undefined, complemento: string) {
+  if (atual == null || anterior == null) return null;
+  if (anterior <= 0 && atual <= 0) return null;
+  if (anterior <= 0) return `+${atual} ${complemento}`.trim();
+  const pct = Math.round(((atual - anterior) / anterior) * 100);
+  const sinal = pct > 0 ? "+" : "";
+  return `${sinal}${pct}% ${complemento}`.trim();
+}
+
+function dataCurta(iso: string) {
+  const data = new Date(`${iso}T12:00:00`);
+  return `${data.getDate()} ${data.toLocaleDateString("pt-BR", { month: "short" }).replace(".", "")}`;
+}
+
+function rotuloAniversario(dia: string) {
+  const [numero, mes] = dia.split("/");
+  const meses = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
+  const nome = meses[Number(mes) - 1] || mes;
+  const hoje = new Date();
+  const ehHoje = hoje.getDate() === Number(numero) && hoje.getMonth() + 1 === Number(mes);
+  return `${numero} de ${nome}${ehHoje ? " (hoje)" : ""}`;
+}
+
+function equipeEspecialidade(profissionais: ProfissionalSalao[], nome: string) {
+  return profissionais.find((pessoa) => pessoa.nome === nome)?.especialidade || "";
+}
+
+function horariosLivres(profissionais: ProfissionalSalao[], jornadas: Record<number, JornadaDia[]>, agenda: AgendamentoSalao[], baseAgenda: string) {
   const agora = new Date();
-  const marca = `${String(agora.getHours()).padStart(2, "0")}:${String(agora.getMinutes()).padStart(2, "0")}`;
-  return resumo.agenda_hoje.filter((item) => item.hora >= marca && item.status !== "CANCELLED" && item.status !== "COMPLETED" && item.status !== "NO_SHOW");
+  const vagas: { hora: string; rotulo: string; profissional: string; profissionalId: number; href: string }[] = [];
+  for (const pessoa of profissionais) {
+    if (vagas.length >= 3) break;
+    for (let hora = agora.getHours(); hora < 20; hora += 1) {
+      if (hora === agora.getHours() && agora.getMinutes() > 40) continue;
+      if (situacaoHora(jornadas[pessoa.id] || [], [], pessoa.id, agora, hora) !== "livre") continue;
+      const ocupado = agenda.some((item) => item.profissional === pessoa.id && mesmoDia(new Date(item.inicio), agora) && new Date(item.inicio).getHours() === hora);
+      if (ocupado) continue;
+      const momento = new Date(agora);
+      momento.setHours(hora, 0, 0, 0);
+      vagas.push({
+        hora: `${dois(hora)}:00`,
+        rotulo: pessoa.especialidade || "Horário livre",
+        profissional: pessoa.nome,
+        profissionalId: pessoa.id,
+        href: `${baseAgenda}?novo=${encodeURIComponent(paraApi(momento))}&profissional=${pessoa.id}`,
+      });
+      break;
+    }
+  }
+  return vagas.slice(0, 3);
 }
 
 function diaCurto(iso: string) {
@@ -515,12 +646,6 @@ function faixaHoras(dias?: JornadaDia[]) {
   const inicio = Math.min(...ativos.map((dia) => Math.floor(minutos(dia.hora_entrada) / 60)));
   const fim = Math.max(...ativos.map((dia) => Math.ceil(minutos(dia.hora_saida) / 60)));
   return { inicio: Math.max(0, inicio), fim: Math.min(24, Math.max(inicio + 1, fim)) };
-}
-
-function corServico(nome: string) {
-  let hash = 0;
-  for (const letra of nome) hash = (hash * 31 + letra.charCodeAt(0)) % 360;
-  return `hsl(${hash} 48% 36%)`;
 }
 
 function situacaoHora(

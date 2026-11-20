@@ -488,12 +488,28 @@ export type NfceConfigSalao = {
 export type ResumoSalao = {
   painel: PainelSalao;
   pode_trocar: boolean;
-  hoje: { agendamentos: number; em_andamento: number; concluidos: number; faturamento: string; ocupacao: number };
-  mes: { receita: string; novos_clientes: number; ticket: string; clientes_ativos: number };
+  hoje: {
+    agendamentos: number;
+    em_andamento: number;
+    concluidos: number;
+    faturamento: string;
+    faturamento_valor?: number;
+    ocupacao: number;
+    agendamentos_ontem?: number;
+  };
+  mes: {
+    receita: string;
+    receita_valor?: number;
+    receita_anterior_valor?: number;
+    novos_clientes: number;
+    novos_anterior?: number;
+    ticket: string;
+    clientes_ativos: number;
+  };
   semana: { data: string; rotulo: string; total: number }[];
   serie_mes: { dia: number; valor: number }[];
   servicos: { nome: string; quantidade: number; receita: string }[];
   comissoes?: { nome: string; quantidade: number; comissao: string }[];
-  aniversariantes: { nome: string; dia: string }[];
+  aniversariantes: { nome: string; dia: string; telefone?: string }[];
   agenda_hoje: { id: number; hora: string; cliente: string; servico: string; profissional: string; status: string; status_label: string }[];
 };

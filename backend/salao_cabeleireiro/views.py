@@ -2,7 +2,7 @@
 from datetime import datetime, time, timedelta
 from decimal import Decimal
 
-from django.db.models import Q
+from django.db.models import Q, Sum
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
@@ -648,6 +648,11 @@ class ResumoView(APIView):
             fim_mes = inicio_mes.replace(month=inicio_mes.month + 1)
         inicio_semana = inicio_dia - timedelta(days=inicio_dia.weekday())
         fim_semana = inicio_semana + timedelta(days=7)
+        ontem = inicio_dia - timedelta(days=1)
+        if inicio_mes.month == 1:
+            inicio_anterior = inicio_mes.replace(year=inicio_mes.year - 1, month=12)
+        else:
+            inicio_anterior = inicio_mes.replace(month=inicio_mes.month - 1)
 
         do_dia = list(
             Agendamento.objects.filter(inicio__gte=inicio_dia, inicio__lt=fim_dia)
@@ -670,6 +675,15 @@ class ResumoView(APIView):
         novos = Cliente.objects.filter(created_at__gte=inicio_mes, created_at__lt=fim_mes, is_active=True).count()
         ticket = (receita / len(recebidos_mes)) if recebidos_mes else Decimal("0")
         ativos = Cliente.objects.filter(is_active=True).count()
+        agendamentos_ontem = Agendamento.objects.filter(
+            inicio__gte=ontem, inicio__lt=inicio_dia,
+        ).exclude(status__in=["CANCELLED", "NO_SHOW"]).count()
+        receita_anterior = Recebimento.objects.filter(
+            is_active=True, created_at__gte=inicio_anterior, created_at__lt=inicio_mes,
+        ).aggregate(total=Sum("valor"))["total"] or Decimal("0")
+        novos_anterior = Cliente.objects.filter(
+            created_at__gte=inicio_anterior, created_at__lt=inicio_mes, is_active=True,
+        ).count()
         minutos = sum(item.duracao_minutos for item in do_dia if item.status in STATUS_OCUPA_HORARIO)
         profissionais = max(Profissional.objects.filter(is_active=True).count(), 1)
         ocupacao = min(100, round(minutos / (profissionais * 10 * 60) * 100))
@@ -710,6 +724,7 @@ class ResumoView(APIView):
                 aniversariantes.append({
                     "nome": cliente.nome,
                     "dia": cliente.data_nascimento.strftime("%d/%m"),
+                    "telefone": cliente.telefone or "",
                 })
         aniversariantes.sort(key=lambda item: item["dia"])
 
@@ -733,11 +748,16 @@ class ResumoView(APIView):
                 "em_andamento": len([item for item in do_dia if item.status == "IN_PROGRESS"]),
                 "concluidos": len([item for item in do_dia if item.status == "COMPLETED"]),
                 "faturamento": _dinheiro(faturamento_dia),
+                "faturamento_valor": float(faturamento_dia),
                 "ocupacao": ocupacao,
+                "agendamentos_ontem": agendamentos_ontem,
             },
             "mes": {
                 "receita": _dinheiro(receita),
+                "receita_valor": float(receita),
+                "receita_anterior_valor": float(receita_anterior),
                 "novos_clientes": novos,
+                "novos_anterior": novos_anterior,
                 "ticket": _dinheiro(ticket),
                 "clientes_ativos": ativos,
             },

@@ -445,7 +445,7 @@ class ProcedimentosHorarioTest(unittest.TestCase):
         self.assertEqual(nomes_do_agendamento(Horario()), "Barba")
         self.assertEqual(preco_do_agendamento(Horario()), Decimal("40.00"))
 
-    def test_dois_profissionais_comecam_juntos(self):
+    def test_cliente_so_passa_ao_proximo_profissional_quando_o_anterior_termina(self):
         from salao_cabeleireiro.procedimentos_service import montar_fatias
 
         class Pessoa:
@@ -462,14 +462,14 @@ class ProcedimentosHorarioTest(unittest.TestCase):
         daniele = Pessoa(3, "Daniele Souza")
         ricardo = Pessoa(1, "Ricardo Silva")
         fatias, duracao = montar_fatias(inicio, [
-            (Servico("Corte", 45), daniele),
+            (Servico("Corte", 90), daniele),
             (Servico("Manicure", 40), ricardo),
-            (Servico("Escova", 30), daniele),
         ])
-        self.assertEqual(duracao, 75)
+        self.assertEqual(duracao, 130)
         self.assertEqual(fatias[0]["inicio"], inicio)
-        self.assertEqual(fatias[1]["inicio"], inicio)
-        self.assertEqual(fatias[2]["inicio"], inicio + timedelta(minutes=45))
+        self.assertEqual(fatias[0]["fim"], inicio + timedelta(minutes=90))
+        self.assertEqual(fatias[1]["inicio"], inicio + timedelta(minutes=90))
+        self.assertEqual(fatias[1]["fim"], inicio + timedelta(minutes=130))
         self.assertEqual(fatias[1]["profissional"].nome, "Ricardo Silva")
 
 

@@ -27,12 +27,17 @@ function fatiasDe(item: AgendamentoSalao) {
   }];
 }
 
-function duracaoDaVisita(linhas: { profissional: string; minutos: number }[]) {
-  const porPessoa = new Map<string, number>();
-  for (const linha of linhas) {
-    porPessoa.set(linha.profissional, (porPessoa.get(linha.profissional) || 0) + linha.minutos);
-  }
-  return Math.max(0, ...porPessoa.values());
+function duracaoDaVisita(linhas: { minutos: number }[]) {
+  return linhas.reduce((acc, linha) => acc + linha.minutos, 0);
+}
+
+function faixaDaLinha(inicio: string, minutosAntes: number, minutos: number) {
+  const base = new Date(inicio);
+  if (Number.isNaN(base.getTime())) return "";
+  const comeco = new Date(base.getTime() + minutosAntes * 60_000);
+  const fim = new Date(comeco.getTime() + minutos * 60_000);
+  const hora = (data: Date) => `${dois(data.getHours())}:${dois(data.getMinutes())}`;
+  return `${hora(comeco)}–${hora(fim)}`;
 }
 
 const HORA_INICIO = 8;
@@ -931,7 +936,17 @@ export default function AgendaSalaoPage() {
           <div className="max-h-[90vh] w-full max-w-lg overflow-auto rounded-3xl bg-white p-5">
           <p id="agenda-detalhe" className="font-medium">{selecionado.cliente_nome}</p>
           <p className="text-sm text-[#8a6e74]">{selecionado.profissional_nome} · {selecionado.servico_nome}</p>
-          <p className="text-sm text-[#8a6e74]">{new Date(selecionado.inicio).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })} · {selecionado.status_label} · {selecionado.preco}</p>
+          <p className="text-sm text-[#8a6e74]">{new Date(selecionado.inicio).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })} · {selecionado.status_label} · {reais(Number(selecionado.preco || 0))}</p>
+          {fatiasDe(selecionado).length > 1 ? (
+            <ul className="mt-2 text-sm text-[#5c3d45]">
+              {fatiasDe(selecionado).map((fatia, indice) => {
+                const comeco = new Date(fatia.inicio);
+                const fim = new Date(fatia.fim);
+                const hora = (data: Date) => `${dois(data.getHours())}:${dois(data.getMinutes())}`;
+                return <li key={`${fatia.profissional}-${indice}`}>{hora(comeco)}–{hora(fim)} · {fatia.profissional_nome} · {fatia.servico_nome}</li>;
+              })}
+            </ul>
+          ) : null}
           {erro ? <p className="mt-2 text-sm text-red-700">{erro}</p> : null}
           <div className="mt-3 flex flex-wrap gap-2">
             {selecionado.status === "SCHEDULED" ? <button type="button" className="rounded-full bg-[#7a3044] px-3 py-1.5 text-sm text-white" onClick={() => mudarStatus("CONFIRMED")}>Confirmar</button> : null}
@@ -996,7 +1011,7 @@ function Formulario({
   const daCategoria = servicos.filter((item) => item.categoria === categoria && !escolhidos.some((linha) => linha.servico === item.id));
   const [procedimento, setProcedimento] = useState(String(daCategoria[0]?.id || ""));
   const escolhidosServico = escolhidos.map((linha) => ({ linha, servico: servicos.find((item) => item.id === linha.servico) })).filter((item): item is { linha: LinhaFormulario; servico: ServicoSalao } => Boolean(item.servico));
-  const minutos = duracaoDaVisita(escolhidosServico.map((item) => ({ profissional: item.linha.profissional, minutos: item.servico.duracao_minutos })));
+  const minutos = duracaoDaVisita(escolhidosServico.map((item) => ({ minutos: item.servico.duracao_minutos })));
   const total = escolhidosServico.reduce((acc, item) => acc + lerReais(item.servico.preco), 0);
   return (
     <div className="fixed inset-0 z-40 grid place-items-center bg-black/40 p-4" role="dialog" aria-modal="true" aria-labelledby="agenda-formulario" onClick={(evento) => { if (evento.target === evento.currentTarget) aoFechar(); }}>
@@ -1021,7 +1036,7 @@ function Formulario({
           {profissionais.map((item) => <option key={item.id} value={item.id}>{item.nome}</option>)}
         </select>
       </label>
-      <p className="text-xs text-[#8a6e74]">Para o mesmo horário com outra pessoa, troque o profissional e adicione o procedimento.</p>
+      <p className="text-xs text-[#8a6e74]">O cliente passa para o próximo profissional quando o procedimento anterior termina.</p>
       <div className="rounded-2xl border border-[#eadfe2] p-3">
         <p className="text-sm font-medium">Procedimentos</p>
         <div className="mt-2 grid gap-2 sm:grid-cols-2">
@@ -1040,11 +1055,11 @@ function Formulario({
         <button type="button" className="mt-2 text-sm text-[#7a3044]" onClick={() => { const id = Number(procedimento); if (id && form.profissional && !escolhidos.some((linha) => linha.servico === id)) aoEscolhidos([...escolhidos, { servico: id, profissional: form.profissional }]); setProcedimento(""); }}>Adicionar procedimento</button>
         <ul className="mt-2">
           {escolhidosServico.length === 0 ? <li className="text-sm text-[#8a6e74]">Nenhum procedimento neste horário.</li> : null}
-          {escolhidosServico.map(({ linha, servico }) => (
+          {escolhidosServico.map(({ linha, servico }, indice) => (
             <li key={servico.id} className="flex items-center justify-between gap-2 border-t border-[#f0e4e6] py-2 text-sm">
               <span>
                 <span className="block font-medium">{servico.nome}</span>
-                <span className="text-[#8a6e74]">{servico.categoria} · {servico.duracao_minutos} min</span>
+                <span className="text-[#8a6e74]">{faixaDaLinha(form.inicio, escolhidosServico.slice(0, indice).reduce((acc, item) => acc + item.servico.duracao_minutos, 0), servico.duracao_minutos)} · {servico.duracao_minutos} min</span>
               </span>
               <span className="flex items-center gap-2">
                 <select className="rounded-lg border px-2 py-1" value={linha.profissional} onChange={(evento) => aoEscolhidos(escolhidos.map((atual) => atual.servico === servico.id ? { ...atual, profissional: evento.target.value } : atual))} aria-label={`Profissional de ${servico.nome}`}>

@@ -1,4 +1,5 @@
 import re
+from datetime import timedelta
 from decimal import Decimal
 
 from rest_framework import serializers
@@ -241,6 +242,16 @@ class AgendamentoSerializer(serializers.ModelSerializer):
             "recebido",
             "fatias",
         ]
+
+    def to_representation(self, instance):
+        dados = super().to_representation(instance)
+        from .procedimentos_service import linhas_do_agendamento, montar_fatias
+
+        _fatias, duracao = montar_fatias(instance.inicio, linhas_do_agendamento(instance))
+        if duracao:
+            dados["duracao_minutos"] = duracao
+            dados["fim"] = (instance.inicio + timedelta(minutes=duracao)).isoformat()
+        return dados
 
     def get_servico_nome(self, obj):
         from .procedimentos_service import nomes_do_agendamento

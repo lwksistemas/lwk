@@ -81,23 +81,22 @@ def resolver_servicos(ids) -> list:
 
 
 def montar_fatias(inicio, linhas) -> tuple[list, int]:
-    """Cada profissional começa no horário do atendimento e segue com o próprio procedimento."""
-    cursores = {}
+    """O cliente faz um procedimento de cada vez. O próximo profissional começa quando o anterior termina."""
+    cursor = inicio
     fatias = []
     for servico, profissional in linhas:
-        chave = getattr(profissional, "id", id(profissional))
-        offset = cursores.get(chave, 0)
         minutos = int(getattr(servico, "duracao_minutos", 0) or 0)
-        comeco = inicio + timedelta(minutes=offset)
+        fim = cursor + timedelta(minutes=minutos)
         fatias.append({
             "servico": servico,
             "profissional": profissional,
-            "inicio": comeco,
-            "fim": comeco + timedelta(minutes=minutos),
+            "inicio": cursor,
+            "fim": fim,
             "duracao_minutos": minutos,
         })
-        cursores[chave] = offset + minutos
-    return fatias, max(cursores.values(), default=0)
+        cursor = fim
+    duracao = int((cursor - inicio).total_seconds() // 60) if fatias else 0
+    return fatias, duracao
 
 
 def mensagem_conflito(linhas, inicio, ignorar_id=None) -> str | None:

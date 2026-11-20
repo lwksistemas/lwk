@@ -1,5 +1,6 @@
 "use client";
 
+import { ArrowLeft, CalendarDays, Save } from "lucide-react";
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
@@ -11,7 +12,11 @@ import { STATUS_PADRAO, useStatusSalao } from "@/components/salao/cores-salao";
 import { ModalBloqueioHorario } from "@/components/clinica-beleza/modal-bloqueio-horario/ModalBloqueioHorario";
 import { diaTemAtendimento } from "@/components/salao/PaineisSalao";
 import { SalaoAgendaCalendario } from "@/components/salao/SalaoAgendaCalendario";
+import { formatCpf, formatTelefone } from "@/lib/format-br";
 import { SalaoAPI, type AgendamentoSalao, type BloqueioSalao, type ClienteSalao, type FormaPagamentoSalao, type JornadaDia, type LocalRecebimentoSalao, type ProfissionalSalao, type ServicoSalao } from "@/lib/salao-api";
+
+const COR_MODAL = "#db2777";
+const CAMPO_MODAL = "w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:ring-2 focus:ring-pink-200";
 
 type LinhaFormulario = { servico: number; profissional: string };
 
@@ -339,6 +344,7 @@ export default function AgendaSalaoPage() {
       cliente: "",
       cliente_nome: "",
       cliente_telefone: "",
+      cliente_cpf: "",
       observacoes: "",
     });
     setEscolhidos([]);
@@ -379,6 +385,7 @@ export default function AgendaSalaoPage() {
     else {
       corpo.cliente_nome = form.cliente_nome;
       corpo.cliente_telefone = form.cliente_telefone;
+      if (form.cliente_cpf) corpo.cliente_cpf = form.cliente_cpf;
     }
     try {
       const atualizado = selecionado
@@ -512,6 +519,7 @@ export default function AgendaSalaoPage() {
       cliente: String(selecionado.cliente),
       cliente_nome: "",
       cliente_telefone: "",
+      cliente_cpf: "",
       observacoes: selecionado.observacoes,
     });
     setEscolhidos(selecionado.procedimentos?.length
@@ -911,6 +919,7 @@ export default function AgendaSalaoPage() {
           aoEscolhidos={setEscolhidos}
           erro={erro}
           aoSalvar={salvar}
+          aoClienteCriado={(cliente) => setClientes((lista) => lista.some((item) => item.id === cliente.id) ? lista : [...lista, cliente].sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR")))}
           aoFechar={() => { setForm(null); setErro(""); if (!selecionado) setConfirmarExclusao(false); }}
         />
       ) : null}
@@ -988,8 +997,20 @@ export default function AgendaSalaoPage() {
   );
 }
 
+function horariosDoPasso(passo: number, atual: string) {
+  const minutos = Math.min(60, Math.max(5, passo || 15));
+  const lista: string[] = [];
+  for (let hora = 8; hora < 20; hora += 1) {
+    for (let minuto = 0; minuto < 60; minuto += minutos) {
+      lista.push(`${dois(hora)}:${dois(minuto)}`);
+    }
+  }
+  if (atual && !lista.includes(atual)) lista.push(atual);
+  return lista.sort();
+}
+
 function Formulario({
-  titulo, form, setForm, clientes, profissionais, servicos, escolhidos, aoEscolhidos, erro, aoSalvar, aoFechar,
+  titulo, form, setForm, clientes, profissionais, servicos, escolhidos, aoEscolhidos, erro, aoSalvar, aoClienteCriado, aoFechar,
 }: {
   titulo: string;
   form: Record<string, string>;
@@ -1001,85 +1022,192 @@ function Formulario({
   aoEscolhidos: (linhas: LinhaFormulario[]) => void;
   erro: string;
   aoSalvar: () => void;
+  aoClienteCriado: (cliente: ClienteSalao) => void;
   aoFechar: () => void;
 }) {
-  const categorias = [...new Set(servicos.map((item) => item.categoria))].sort((a, b) => a.localeCompare(b, "pt-BR"));
-  const [categoria, setCategoria] = useState(categorias[0] || "");
-  useEffect(() => {
-    if (!categoria && categorias[0]) setCategoria(categorias[0]);
-  }, [categoria, categorias]);
-  const daCategoria = servicos.filter((item) => item.categoria === categoria && !escolhidos.some((linha) => linha.servico === item.id));
-  const [procedimento, setProcedimento] = useState(String(daCategoria[0]?.id || ""));
+  const [categoria, setCategoria] = useState("");
+  const [salvandoCliente, setSalvandoCliente] = useState(false);
+  const [erroCliente, setErroCliente] = useState("");
+  const cliente = clientes.find((item) => String(item.id) === form.cliente);
+  const data = form.inicio.slice(0, 10);
+  const hora = form.inicio.slice(11, 16);
+  const passo = intervaloAgendaMinutos(profissionais.find((pessoa) => String(pessoa.id) === form.profissional));
+  const horarios = horariosDoPasso(passo, hora);
+  const livres = servicos.filter((item) => !escolhidos.some((linha) => linha.servico === item.id));
+  const categorias = [...new Set(livres.map((item) => item.categoria))].sort((a, b) => a.localeCompare(b, "pt-BR"));
+  const daCategoria = categoria ? livres.filter((item) => item.categoria === categoria) : livres;
   const escolhidosServico = escolhidos.map((linha) => ({ linha, servico: servicos.find((item) => item.id === linha.servico) })).filter((item): item is { linha: LinhaFormulario; servico: ServicoSalao } => Boolean(item.servico));
   const minutos = duracaoDaVisita(escolhidosServico.map((item) => ({ minutos: item.servico.duracao_minutos })));
   const total = escolhidosServico.reduce((acc, item) => acc + lerReais(item.servico.preco), 0);
+  const busca = form.cliente_nome.trim().toLocaleLowerCase("pt-BR");
+  const digitosBusca = busca.replace(/\D/g, "");
+  const encontrados = busca.length === 0 ? [] : clientes.filter((item) => item.nome.toLocaleLowerCase("pt-BR").includes(busca) || (digitosBusca.length >= 3 && (item.telefone || "").includes(digitosBusca))).slice(0, 6);
+
+  function definirQuando(novaData: string, novaHora: string) {
+    setForm({ ...form, inicio: `${novaData}T${novaHora}` });
+  }
+
+  function adicionar(id: number) {
+    if (!id || !form.profissional || escolhidos.some((linha) => linha.servico === id)) return;
+    aoEscolhidos([...escolhidos, { servico: id, profissional: form.profissional }]);
+  }
+
+  async function salvarCliente() {
+    setErroCliente("");
+    setSalvandoCliente(true);
+    try {
+      const criado = await SalaoAPI.salvarCliente({
+        nome: form.cliente_nome.trim(),
+        telefone: form.cliente_telefone,
+        cpf: form.cliente_cpf || "",
+      });
+      aoClienteCriado(criado);
+      setForm({ ...form, cliente: String(criado.id), cliente_nome: "", cliente_telefone: "", cliente_cpf: "" });
+    } catch (exc) {
+      setErroCliente(exc instanceof Error ? exc.message : "Não foi possível salvar o cliente.");
+    } finally {
+      setSalvandoCliente(false);
+    }
+  }
+
   return (
-    <div className="fixed inset-0 z-40 grid place-items-center bg-black/40 p-4" role="dialog" aria-modal="true" aria-labelledby="agenda-formulario" onClick={(evento) => { if (evento.target === evento.currentTarget) aoFechar(); }}>
-    <form className="max-h-[90vh] w-full max-w-lg overflow-auto rounded-3xl bg-white p-5" onSubmit={(evento) => { evento.preventDefault(); aoSalvar(); }}>
-      <h2 id="agenda-formulario" className="mb-3 text-lg font-semibold">{titulo}</h2>
-      {erro ? <p className="mb-2 text-sm text-red-700">{erro}</p> : null}
-      <div className="grid gap-2">
-      <label className="text-sm">Cliente já cadastrado
-        <select className="mt-1 w-full rounded-lg border px-2 py-2" value={form.cliente} onChange={(evento) => setForm({ ...form, cliente: evento.target.value })}>
-          <option value="">Novo cliente</option>
-          {clientes.map((item) => <option key={item.id} value={item.id}>{item.nome}</option>)}
-        </select>
-      </label>
-      {form.cliente ? null : (
-        <>
-          <label className="text-sm">Nome<input className="mt-1 w-full rounded-lg border px-2 py-2" value={form.cliente_nome} onChange={(evento) => setForm({ ...form, cliente_nome: evento.target.value })} /></label>
-          <label className="text-sm">Telefone<input className="mt-1 w-full rounded-lg border px-2 py-2" value={form.cliente_telefone} onChange={(evento) => setForm({ ...form, cliente_telefone: evento.target.value })} /></label>
-        </>
-      )}
-      <label className="text-sm">Profissional do próximo procedimento
-        <select className="mt-1 w-full rounded-lg border px-2 py-2" value={form.profissional} onChange={(evento) => setForm({ ...form, profissional: evento.target.value })}>
-          {profissionais.map((item) => <option key={item.id} value={item.id}>{item.nome}</option>)}
-        </select>
-      </label>
-      <p className="text-xs text-[#8a6e74]">O cliente passa para o próximo profissional quando o procedimento anterior termina.</p>
-      <div className="rounded-2xl border border-[#eadfe2] p-3">
-        <p className="text-sm font-medium">Procedimentos</p>
-        <div className="mt-2 grid gap-2 sm:grid-cols-2">
-          <label className="text-sm">Categoria
-            <select className="mt-1 w-full rounded-lg border px-2 py-2" value={categoria} onChange={(evento) => { setCategoria(evento.target.value); setProcedimento(""); }}>
-              {categorias.map((item) => <option key={item} value={item}>{item}</option>)}
-            </select>
-          </label>
-          <label className="text-sm">Procedimento
-            <select className="mt-1 w-full rounded-lg border px-2 py-2" value={procedimento} onChange={(evento) => setProcedimento(evento.target.value)}>
-              <option value="">Escolha</option>
-              {daCategoria.map((item) => <option key={item.id} value={item.id}>{item.nome} · {item.duracao_minutos} min · {reais(lerReais(item.preco))}</option>)}
-            </select>
-          </label>
-        </div>
-        <button type="button" className="mt-2 text-sm text-[#7a3044]" onClick={() => { const id = Number(procedimento); if (id && form.profissional && !escolhidos.some((linha) => linha.servico === id)) aoEscolhidos([...escolhidos, { servico: id, profissional: form.profissional }]); setProcedimento(""); }}>Adicionar procedimento</button>
-        <ul className="mt-2">
-          {escolhidosServico.length === 0 ? <li className="text-sm text-[#8a6e74]">Nenhum procedimento neste horário.</li> : null}
-          {escolhidosServico.map(({ linha, servico }, indice) => (
-            <li key={servico.id} className="flex items-center justify-between gap-2 border-t border-[#f0e4e6] py-2 text-sm">
-              <span>
-                <span className="block font-medium">{servico.nome}</span>
-                <span className="text-[#8a6e74]">{faixaDaLinha(form.inicio, escolhidosServico.slice(0, indice).reduce((acc, item) => acc + item.servico.duracao_minutos, 0), servico.duracao_minutos)} · {servico.duracao_minutos} min</span>
-              </span>
-              <span className="flex items-center gap-2">
-                <select className="rounded-lg border px-2 py-1" value={linha.profissional} onChange={(evento) => aoEscolhidos(escolhidos.map((atual) => atual.servico === servico.id ? { ...atual, profissional: evento.target.value } : atual))} aria-label={`Profissional de ${servico.nome}`}>
-                  {profissionais.map((pessoa) => <option key={pessoa.id} value={pessoa.id}>{pessoa.nome}</option>)}
-                </select>
-                <span>{reais(lerReais(servico.preco))}</span>
-                <button type="button" className="text-[#8a6e74]" onClick={() => aoEscolhidos(escolhidos.filter((atual) => atual.servico !== servico.id))}>Remover</button>
-              </span>
-            </li>
-          ))}
-        </ul>
-        <p className="mt-2 text-sm">Duração {minutos} min · Total {reais(total)}</p>
+    <div className="fixed inset-0 z-[110] flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4 md:p-6" role="dialog" aria-modal="true" aria-labelledby="agenda-formulario" onClick={(evento) => { if (evento.target === evento.currentTarget) aoFechar(); }}>
+      <div className="flex max-h-[100dvh] w-full flex-col overflow-hidden bg-white shadow-2xl sm:max-h-[92vh] sm:max-w-4xl sm:rounded-xl">
+        <header className="flex shrink-0 items-center gap-2 border-b border-gray-200 bg-white px-4 py-3 sm:gap-3 sm:px-5">
+          <button type="button" onClick={aoFechar} className="shrink-0 rounded-lg p-1.5 hover:bg-gray-100" aria-label="Voltar">
+            <ArrowLeft className="h-5 w-5 text-gray-600" />
+          </button>
+          <span className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg sm:flex" style={{ backgroundColor: "#fce7f3" }}>
+            <CalendarDays className="h-4 w-4" style={{ color: COR_MODAL }} />
+          </span>
+          <span className="min-w-0 flex-1">
+            <h1 id="agenda-formulario" className="truncate text-sm leading-tight font-semibold" style={{ color: COR_MODAL }}>{titulo}</h1>
+            <p className="hidden truncate text-xs leading-snug text-gray-500 sm:block">Agendar atendimento no salão</p>
+          </span>
+        </header>
+        <form className="flex min-h-0 flex-1 flex-col" onSubmit={(evento) => { evento.preventDefault(); aoSalvar(); }}>
+          <div className="min-h-0 flex-1 overflow-y-auto bg-[#f7f2f4] p-4 sm:p-5">
+            {erro ? <p className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{erro}</p> : null}
+            <div className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm sm:p-6">
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-2 md:gap-8">
+                <div className="space-y-4">
+                  <p className="border-b border-gray-100 pb-2 text-sm font-semibold text-gray-800">Cliente</p>
+                  <div>
+                    <p className="mb-1 text-xs font-medium text-gray-700">Cliente *</p>
+                    {cliente ? (
+                      <div className="flex items-center gap-3 rounded-lg border border-green-200 bg-green-50 px-3 py-2.5">
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-sm text-green-700">✓ <strong>{cliente.nome}</strong></span>
+                          {cliente.telefone ? <span className="text-xs text-green-700/80">{formatTelefone(cliente.telefone)}</span> : null}
+                        </span>
+                        <button type="button" className="shrink-0 text-xs text-gray-500 hover:text-red-500" onClick={() => setForm({ ...form, cliente: "" })}>Trocar</button>
+                      </div>
+                    ) : (
+                      <div className="space-y-2 rounded-lg border p-3" style={{ borderColor: "#f9a8d4", backgroundColor: "#fdf2f8" }}>
+                        <p className="text-xs" style={{ color: COR_MODAL }}>Cadastro rápido — ao digitar, busca no cadastro pelo nome ou telefone.</p>
+                        <input className={`${CAMPO_MODAL} min-h-11`} placeholder="Nome *" value={form.cliente_nome} onChange={(evento) => setForm({ ...form, cliente_nome: evento.target.value })} />
+                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                          <input className={`${CAMPO_MODAL} min-h-11`} placeholder="(00) 00000-0000" inputMode="tel" value={form.cliente_telefone} onChange={(evento) => setForm({ ...form, cliente_telefone: formatTelefone(evento.target.value) })} />
+                          <input className={`${CAMPO_MODAL} min-h-11`} placeholder="CPF" value={form.cliente_cpf || ""} onChange={(evento) => setForm({ ...form, cliente_cpf: formatCpf(evento.target.value) })} />
+                        </div>
+                        {encontrados.length > 0 ? (
+                          <div className="max-h-40 overflow-y-auto rounded-lg border border-gray-200 bg-white">
+                            <p className="border-b border-gray-100 bg-gray-50 px-3 py-1.5 text-[11px] font-medium text-gray-500">Clientes encontrados — selecione ou cadastre novo abaixo</p>
+                            {encontrados.map((item) => (
+                              <button key={item.id} type="button" className="flex w-full items-center border-b border-gray-100 px-3 py-2 text-left text-sm last:border-b-0 hover:bg-pink-50" onClick={() => setForm({ ...form, cliente: String(item.id), cliente_nome: "", cliente_telefone: "", cliente_cpf: "" })}>
+                                <span className="min-w-0">
+                                  <span className="block truncate font-medium">{item.nome}</span>
+                                  <span className="text-xs text-gray-500">{item.telefone ? formatTelefone(item.telefone) : ""}</span>
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+                        ) : null}
+                        {erroCliente ? <p className="text-xs text-red-600">{erroCliente}</p> : null}
+                        <button type="button" className="rounded-lg px-4 py-2 text-sm font-medium text-white disabled:opacity-50" style={{ backgroundColor: COR_MODAL }} disabled={salvandoCliente || form.cliente_nome.trim().length < 2} onClick={() => { void salvarCliente(); }}>
+                          {salvandoCliente ? "Salvando..." : "Salvar novo cliente"}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <p className="mb-2 text-sm font-medium text-gray-700">Procedimentos <span className="font-normal text-gray-400">(pode adicionar vários)</span></p>
+                    {categorias.length > 1 ? (
+                      <div className="mb-2 flex flex-wrap gap-1.5">
+                        <button type="button" className={`rounded-full border px-2.5 py-1 text-xs font-medium ${categoria ? "border-gray-300 text-gray-600" : "border-transparent text-white"}`} style={categoria ? undefined : { backgroundColor: COR_MODAL }} onClick={() => setCategoria("")}>Todas</button>
+                        {categorias.map((item) => (
+                          <button key={item} type="button" className={`rounded-full border px-2.5 py-1 text-xs font-medium ${categoria === item ? "border-transparent text-white" : "border-gray-300 text-gray-600"}`} style={categoria === item ? { backgroundColor: COR_MODAL } : undefined} onClick={() => setCategoria(item)}>{item} ({livres.filter((servico) => servico.categoria === item).length})</button>
+                        ))}
+                      </div>
+                    ) : null}
+                    <select className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm outline-none focus:border-pink-400 focus:ring-2 focus:ring-pink-200" value="" onChange={(evento) => adicionar(Number(evento.target.value))}>
+                      <option value="">{categoria ? `Adicionar de ${categoria}...` : "Adicionar procedimento por categoria..."}</option>
+                      {(categoria ? [{ nome: categoria, itens: daCategoria }] : categorias.map((nome) => ({ nome, itens: livres.filter((item) => item.categoria === nome) }))).map((grupo) => (
+                        <optgroup key={grupo.nome} label={grupo.nome}>
+                          {grupo.itens.map((item) => <option key={item.id} value={item.id}>{item.nome} · {item.duracao_minutos} min · {reais(lerReais(item.preco))}</option>)}
+                        </optgroup>
+                      ))}
+                    </select>
+                    {escolhidosServico.length === 0 ? <p className="mt-2 text-sm text-gray-500">Nenhum procedimento neste horário.</p> : (
+                      <ul className="mt-3 space-y-2">
+                        {escolhidosServico.map(({ linha, servico }, indice) => (
+                          <li key={servico.id} className="flex items-center justify-between gap-2 rounded-lg border border-gray-100 px-3 py-2 text-sm">
+                            <span className="min-w-0">
+                              <span className="block truncate font-medium">{servico.nome}</span>
+                              <span className="text-xs text-gray-500">{faixaDaLinha(form.inicio, escolhidosServico.slice(0, indice).reduce((acc, item) => acc + item.servico.duracao_minutos, 0), servico.duracao_minutos)} · {reais(lerReais(servico.preco))}</span>
+                            </span>
+                            <span className="flex shrink-0 items-center gap-2">
+                              <select className="rounded-lg border border-gray-200 px-2 py-1 text-xs" value={linha.profissional} aria-label={`Profissional de ${servico.nome}`} onChange={(evento) => aoEscolhidos(escolhidos.map((atual) => atual.servico === servico.id ? { ...atual, profissional: evento.target.value } : atual))}>
+                                {profissionais.map((pessoa) => <option key={pessoa.id} value={pessoa.id}>{pessoa.nome}</option>)}
+                              </select>
+                              <button type="button" className="text-xs text-gray-400 hover:text-red-500" onClick={() => aoEscolhidos(escolhidos.filter((atual) => atual.servico !== servico.id))}>Remover</button>
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  <p className="border-b border-gray-100 pb-2 text-sm font-semibold text-gray-800">Agendamento</p>
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <label className="text-xs font-medium text-gray-600">Data *
+                      <input type="date" className={`${CAMPO_MODAL} mt-1`} value={data} required onChange={(evento) => definirQuando(evento.target.value, hora || "09:00")} />
+                    </label>
+                    <label className="text-xs font-medium text-gray-600">Horário *
+                      <select className={`${CAMPO_MODAL} mt-1`} value={hora} required onChange={(evento) => definirQuando(data, evento.target.value)}>
+                        {horarios.map((item) => <option key={item} value={item}>{item}</option>)}
+                      </select>
+                    </label>
+                    <label className="text-xs font-medium text-gray-600 sm:col-span-2">Profissional do próximo procedimento *
+                      <select className={`${CAMPO_MODAL} mt-1`} value={form.profissional} required onChange={(evento) => setForm({ ...form, profissional: evento.target.value })}>
+                        {profissionais.map((item) => <option key={item.id} value={item.id}>{item.nome}</option>)}
+                      </select>
+                    </label>
+                  </div>
+                  <p className="text-xs text-gray-500">O cliente passa para o próximo profissional quando o procedimento anterior termina.</p>
+                  <div className="space-y-1 rounded-lg border border-gray-100 bg-gray-50 p-3 text-sm">
+                    <p className="flex justify-between text-gray-600"><span>Duração</span><span>{minutos} min</span></p>
+                    <p className="flex justify-between font-semibold text-gray-900"><span>Total estimado</span><span>{reais(total)}</span></p>
+                  </div>
+                  <label className="block text-xs font-medium text-gray-600">Observações
+                    <textarea className={`${CAMPO_MODAL} mt-1 min-h-20`} value={form.observacoes} onChange={(evento) => setForm({ ...form, observacoes: evento.target.value })} />
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+          <footer className="shrink-0 border-t border-gray-200 bg-white/80 px-4 py-3 sm:px-5 sm:py-4">
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end sm:gap-3">
+              <button type="button" className="rounded-lg border border-gray-300 px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-white sm:min-w-[120px]" onClick={aoFechar}>Cancelar</button>
+              <button type="submit" className="flex items-center justify-center gap-2 rounded-lg px-5 py-2.5 text-sm font-medium text-white sm:min-w-[180px]" style={{ backgroundColor: COR_MODAL }}>
+                <Save className="h-4 w-4" />
+                {titulo.startsWith("Editar") ? "Salvar" : "Agendar"}
+              </button>
+            </div>
+          </footer>
+        </form>
       </div>
-      <label className="text-sm">Data e hora<input type="datetime-local" step={intervaloAgendaMinutos(profissionais.find((pessoa) => String(pessoa.id) === form.profissional)) * 60} className="mt-1 w-full rounded-lg border px-2 py-2" value={form.inicio} onChange={(evento) => setForm({ ...form, inicio: evento.target.value })} /></label>
-      <div className="mt-2 flex items-center justify-end gap-2">
-        <button type="button" className="rounded-full border px-4 py-2 text-sm" onClick={aoFechar}>Cancelar</button>
-        <button type="submit" className="rounded-full bg-[#7a3044] px-4 py-2 text-sm text-white">Salvar</button>
-      </div>
-      </div>
-    </form>
     </div>
   );
 }

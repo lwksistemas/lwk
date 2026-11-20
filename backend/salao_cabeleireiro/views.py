@@ -310,6 +310,7 @@ def _cliente_do_payload(dados):
     serializer = ClienteSerializer(data={
         "nome": novo.get("nome") or dados.get("cliente_nome"),
         "telefone": novo.get("telefone") or dados.get("cliente_telefone"),
+        "cpf": novo.get("cpf") or dados.get("cliente_cpf") or "",
     })
     if not serializer.is_valid():
         raise ValueError("Informe o cliente, com nome e telefone.")

@@ -206,7 +206,7 @@ export function SalaoAgendaCalendario({
 
   return (
     <div
-      className="flex min-h-[70vh] flex-col overflow-hidden border bg-white"
+      className="flex h-full min-h-0 flex-1 flex-col overflow-hidden border bg-white"
       data-agenda-visual={visual}
       style={{ ...agendaVisualStyleVars(visual), borderColor: "var(--agenda-border, #e5e7eb)", borderRadius: "var(--agenda-radius, 16px)" } as CSSProperties}
     >

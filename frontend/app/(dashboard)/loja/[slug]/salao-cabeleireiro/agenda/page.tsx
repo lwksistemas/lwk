@@ -655,7 +655,7 @@ export default function AgendaSalaoPage() {
   });
 
   return (
-    <div className={`agenda-grade-root ${modo === "mes" ? "flex h-[calc(100dvh-2rem)] flex-col overflow-hidden sm:h-[calc(100dvh-2.5rem)]" : ""}`} data-agenda-visual={visual} style={tema}>
+    <div className="agenda-grade-root flex h-[calc(100dvh-2rem)] flex-col overflow-hidden sm:h-[calc(100dvh-2.5rem)]" data-agenda-visual={visual} style={tema}>
       <div className="mb-3 flex shrink-0 flex-wrap items-center justify-between gap-2">
         <div>
           <h1 className="text-3xl font-semibold">Agenda</h1>
@@ -687,6 +687,7 @@ export default function AgendaSalaoPage() {
       {erro ? <p className="mb-2 text-sm text-red-700">{erro}</p> : null}
       {aviso ? <p className="mb-2 text-sm text-[#1f8a4c]">{aviso}</p> : null}
       {profissionais.length === 0 ? <p className="mb-2 text-sm text-[#8a6e74]">Cadastre um profissional para abrir as colunas do dia.</p> : null}
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       {!lista && !(modo === "dia" && filtroProfissional === "todos") ? (
         <SalaoAgendaCalendario
           modo={modo}
@@ -707,7 +708,7 @@ export default function AgendaSalaoPage() {
           onRedimensionar={(id, minutos) => { void redimensionar(id, minutos); }}
         />
       ) : lista ? (
-        <ul className={`border bg-white p-3 ${filtroProfissional === "todos" ? "grid grid-cols-1 gap-2 sm:grid-cols-2" : "space-y-2"}`} style={{ ...tema, borderColor: "var(--agenda-border)", borderRadius: "var(--agenda-radius, 16px)" }}>
+        <ul className={`min-h-0 flex-1 overflow-auto border bg-white p-3 ${filtroProfissional === "todos" ? "grid grid-cols-1 gap-2 sm:grid-cols-2" : "space-y-2"}`} style={{ ...tema, borderColor: "var(--agenda-border)", borderRadius: "var(--agenda-radius, 16px)" }}>
           {linhasLista.length === 0 ? <li className={`text-sm text-[#8a6e74] ${filtroProfissional === "todos" ? "sm:col-span-2" : ""}`}>Nenhum horário neste período.</li> : null}
           {linhasLista.map((linha) => (
             <li key={linha.chave}>
@@ -730,7 +731,7 @@ export default function AgendaSalaoPage() {
           <Mes cursor={cursor} eventos={eventos.filter((item) => filtroProfissional === "todos" || fatiasDe(item).some((fatia) => String(fatia.profissional) === filtroProfissional))} bloqueios={bloqueios.filter((item) => bloqueioCabeNoFiltro(item, filtroProfissional))} statusCores={statusCores} aoAbrir={(data) => { setCursor(data); setModo("dia"); }} />
         </div>
       ) : (
-        <div className="overflow-auto border bg-white" style={{ ...tema, borderColor: "var(--agenda-border, #e5e7eb)", borderRadius: "var(--agenda-radius, 16px)" }}>
+        <div className="min-h-0 flex-1 overflow-auto border bg-white" style={{ ...tema, borderColor: "var(--agenda-border, #e5e7eb)", borderRadius: "var(--agenda-radius, 16px)" }}>
           <div className="grid" style={{ gridTemplateColumns: `64px repeat(${Math.max(colunas.length, 1)}, minmax(140px, 1fr))` }}>
             <div />
             {colunas.map((coluna) => {
@@ -871,9 +872,10 @@ export default function AgendaSalaoPage() {
           </div>
         </div>
       )}
-      <p className="mt-3 flex flex-wrap gap-3 text-[11px] text-[#5c3d45]">
+      </div>
+      <p className="mt-2 flex shrink-0 flex-wrap gap-x-3 gap-y-1 border-t border-[#f0e4e6] bg-white px-3 py-2 text-[11px] text-[#5c3d45]" role="list" aria-label="Legenda de status da agenda">
         {[["Aguardando", statusCores.SCHEDULED || STATUS_PADRAO.SCHEDULED], ["Confirmado", statusCores.CONFIRMED || STATUS_PADRAO.CONFIRMED], ["Em atendimento", statusCores.IN_PROGRESS || STATUS_PADRAO.IN_PROGRESS], ["Concluído", statusCores.COMPLETED || STATUS_PADRAO.COMPLETED], ["Cancelado", statusCores.CANCELLED || STATUS_PADRAO.CANCELLED], ["Faltou", statusCores.NO_SHOW || STATUS_PADRAO.NO_SHOW], ["Almoço", "#f8e7c8"], ["Folga", "#f6e4e8"]].map(([nome, cor]) => (
-          <span key={nome} className="inline-flex items-center gap-1"><span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: cor }} />{nome}</span>
+          <span key={nome} role="listitem" className="inline-flex items-center gap-1.5"><span className="inline-block h-2.5 w-2.5 shrink-0 rounded-full ring-1 ring-black/10" style={{ background: cor }} />{nome}</span>
         ))}
       </p>
       <ModalBloqueioHorario

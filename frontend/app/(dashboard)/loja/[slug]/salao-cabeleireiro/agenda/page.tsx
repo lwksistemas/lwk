@@ -12,6 +12,8 @@ import { STATUS_PADRAO, useStatusSalao } from "@/components/salao/cores-salao";
 import { ModalBloqueioHorario } from "@/components/clinica-beleza/modal-bloqueio-horario/ModalBloqueioHorario";
 import { diaTemAtendimento } from "@/components/salao/PaineisSalao";
 import { SalaoAgendaCalendario } from "@/components/salao/SalaoAgendaCalendario";
+import { SalaoAgendaLateral, useSalaoLateral } from "@/components/salao/SalaoAgendaLateral";
+import { AlcaLarguraColuna, useAgendaColunaLargura } from "@/app/(dashboard)/loja/[slug]/agenda/components/useAgendaColunaLargura";
 import { formatCpf, formatTelefone } from "@/lib/format-br";
 import { SalaoAPI, type AgendamentoSalao, type BloqueioSalao, type ClienteSalao, type FormaPagamentoSalao, type JornadaDia, type LocalRecebimentoSalao, type ProfissionalSalao, type ServicoSalao } from "@/lib/salao-api";
 
@@ -220,6 +222,8 @@ export default function AgendaSalaoPage() {
   const [bloqueios, setBloqueios] = useState<BloqueioSalao[]>([]);
   const [folgaAberta, setFolgaAberta] = useState(false);
   const [bloqueioAberto, setBloqueioAberto] = useState<BloqueioSalao | null>(null);
+  const { ocultar: ocultarLateral, setOcultar: setOcultarLateral } = useSalaoLateral();
+  const larguraColuna = useAgendaColunaLargura("salao-agenda-colunas", 220);
 
   const periodo = useMemo(() => {
     if (modo === "dia") {
@@ -668,6 +672,18 @@ export default function AgendaSalaoPage() {
   }, [bloqueios, eventos, filtroProfissional, periodo.fim, periodo.inicio]);
 
   const horas = Array.from({ length: HORA_FIM - HORA_INICIO }, (_, indice) => HORA_INICIO + indice);
+  const diaGrade = isoDoDia(cursor);
+  const itensDoDia = eventos.flatMap((item) => fatiasDe(item)
+    .filter((fatia) => diaLocalDeIso(fatia.inicio) === diaGrade)
+    .map((fatia, indice) => ({
+      chave: `${item.id}-${fatia.profissional}-${indice}`,
+      hora: `${dois(new Date(fatia.inicio).getHours())}:${dois(new Date(fatia.inicio).getMinutes())}`,
+      cliente: item.cliente_nome,
+      detalhe: `${fatia.servico_nome} · ${fatia.profissional_nome}`,
+      status: rotuloStatus(item.status),
+      cor: statusCores[item.status] || STATUS_PADRAO.SCHEDULED,
+      id: item.id,
+    })));
 
   const tema = agendaVisualStyleVars(visual);
   const botao = (ativo: boolean): CSSProperties => ({
@@ -699,6 +715,11 @@ export default function AgendaSalaoPage() {
           </select>
           <Link href={`/loja/${slug}/salao-cabeleireiro/configuracoes/aparencia`} className="border bg-white px-3 py-1.5 text-sm" style={botao(false)}>Configurar</Link>
           <button type="button" className="border bg-white px-3 py-1.5 text-sm" style={botao(false)} onClick={abrirFolga}>Bloquear</button>
+          {modo === "dia" && filtroProfissional === "todos" && !lista ? (
+            <button type="button" className="border bg-white px-3 py-1.5 text-sm" style={botao(false)} aria-pressed={ocultarLateral} onClick={() => setOcultarLateral((atual) => !atual)}>
+              {ocultarLateral ? "Mostrar" : "Ocultar"}
+            </button>
+          ) : null}
           {lista || (modo === "dia" && filtroProfissional === "todos") ? (["dia", "semana", "mes"] as const).map((item) => (
             <button key={item} type="button" className="border px-3 py-1.5 text-sm" style={botao(modo === item && !lista)} onClick={() => { setModo(item); setLista(false); }}>
               {item === "dia" ? "Dia" : item === "semana" ? "Semana" : "Mês"}
@@ -759,13 +780,15 @@ export default function AgendaSalaoPage() {
           <Mes cursor={cursor} eventos={eventos.filter((item) => filtroProfissional === "todos" || fatiasDe(item).some((fatia) => String(fatia.profissional) === filtroProfissional))} bloqueios={bloqueios.filter((item) => bloqueioCabeNoFiltro(item, filtroProfissional))} statusCores={statusCores} aoAbrir={(data) => { setCursor(data); setModo("dia"); }} />
         </div>
       ) : (
-        <div className="min-h-0 flex-1 overflow-auto border bg-white" style={{ ...tema, borderColor: "var(--agenda-border, #e5e7eb)", borderRadius: "var(--agenda-radius, 16px)" }}>
-          <div className="grid" style={{ gridTemplateColumns: `64px repeat(${Math.max(colunas.length, 1)}, minmax(140px, 1fr))` }}>
+        <div className="flex min-h-0 flex-1 overflow-hidden border bg-white" style={{ ...tema, borderColor: "var(--agenda-border, #e5e7eb)", borderRadius: "var(--agenda-radius, 16px)" }}>
+          <div className="min-h-0 min-w-0 flex-1 overflow-auto">
+          <div className="grid" style={{ gridTemplateColumns: `64px ${colunas.map((coluna) => ocultarLateral ? "minmax(160px, 1fr)" : larguraColuna.template(coluna.id)).join(" ") || "minmax(160px, 1fr)"}` }}>
             <div />
             {colunas.map((coluna) => {
               const folgas = folgasDoDia(coluna.data).filter((item) => modo !== "dia" || !item.profissional || String(item.profissional) === coluna.id);
               return (
-                <div key={coluna.id} className="border-b border-l px-2 py-2 text-center text-xs text-[#8a6e74]" style={coluna.data.toDateString() === new Date().toDateString() ? { background: "var(--agenda-today-bg)" } : undefined}>
+                <div key={coluna.id} data-agenda-col-wrap data-agenda-col-id={coluna.id} className="relative border-b border-l px-2 py-2 text-center text-xs text-[#8a6e74]" style={coluna.data.toDateString() === new Date().toDateString() ? { background: "var(--agenda-today-bg)" } : undefined}>
+                  <AlcaLarguraColuna onPointerDown={(evento) => larguraColuna.iniciar(coluna.id, evento)} />
                   <span className="block font-medium text-[#2a1c20]">{coluna.titulo}</span>
                   {coluna.detalhe ? <span className="block truncate text-[10px] uppercase">{coluna.detalhe}</span> : null}
                   {folgas.map((item) => (
@@ -782,6 +805,8 @@ export default function AgendaSalaoPage() {
             {colunas.map((coluna) => (
               <div
                 key={coluna.id}
+                data-agenda-col-wrap
+                data-agenda-col-id={coluna.id}
                 className="relative border-l"
                 style={{ height: horas.length * ALTURA_HORA }}
                 onDragOver={(evento) => evento.preventDefault()}
@@ -795,7 +820,7 @@ export default function AgendaSalaoPage() {
                   soltar(id, data, modo === "dia" ? coluna.id : undefined);
                 }}
                 onClick={(evento) => {
-                  if (ignorarClique.current) return;
+                  if (ignorarClique.current || larguraColuna.deveIgnorarClick()) return;
                   if ((evento.target as HTMLElement).dataset.evento) return;
                   const retangulo = evento.currentTarget.getBoundingClientRect();
                   const hora = HORA_INICIO + (evento.clientY - retangulo.top) / ALTURA_HORA;
@@ -805,6 +830,7 @@ export default function AgendaSalaoPage() {
                   abrirNovo(data, modo === "dia" ? coluna.id : "");
                 }}
               >
+                <AlcaLarguraColuna onPointerDown={(evento) => larguraColuna.iniciar(coluna.id, evento)} />
                 {horas.map((hora) => <div key={hora} style={{ height: ALTURA_HORA, borderColor: "var(--agenda-border)" }} className="border-b" />)}
                 {(() => {
                   const agora = new Date();
@@ -812,25 +838,23 @@ export default function AgendaSalaoPage() {
                   if (coluna.data.toDateString() !== agora.toDateString() || hora < HORA_INICIO || hora > HORA_FIM) return null;
                   return <div className="pointer-events-none absolute right-0 left-0 z-10 h-0.5" style={{ top: (hora - HORA_INICIO) * ALTURA_HORA, background: "var(--agenda-now, #ef4444)" }} />;
                 })()}
-                {almocoDaColuna(coluna).map((faixa, indice, faixas) => {
+                {almocoDaColuna(coluna).map((faixa) => {
                   const topo = (faixa.inicio - HORA_INICIO) * ALTURA_HORA;
-                  const sobrepostos = faixas.slice(0, indice).filter((outra) => outra.inicio < faixa.inicio + 0.4 && faixa.inicio < outra.fim).length;
                   const faixaHora = `${horaTexto(faixa.inicio)}–${horaTexto(faixa.fim)}`;
                   return (
                     <div
                       key={faixa.chave}
-                      className="pointer-events-none absolute right-0.5 left-0.5"
+                      className="pointer-events-none absolute right-1 left-1 overflow-hidden border-l-4 border-[#d97706] bg-[#f8e7c8] px-2 py-1"
                       style={{
                         top: Math.max(0, topo),
                         height: Math.max(28, (faixa.fim - faixa.inicio) * ALTURA_HORA),
-                        zIndex: 4,
+                        borderRadius: "var(--agenda-card-radius, 8px)",
+                        zIndex: 0,
                       }}
                       title={`Almoço · ${faixa.nome} · ${faixaHora}`}
                     >
-                      <span className="absolute inset-y-0 w-1.5 rounded-full bg-[#d97706]" style={{ left: sobrepostos * 8 }} />
-                      <span className="inline-block max-w-full truncate rounded bg-[#f8e7c8] px-1 py-0.5 text-[11px] font-medium text-[#7a4b12] shadow-sm" style={{ marginLeft: 8 + sobrepostos * 8, marginTop: sobrepostos * 18 }}>
-                        Almoço{modo === "semana" ? ` · ${faixa.nome}` : ""} {faixaHora}
-                      </span>
+                      <span className="block truncate text-[11px] font-semibold text-[#7a4b12]">Almoço</span>
+                      <span className="block truncate text-[11px] text-[#7a4b12]">{faixaHora}{modo === "semana" ? ` · ${faixa.nome}` : ""}</span>
                     </div>
                   );
                 })}
@@ -899,6 +923,19 @@ export default function AgendaSalaoPage() {
               </div>
             ))}
           </div>
+          </div>
+          {ocultarLateral ? null : (
+            <SalaoAgendaLateral
+              diaIso={diaGrade}
+              hojeIso={isoDoDia(new Date())}
+              itens={itensDoDia}
+              aoEscolherDia={(iso) => setCursor(deApi(`${iso}T12:00:00`))}
+              aoAbrir={(chave) => {
+                const item = eventos.find((agenda) => chave.startsWith(`${agenda.id}-`));
+                if (item) { setForm(null); setConfirmarExclusao(false); setSelecionado(item); }
+              }}
+            />
+          )}
         </div>
       )}
       </div>

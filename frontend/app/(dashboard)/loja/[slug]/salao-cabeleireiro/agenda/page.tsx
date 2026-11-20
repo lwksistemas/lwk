@@ -196,6 +196,9 @@ export default function AgendaSalaoPage() {
   const [filtroProfissional, setFiltroProfissional] = useState("todos");
   const [lista, setLista] = useState(false);
   const [cursor, setCursor] = useState(() => new Date());
+  const [faixa, setFaixa] = useState<{ inicio: number; fim: number } | null>(null);
+  const [salto, setSalto] = useState(0);
+  const pedidoAgenda = useRef(0);
   const [profissionais, setProfissionais] = useState<ProfissionalSalao[]>([]);
   const [servicos, setServicos] = useState<ServicoSalao[]>([]);
   const [clientes, setClientes] = useState<ClienteSalao[]>([]);
@@ -251,22 +254,30 @@ export default function AgendaSalaoPage() {
     }).filter((coluna) => diaTemAtendimento(coluna.data, "todos", profissionais, jornadas) || bloqueios.some((item) => item.data_inicio <= isoDoDia(coluna.data) && item.data_fim >= isoDoDia(coluna.data) && bloqueioCabeNoFiltro(item, filtroProfissional)));
   }, [periodo.inicio, modo, profissionais, jornadas, filtroProfissional, bloqueios]);
 
+  const usaCalendario = !lista && !(modo === "dia" && filtroProfissional === "todos");
+  const inicioBusca = usaCalendario && faixa ? faixa.inicio : periodo.inicio;
+  const fimBusca = usaCalendario && faixa ? faixa.fim : periodo.fim;
+
   const carregar = useCallback(() => {
+    const id = ++pedidoAgenda.current;
     setErro("");
     Promise.all([
       SalaoAPI.profissionais(),
       SalaoAPI.servicos(),
       SalaoAPI.clientes(),
-      SalaoAPI.agenda(paraApi(new Date(periodo.inicio)), paraApi(new Date(periodo.fim))),
+      SalaoAPI.agenda(paraApi(new Date(inicioBusca)), paraApi(new Date(fimBusca))),
     ])
       .then(([listaProfissionais, listaServicos, listaClientes, listaEventos]) => {
+        if (id !== pedidoAgenda.current) return;
         setProfissionais(listaProfissionais);
         setServicos(listaServicos);
         setClientes(listaClientes);
         setEventos(listaEventos);
       })
-      .catch((exc: Error) => setErro(exc.message));
-  }, [periodo.inicio, periodo.fim]);
+      .catch((exc: Error) => {
+        if (id === pedidoAgenda.current) setErro(exc.message);
+      });
+  }, [fimBusca, inicioBusca]);
 
   useEffect(() => { carregar(); }, [carregar]);
   useEffect(() => {
@@ -400,7 +411,10 @@ export default function AgendaSalaoPage() {
       const atualizado = selecionado
         ? await SalaoAPI.atualizarAgendamento(selecionado.id, corpo)
         : await SalaoAPI.criarAgendamento(corpo);
-      setAviso(atualizado.aviso || "");
+      const quando = deApi(form.inicio);
+      setCursor(quando);
+      setSalto((valor) => valor + 1);
+      setAviso(atualizado.aviso || "Agendamento salvo.");
       setForm(null);
       setSelecionado(null);
       carregar();
@@ -710,6 +724,11 @@ export default function AgendaSalaoPage() {
           statusCores={statusCores}
           onVista={(vista) => setModo(vista)}
           onCursor={setCursor}
+          onIntervalo={(inicio, fim) => {
+            const proxima = { inicio: inicio.getTime(), fim: fim.getTime() };
+            setFaixa((atual) => atual && atual.inicio === proxima.inicio && atual.fim === proxima.fim ? atual : proxima);
+          }}
+          salto={salto}
           onAbrir={(item) => { setForm(null); setConfirmarExclusao(false); setSelecionado(item); }}
           onAbrirBloqueio={setBloqueioAberto}
           onNovo={abrirNovo}

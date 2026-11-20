@@ -114,6 +114,8 @@ export function SalaoAgendaCalendario({
   statusCores,
   onVista,
   onCursor,
+  onIntervalo,
+  salto,
   onAbrir,
   onAbrirBloqueio,
   onNovo,
@@ -131,6 +133,8 @@ export function SalaoAgendaCalendario({
   statusCores: Record<string, string>;
   onVista: (vista: Vista) => void;
   onCursor: (data: Date) => void;
+  onIntervalo: (inicio: Date, fim: Date) => void;
+  salto: number;
   onAbrir: (item: AgendamentoSalao) => void;
   onAbrirBloqueio: (item: BloqueioSalao) => void;
   onNovo: (data: Date, profissionalId: string) => void;
@@ -259,10 +263,10 @@ export function SalaoAgendaCalendario({
         {plugins.length > 0 && locale ? (
           <Suspense fallback={<p className="py-10 text-center text-sm text-[#8a6e74]">Carregando calendário...</p>}>
             <FullCalendar
-              key={`${vistaInicial(modo)}-${isoDia(cursor)}-${filtroProfissional}-${visual}-${slot}`}
+              key={`${vistaInicial(modo)}-${filtroProfissional}-${visual}-${slot}-${salto}`}
               plugins={plugins as never[]}
               initialView={vistaInicial(modo)}
-              initialDate={isoDia(cursor)}
+              initialDate={cursor}
               locale={locale as never}
               editable
               eventStartEditable
@@ -311,9 +315,9 @@ export function SalaoAgendaCalendario({
                 const minutos = Math.max(5, Math.round((info.event.end.getTime() - info.event.start.getTime()) / 60000));
                 onRedimensionar(Number(props.dbId), minutos);
               }}
-              datesSet={(arg: { view: { type: string; calendar: { getDate: () => Date } } }) => {
-                const data = arg.view.calendar.getDate();
-                if (isoDia(data) !== isoDia(cursor)) onCursor(data);
+              datesSet={(arg: { start: Date; end: Date; view: { type: string } }) => {
+                onIntervalo(arg.start, arg.end);
+                if (isoDia(arg.start) !== isoDia(cursor)) onCursor(arg.start);
                 const vista = vistaDoCalendario(arg.view.type);
                 if (vista !== modo) onVista(vista);
               }}

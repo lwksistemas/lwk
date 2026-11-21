@@ -731,6 +731,64 @@ html.dark {
   overflow: auto;
 }
 
+/* Mês do salão: faixa colorida por status, dia no topo e “mais” abrindo o dia. */
+.salao-agenda-cal .fc-daygrid-day-frame {
+  min-height: 7.25rem;
+}
+
+.salao-agenda-cal .fc-daygrid-day-number {
+  font-size: 13px;
+  font-weight: 650;
+  padding: 6px 8px 2px;
+}
+
+.salao-agenda-cal .fc-col-header-cell-cushion {
+  padding: 8px 0;
+  font-size: 12px;
+  font-weight: 650;
+  text-transform: capitalize;
+}
+
+.salao-agenda-cal .fc-daygrid-event.agenda-fc-event {
+  margin: 1px 4px;
+  border-width: 0 !important;
+  border-radius: 6px;
+  box-shadow: none;
+}
+
+.salao-agenda-cal .fc-daygrid-event.agenda-fc-event .fc-event-main {
+  padding: 1px 6px;
+  color: inherit;
+}
+
+.salao-agenda-cal .agenda-fc-event-month .agenda-fc-event-time,
+.salao-agenda-cal .agenda-fc-event-month .agenda-fc-event-title {
+  color: inherit;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.salao-agenda-cal .fc-daygrid-event.agenda-fc-event-intervalo {
+  background: #f8e7c8 !important;
+  color: #7a4b12 !important;
+}
+
+.salao-agenda-cal .fc-daygrid-event.agenda-fc-event-intervalo .fc-event-main,
+.salao-agenda-cal .fc-daygrid-event.agenda-fc-event-folga .fc-event-main {
+  color: inherit;
+}
+
+.salao-agenda-cal .fc-daygrid-more-link {
+  display: inline-flex;
+  margin: 2px 4px 4px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: #f6eef0;
+  color: #7a3044;
+  font-size: 11px;
+  font-weight: 650;
+}
+
 /* Grade Dia/Semana — tokens do visual escolhido em Aparência */
 .agenda-grade-root {
   --agenda-accent: #ad46ff;

@@ -84,11 +84,16 @@ function conteudoEventoSalao(arg: {
       ? ""
       : [props.procedure_name, props.professional_name].filter(Boolean).join(" · ");
   if ((arg.view?.type || "").startsWith("dayGrid")) {
+    const primeiro = (nome: string) => nome.split(" ")[0] || nome;
+    const curto = almoco
+      ? `Almoço ${primeiro(String(props.professional_name || ""))}`.trim()
+      : folga
+        ? `Folga ${primeiro(String(props.professional_name || titulo))}`.trim()
+        : primeiro(titulo);
     return (
-      <div className={`agenda-fc-event-inner agenda-fc-event-month${folga ? " is-bloqueio" : ""}`}>
-        {hora ? <span className="agenda-fc-event-time">{hora} </span> : null}
-        <span className="agenda-fc-event-status">{status} </span>
-        <span className="agenda-fc-event-title">{titulo}</span>
+      <div className={`agenda-fc-event-inner agenda-fc-event-month${folga ? " is-bloqueio" : ""}`} title={`${hora ? `${hora} ` : ""}${status}${titulo ? ` · ${titulo}` : ""}`}>
+        {hora ? <span className="agenda-fc-event-time">{hora}</span> : null}
+        <span className="agenda-fc-event-title">{curto}</span>
       </div>
     );
   }
@@ -255,7 +260,7 @@ export function SalaoAgendaCalendario({
 
   return (
     <div
-      className="flex h-full min-h-0 flex-1 flex-col overflow-hidden border bg-white"
+      className="salao-agenda-cal flex h-full min-h-0 flex-1 flex-col overflow-hidden border bg-white"
       data-agenda-visual={visual}
       style={{ ...agendaVisualStyleVars(visual), borderColor: "var(--agenda-border, #e5e7eb)", borderRadius: "var(--agenda-radius, 16px)" } as CSSProperties}
     >
@@ -273,8 +278,24 @@ export function SalaoAgendaCalendario({
               eventDurationEditable
               selectable
               selectMirror
-              dayMaxEvents={3}
-              moreLinkClick="popover"
+              views={{
+                dayGridMonth: {
+                  eventDisplay: "block",
+                  dayMaxEventRows: 4,
+                },
+              }}
+              moreLinkClick={(info: { date: Date }) => {
+                onCursor(info.date);
+                onVista("dia");
+                return false;
+              }}
+              moreLinkContent={(info: { num: number }) => `+${info.num} horários`}
+              eventOrder={(esquerda: { start: Date | null; extendedProps?: Record<string, unknown> }, direita: { start: Date | null; extendedProps?: Record<string, unknown> }) => {
+                const peso = (item: { extendedProps?: Record<string, unknown> }) => item.extendedProps?.isIntervalo ? 2 : item.extendedProps?.isBloqueio ? 1 : 0;
+                const ordem = peso(esquerda) - peso(direita);
+                if (ordem) return ordem;
+                return (esquerda.start?.getTime() || 0) - (direita.start?.getTime() || 0);
+              }}
               eventMinHeight={28}
               eventShortHeight={28}
               eventMaxStack={3}

@@ -63,8 +63,13 @@ function rotuloDoEvento(props: Record<string, unknown>) {
   return ROTULO_STATUS[String(props.status || "")] || "Aguardando";
 }
 
+function horaDoMes(inicio: Date | null | undefined, reserva: string) {
+  if (!inicio) return reserva;
+  return `${String(inicio.getHours()).padStart(2, "0")}:${String(inicio.getMinutes()).padStart(2, "0")}`;
+}
+
 function conteudoEventoSalao(arg: {
-  event: { title: string; extendedProps?: Record<string, unknown> };
+  event: { title: string; start?: Date | null; extendedProps?: Record<string, unknown> };
   timeText: string;
   view: { type: string };
 }): ReactNode {
@@ -85,14 +90,15 @@ function conteudoEventoSalao(arg: {
       : [props.procedure_name, props.professional_name].filter(Boolean).join(" · ");
   if ((arg.view?.type || "").startsWith("dayGrid")) {
     const primeiro = (nome: string) => nome.split(" ")[0] || nome;
+    const horaMes = horaDoMes(arg.event.start, hora);
     const curto = almoco
       ? `Almoço ${primeiro(String(props.professional_name || ""))}`.trim()
       : folga
         ? `Folga ${primeiro(String(props.professional_name || titulo))}`.trim()
         : primeiro(titulo);
     return (
-      <div className={`agenda-fc-event-inner agenda-fc-event-month${folga ? " is-bloqueio" : ""}`} title={`${hora ? `${hora} ` : ""}${status}${titulo ? ` · ${titulo}` : ""}`}>
-        {hora ? <span className="agenda-fc-event-time">{hora}</span> : null}
+      <div className={`agenda-fc-event-inner agenda-fc-event-month${folga ? " is-bloqueio" : ""}${almoco ? " is-intervalo" : ""}`} title={`${horaMes} ${status}${titulo ? ` · ${titulo}` : ""}`}>
+        {horaMes ? <span className="agenda-fc-event-time">{horaMes}</span> : null}
         <span className="agenda-fc-event-title">{curto}</span>
       </div>
     );
@@ -240,13 +246,13 @@ export function SalaoAgendaCalendario({
         },
       };
     });
-    const almoco = pessoas.flatMap((pessoa) => intervalosEventsFromHorarios(
+    const almoco = modo === "mes" ? [] : pessoas.flatMap((pessoa) => intervalosEventsFromHorarios(
       String(pessoa.id),
       comoHorario(jornadas[pessoa.id] || []),
       pessoa.nome,
     )).map((evento) => ({ ...evento, extendedProps: { ...evento.extendedProps, peso: 2 } }));
     return [...cartoes, ...folgas, ...almoco];
-  }, [bloqueios, eventos, filtroProfissional, jornadas, pessoas, statusCores]);
+  }, [bloqueios, eventos, filtroProfissional, jornadas, modo, pessoas, statusCores]);
 
   const horas = horarios.filter((item) => item.ativo);
   const slotMinTime = horas.length

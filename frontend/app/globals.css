@@ -749,6 +749,27 @@ html.dark {
   text-transform: capitalize;
 }
 
+.salao-agenda-cal .agenda-fc-event-month {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  margin: 1px 2px;
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: var(--fc-event-color, #7a3044);
+  color: var(--fc-event-contrast-color, #fff);
+}
+
+.salao-agenda-cal [role="button"]:has(.agenda-fc-event-month) > div:first-child {
+  display: none;
+}
+
+.salao-agenda-cal .agenda-fc-event-month.is-intervalo {
+  background: #f8e7c8;
+  color: #7a4b12;
+}
+
 .salao-agenda-cal .fc-daygrid-event.agenda-fc-event {
   margin: 1px 4px;
   border-width: 0 !important;

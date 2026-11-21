@@ -201,6 +201,7 @@ export function SalaoAgendaCalendario({
             durationEditable: !item.recebido && !varios,
             startEditable: !item.recebido,
             extendedProps: {
+              peso: 0,
               dbId: item.id,
               offsetMinutos: offset,
               status: item.status,
@@ -230,6 +231,7 @@ export function SalaoAgendaCalendario({
         editable: false,
         className: "fc-event-bloqueio",
         extendedProps: {
+          peso: 1,
           isBloqueio: true,
           bloqueioId: item.id,
           motivo: item.titulo,
@@ -242,7 +244,7 @@ export function SalaoAgendaCalendario({
       String(pessoa.id),
       comoHorario(jornadas[pessoa.id] || []),
       pessoa.nome,
-    ));
+    )).map((evento) => ({ ...evento, extendedProps: { ...evento.extendedProps, peso: 2 } }));
     return [...cartoes, ...folgas, ...almoco];
   }, [bloqueios, eventos, filtroProfissional, jornadas, pessoas, statusCores]);
 
@@ -287,15 +289,10 @@ export function SalaoAgendaCalendario({
               moreLinkClick={(info: { date: Date }) => {
                 onCursor(info.date);
                 onVista("dia");
-                return false;
+                return "timeGridDay";
               }}
-              moreLinkContent={(info: { num: number }) => `+${info.num} horários`}
-              eventOrder={(esquerda: { start: Date | null; extendedProps?: Record<string, unknown> }, direita: { start: Date | null; extendedProps?: Record<string, unknown> }) => {
-                const peso = (item: { extendedProps?: Record<string, unknown> }) => item.extendedProps?.isIntervalo ? 2 : item.extendedProps?.isBloqueio ? 1 : 0;
-                const ordem = peso(esquerda) - peso(direita);
-                if (ordem) return ordem;
-                return (esquerda.start?.getTime() || 0) - (direita.start?.getTime() || 0);
-              }}
+              moreLinkText={(quantidade: number) => `+${quantidade} horários`}
+              eventOrder="peso,start"
               eventMinHeight={28}
               eventShortHeight={28}
               eventMaxStack={3}

@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Banknote, Check, CreditCard, Download, Layers, Mail, MessageCircle, Minus, Plus, Printer, QrCode, Scissors, ShoppingBag, Trash2, UserRound, X } from "lucide-react";
 import { SalaoAPI, type AgendamentoSalao, type CabecalhoRecibo, type ClienteSalao, type ComprovanteSalao, type FormaPagamentoSalao, type LocalRecebimentoSalao, type PapelSalao, type ProdutoSalao, type ResumoSessaoSalao, type SessaoCaixaSalao, type VendaSalao } from "@/lib/salao-api";
+import { AlcaLarguraColuna, useAgendaColunaLargura } from "@/app/(dashboard)/loja/[slug]/agenda/components/useAgendaColunaLargura";
 
 type ItemCarrinho = { produto: number; nome: string; preco: string; saldo: number; quantidade: number };
 type Linha = { id: string; forma: string; valor: string };
@@ -218,26 +219,10 @@ function baixarPdfRecibo(recibo: ReciboPronto, loja: string) {
   URL.revokeObjectURL(url);
 }
 
-const COLUNAS_CAIXA = ["Lista", "Recebimento", "Prévia"] as const;
-
 export default function CaixaPdvPage() {
   const slug = (useParams()?.slug as string) ?? "";
   const [aba, setAba] = useState<"atendimentos" | "produtos" | "comprovantes">("atendimentos");
-  const [colunas, setColunas] = useState([5, 8, 8]);
-  useEffect(() => {
-    const salvo = window.localStorage.getItem("salao-caixa-colunas");
-    if (!salvo) return;
-    const partes = salvo.split(",").map(Number);
-    if (partes.length === 3 && partes.every((numero) => numero >= 3 && numero <= 16)) setColunas(partes);
-  }, []);
-  function ajustarColuna(indice: number, delta: number) {
-    setColunas((atual) => {
-      const proximo = [...atual];
-      proximo[indice] = Math.min(16, Math.max(3, proximo[indice] + delta));
-      window.localStorage.setItem("salao-caixa-colunas", proximo.join(","));
-      return proximo;
-    });
-  }
+  const larguraColuna = useAgendaColunaLargura("salao-caixa-colunas-px", 320);
   const trava = useRef(false);
   const [cabecalho, setCabecalho] = useState<CabecalhoRecibo | null>(null);
   const [oficial, setOficial] = useState<ComprovanteSalao | null>(null);
@@ -696,20 +681,10 @@ export default function CaixaPdvPage() {
         </section>
       ) : null}
 
-      <div className="hidden flex-wrap items-center gap-2 text-sm xl:flex">
-        <span className="text-[#8a6e74]">Largura</span>
-        {COLUNAS_CAIXA.map((nome, indice) => (
-          <span key={nome} className="flex items-center gap-1 rounded-full bg-white px-2 py-1">
-            <span className="px-1">{nome}</span>
-            <button type="button" className="grid h-7 w-7 place-items-center rounded-full border border-[#eadfe2]" aria-label={`Diminuir ${nome}`} onClick={() => ajustarColuna(indice, -1)}><Minus className="h-3.5 w-3.5" /></button>
-            <button type="button" className="grid h-7 w-7 place-items-center rounded-full border border-[#eadfe2]" aria-label={`Aumentar ${nome}`} onClick={() => ajustarColuna(indice, 1)}><Plus className="h-3.5 w-3.5" /></button>
-          </span>
-        ))}
-      </div>
-
-      <style>{`@media (min-width: 1280px) { .caixa-colunas { grid-template-columns: ${colunas.map((peso) => `minmax(180px, ${peso}fr)`).join(" ")}; } }`}</style>
-      <div className="caixa-colunas grid items-start gap-4">
-        <section className="rounded-3xl bg-white p-4">
+      <style>{`@media (min-width: 1280px) { .caixa-colunas { grid-template-columns: ${["lista", "recebimento", "previa"].map((id) => larguraColuna.template(id)).join(" ")}; } }`}</style>
+      <div className="caixa-colunas grid items-start gap-4 xl:items-stretch">
+        <section data-agenda-col-wrap data-agenda-col-id="lista" className="relative rounded-3xl bg-white p-4">
+          <AlcaLarguraColuna className="hidden xl:block" onPointerDown={(evento) => larguraColuna.iniciar("lista", evento)} />
           <div className="grid grid-cols-2 gap-2">
             <button type="button" onClick={() => { setAba("atendimentos"); setBusca(""); }} className={`rounded-xl px-3 py-2 text-sm font-medium ${aba === "atendimentos" ? "bg-[#7a3044] text-white" : "bg-[#f6eef0] text-[#5c3d45]"}`}>
               Atendimentos ({fila.length})
@@ -779,7 +754,8 @@ export default function CaixaPdvPage() {
           </div>
         </section>
 
-        <section className="rounded-3xl bg-white p-4">
+        <section data-agenda-col-wrap data-agenda-col-id="recebimento" className="relative rounded-3xl bg-white p-4">
+          <AlcaLarguraColuna className="hidden xl:block" onPointerDown={(evento) => larguraColuna.iniciar("recebimento", evento)} />
           <div className="flex items-start justify-between gap-3 rounded-2xl border border-[#f0e4e7] p-3">
             <div className="flex gap-3">
               <span className="grid h-10 w-10 place-items-center rounded-full bg-[#f6eef0] text-[#7a3044]"><UserRound size={18} /></span>
@@ -887,7 +863,8 @@ export default function CaixaPdvPage() {
           </button>
         </section>
 
-        <section className="space-y-4">
+        <section data-agenda-col-wrap data-agenda-col-id="previa" className="relative space-y-4">
+          <AlcaLarguraColuna className="hidden xl:block" onPointerDown={(evento) => larguraColuna.iniciar("previa", evento)} />
           <div className="rounded-3xl bg-white p-4 text-sm">
             <div className="flex items-center justify-between gap-2">
               <p className="font-medium">Prévia do comprovante</p>

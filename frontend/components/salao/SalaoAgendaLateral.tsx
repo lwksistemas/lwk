@@ -33,18 +33,20 @@ export function SalaoAgendaLateral({
   itens,
   aoEscolherDia,
   aoAbrir,
+  expandir = false,
 }: {
   diaIso: string;
   hojeIso: string;
   itens: { chave: string; hora: string; cliente: string; detalhe: string; status: string; cor: string }[];
   aoEscolherDia: (iso: string) => void;
   aoAbrir: (chave: string) => void;
+  expandir?: boolean;
 }) {
   const celulas = useMemo(() => celulasCalendarioMes(diaIso), [diaIso]);
   const titulo = tituloMesCalendario(diaIso);
 
   return (
-    <aside className="hidden min-h-0 w-64 shrink-0 flex-col border-l border-[#f0e4e6] bg-white lg:flex">
+    <aside className={`hidden min-h-0 flex-col border-l border-[#f0e4e6] bg-white lg:flex ${expandir ? "min-w-64 flex-1" : "w-64 shrink-0"}`}>
       <div className="shrink-0 p-4 pb-3">
         <p className="mb-3 text-sm font-semibold text-[#2a1c20] capitalize">{titulo}</p>
         <div className="grid grid-cols-7 gap-y-1 text-center">

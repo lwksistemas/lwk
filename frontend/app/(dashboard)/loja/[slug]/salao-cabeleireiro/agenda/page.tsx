@@ -783,8 +783,8 @@ export default function AgendaSalaoPage() {
         </div>
       ) : (
         <div className="flex min-h-0 flex-1 overflow-hidden border bg-white" style={{ ...tema, borderColor: "var(--agenda-border, #e5e7eb)", borderRadius: "var(--agenda-radius, 16px)" }}>
-          <div className="min-h-0 min-w-0 flex-1 overflow-auto">
-          <div className="grid" style={{ gridTemplateColumns: `64px ${colunas.map((coluna) => ocultarLateral ? "minmax(160px, 1fr)" : larguraColuna.template(coluna.id)).join(" ") || "minmax(160px, 1fr)"}` }}>
+          <div className={`min-h-0 min-w-0 overflow-auto ${!ocultarLateral && larguraColuna.hasCustomWidths && colunas.length > 1 ? "lg:max-w-[calc(100%-16rem)] lg:flex-none" : "flex-1"}`}>
+          <div className={`grid ${ocultarLateral || !larguraColuna.hasCustomWidths ? "min-w-full" : "w-max min-w-full"}`} style={{ gridTemplateColumns: `64px ${colunas.map((coluna) => ocultarLateral ? "minmax(160px, 1fr)" : larguraColuna.template(coluna.id)).join(" ") || "minmax(160px, 1fr)"}` }}>
             <div />
             {colunas.map((coluna) => {
               const folgas = folgasDoDia(coluna.data).filter((item) => modo !== "dia" || !item.profissional || String(item.profissional) === coluna.id);
@@ -928,6 +928,7 @@ export default function AgendaSalaoPage() {
           </div>
           {ocultarLateral ? null : (
             <SalaoAgendaLateral
+              expandir={larguraColuna.hasCustomWidths && colunas.length > 1}
               diaIso={diaGrade}
               hojeIso={isoDoDia(new Date())}
               itens={itensDoDia}

@@ -13,6 +13,7 @@ export function useAgendaColunaLargura(storageKey: string, defaultWidth: number)
   const [arrastando, setArrastando] = useState(false);
   const dragRef = useRef<{ id: string; startX: number; startW: number } | null>(null);
   const ignorarClickRef = useRef(false);
+  const limparArrasto = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     try {
@@ -48,6 +49,7 @@ export function useAgendaColunaLargura(storageKey: string, defaultWidth: number)
       if (e.button !== 0) return;
       e.preventDefault();
       e.stopPropagation();
+      limparArrasto.current?.();
       const wrap = (e.currentTarget as HTMLElement).closest("[data-agenda-col-wrap]");
       const grid = wrap?.parentElement instanceof HTMLElement ? wrap.parentElement : null;
       const measured =
@@ -59,41 +61,42 @@ export function useAgendaColunaLargura(storageKey: string, defaultWidth: number)
         [id]: clampLarguraColuna(measured),
       }));
       setArrastando(true);
+      const cursorAnterior = document.body.style.cursor;
+      const selecaoAnterior = document.body.style.userSelect;
+      document.body.style.cursor = "col-resize";
+      document.body.style.userSelect = "none";
+      const aoMover = (evento: PointerEvent) => {
+        const arrasto = dragRef.current;
+        if (!arrasto) return;
+        const proxima = clampLarguraColuna(arrasto.startW + (evento.clientX - arrasto.startX));
+        setWidths((prev) => (prev[arrasto.id] === proxima ? prev : { ...prev, [arrasto.id]: proxima }));
+      };
+      const aoSoltar = () => {
+        limparArrasto.current?.();
+        dragRef.current = null;
+        setArrastando(false);
+        ignorarClickRef.current = true;
+        window.setTimeout(() => {
+          ignorarClickRef.current = false;
+        }, 200);
+      };
+      const limpar = () => {
+        document.body.style.cursor = cursorAnterior;
+        document.body.style.userSelect = selecaoAnterior;
+        window.removeEventListener("pointermove", aoMover);
+        window.removeEventListener("pointerup", aoSoltar);
+        window.removeEventListener("pointercancel", aoSoltar);
+        limparArrasto.current = null;
+      };
+      limparArrasto.current = limpar;
+      window.addEventListener("pointermove", aoMover);
+      window.addEventListener("pointerup", aoSoltar);
+      window.addEventListener("pointercancel", aoSoltar);
     },
     [defaultWidth],
   );
 
-  useEffect(() => {
-    if (!arrastando) return;
-    const prevCursor = document.body.style.cursor;
-    const prevSelect = document.body.style.userSelect;
-    document.body.style.cursor = "col-resize";
-    document.body.style.userSelect = "none";
-    const onMove = (e: PointerEvent) => {
-      const drag = dragRef.current;
-      if (!drag) return;
-      const next = clampLarguraColuna(drag.startW + (e.clientX - drag.startX));
-      setWidths((prev) => (prev[drag.id] === next ? prev : { ...prev, [drag.id]: next }));
-    };
-    const onUp = () => {
-      dragRef.current = null;
-      setArrastando(false);
-      ignorarClickRef.current = true;
-      window.setTimeout(() => {
-        ignorarClickRef.current = false;
-      }, 200);
-    };
-    window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", onUp);
-    window.addEventListener("pointercancel", onUp);
-    return () => {
-      document.body.style.cursor = prevCursor;
-      document.body.style.userSelect = prevSelect;
-      window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerup", onUp);
-      window.removeEventListener("pointercancel", onUp);
-    };
-  }, [arrastando]);
+  useEffect(() => () => limparArrasto.current?.(), []);
 
   const deveIgnorarClick = useCallback(
     () => ignorarClickRef.current || Boolean(dragRef.current),
@@ -105,8 +108,10 @@ export function useAgendaColunaLargura(storageKey: string, defaultWidth: number)
 
 export function AlcaLarguraColuna({
   onPointerDown,
+  className = "",
 }: {
   onPointerDown: (e: React.PointerEvent) => void;
+  className?: string;
 }) {
   return (
     <span
@@ -114,7 +119,7 @@ export function AlcaLarguraColuna({
       aria-orientation="vertical"
       aria-label="Redimensionar coluna"
       title="Arraste para mudar a largura"
-      className="absolute top-0 right-0 z-30 w-3 h-full cursor-col-resize hover:bg-violet-400/40 active:bg-violet-500/50"
+      className={`absolute top-0 right-0 z-30 h-full w-3 cursor-col-resize hover:bg-violet-400/40 active:bg-violet-500/50 ${className}`}
       onPointerDown={onPointerDown}
     />
   );

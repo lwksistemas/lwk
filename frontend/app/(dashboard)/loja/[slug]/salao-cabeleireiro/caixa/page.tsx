@@ -661,25 +661,15 @@ export default function CaixaPdvPage() {
               <span className="rounded-full bg-[#e7f6ee] px-3 py-1 font-medium text-[#1f8a4c]">{abertura ? "Caixa aberto" : "Caixa sem sessão"}</span>
               <span className="rounded-full bg-white px-3 py-1 text-[#5c3d45]">Abertura: {abertura || "na primeira venda"}</span>
             </>
-          ) : null}
+          ) : (
+            <button type="button" className="rounded-xl bg-[#7a3044] px-3 py-2 text-white" onClick={() => { setAcaoCaixa("menu"); setPainelCaixa(true); }}>Gerenciar caixa</button>
+          )}
           <span className="ml-1 flex items-center gap-2 rounded-full bg-white px-2 py-1 pr-3">
             <span className="grid h-8 w-8 place-items-center rounded-full bg-[#7a3044] text-xs font-semibold text-white">{iniciais(operador || "Caixa")}</span>
             <span className="leading-tight"><span className="block text-[10px] text-[#8a6e74]">Operador</span><span className="font-medium">{operador || "Caixa"}</span></span>
           </span>
         </div>
       </header>
-
-      {sessao?.exige_abertura ? (
-        <section className="flex flex-wrap items-center justify-between gap-3 rounded-3xl bg-white px-4 py-3 text-sm">
-          <div className="flex flex-wrap gap-x-4 gap-y-1 text-[#5c3d45]">
-            <span>Situação: <strong className="text-[#1f8a4c]">{sessao.aberta ? "Caixa aberto" : "Caixa fechado"}</strong></span>
-            <span>Saldo inicial {sessao.aberta ? reais(lerReais(sessao.aberta.saldo_inicial)) : "—"}</span>
-            <span>Dinheiro recebido {sessao.aberta ? reais(lerReais(sessao.aberta.dinheiro)) : "—"}</span>
-            <span>Esperado na gaveta {sessao.aberta ? reais(lerReais(sessao.aberta.esperado)) : "—"}</span>
-          </div>
-          <button type="button" className="rounded-xl bg-[#7a3044] px-3 py-2 text-white" onClick={() => { setAcaoCaixa("menu"); setPainelCaixa(true); }}>Gerenciar caixa</button>
-        </section>
-      ) : null}
 
       <style>{`@media (min-width: 1280px) { .caixa-colunas { grid-template-columns: ${["lista", "recebimento", "previa"].map((id) => larguraColuna.template(id)).join(" ")}; } }`}</style>
       <div className="caixa-colunas grid items-start gap-4 xl:items-stretch">

@@ -3,7 +3,7 @@
 import { ArrowLeft, CalendarDays, Save } from "lucide-react";
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import apiClient from "@/lib/api-client";
 import { CLINICA_AGENDA_DURACAO_MIN_MIN, CLINICA_AGENDA_DURACAO_SNAP_MIN } from "@/lib/clinica-beleza-constants";
 import { intervaloAgendaMinutos } from "@/lib/intervalo-agenda";
@@ -537,21 +537,23 @@ export default function AgendaSalaoPage() {
     }
   }
 
-  function ajustarServico() {
-    if (!selecionado) return;
+  function abrirHorario(item: AgendamentoSalao) {
+    setErro("");
+    setConfirmarExclusao(false);
+    setSelecionado(item);
     setForm({
-      inicio: paraApi(new Date(selecionado.inicio)).slice(0, 16),
-      profissional: String(selecionado.profissional),
-      servico: String(selecionado.servico),
-      cliente: String(selecionado.cliente),
+      inicio: paraApi(new Date(item.inicio)).slice(0, 16),
+      profissional: String(item.profissional),
+      servico: String(item.servico),
+      cliente: String(item.cliente),
       cliente_nome: "",
       cliente_telefone: "",
       cliente_cpf: "",
-      observacoes: selecionado.observacoes,
+      observacoes: item.observacoes,
     });
-    setEscolhidos(selecionado.procedimentos?.length
-      ? selecionado.procedimentos.map((item) => ({ servico: item.id, profissional: String(item.profissional || selecionado.profissional) }))
-      : [{ servico: selecionado.servico, profissional: String(selecionado.profissional) }]);
+    setEscolhidos(item.procedimentos?.length
+      ? item.procedimentos.map((linha) => ({ servico: linha.id, profissional: String(linha.profissional || item.profissional) }))
+      : [{ servico: item.servico, profissional: String(item.profissional) }]);
   }
 
   useEffect(() => () => limparResize.current?.(), []);
@@ -750,7 +752,7 @@ export default function AgendaSalaoPage() {
             setFaixa((atual) => atual && atual.inicio === proxima.inicio && atual.fim === proxima.fim ? atual : proxima);
           }}
           salto={salto}
-          onAbrir={(item) => { setForm(null); setConfirmarExclusao(false); setSelecionado(item); }}
+          onAbrir={abrirHorario}
           onAbrirBloqueio={setBloqueioAberto}
           onNovo={abrirNovo}
           onMover={(id, inicio) => { void soltar(id, inicio); }}
@@ -767,7 +769,7 @@ export default function AgendaSalaoPage() {
                   <span className="truncate">Folga · {linha.bloqueio.profissional_nome}</span>
                 </button>
               ) : linha.agenda ? (
-                <button type="button" className="flex h-full w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm text-white" style={{ background: statusCores[linha.agenda.status] || STATUS_PADRAO.SCHEDULED, borderRadius: "var(--agenda-card-radius, 12px)" }} onClick={() => { setForm(null); setSelecionado(linha.agenda); }}>
+                <button type="button" className="flex h-full w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm text-white" style={{ background: statusCores[linha.agenda.status] || STATUS_PADRAO.SCHEDULED, borderRadius: "var(--agenda-card-radius, 12px)" }} onClick={() => abrirHorario(linha.agenda)}>
                   <span>{new Date(linha.agenda.inicio).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })} · {linha.agenda.cliente_nome}</span>
                   <span className="truncate">{linha.agenda.servico_nome} · {linha.agenda.profissional_nome}</span>
                 </button>
@@ -896,7 +898,7 @@ export default function AgendaSalaoPage() {
                           }
                           evento.dataTransfer.setData("text/plain", String(item.id));
                         }}
-                        onClick={(evento) => { evento.stopPropagation(); if (ignorarClique.current) return; setForm(null); setConfirmarExclusao(false); setSelecionado(item); }}
+                        onClick={(evento) => { evento.stopPropagation(); if (ignorarClique.current) return; abrirHorario(item); }}
                         title={`${faixa} · ${minutos} min · Profissional ${fatia.profissional_nome} · Cliente ${item.cliente_nome}`}
                         className="absolute right-1 left-1 overflow-hidden px-1.5 py-0.5 text-left text-[11px] leading-tight text-white"
                         style={{ top: Math.max(0, topo), height: Math.max(48, (minutos / 60) * ALTURA_HORA), background: statusCores[item.status] || STATUS_PADRAO.SCHEDULED, borderRadius: "var(--agenda-card-radius, 12px)", boxShadow: "var(--agenda-card-shadow, none)", zIndex: 1 }}
@@ -932,7 +934,7 @@ export default function AgendaSalaoPage() {
               aoEscolherDia={(iso) => setCursor(deApi(`${iso}T12:00:00`))}
               aoAbrir={(chave) => {
                 const item = eventos.find((agenda) => chave.startsWith(`${agenda.id}-`));
-                if (item) { setForm(null); setConfirmarExclusao(false); setSelecionado(item); }
+                if (item) abrirHorario(item);
               }}
             />
           )}
@@ -975,9 +977,9 @@ export default function AgendaSalaoPage() {
           </div>
         </div>
       ) : null}
-      {form ? (
+      {form && !receberAberto ? (
         <Formulario
-          titulo={selecionado ? "Editar agendamento" : "Novo agendamento"}
+          titulo="Novo agendamento"
           form={form}
           setForm={setForm}
           clientes={clientes}
@@ -988,7 +990,38 @@ export default function AgendaSalaoPage() {
           erro={erro}
           aoSalvar={salvar}
           aoClienteCriado={(cliente) => setClientes((lista) => lista.some((item) => item.id === cliente.id) ? lista : [...lista, cliente].sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR")))}
-          aoFechar={() => { setForm(null); setErro(""); if (!selecionado) setConfirmarExclusao(false); }}
+          aoFechar={() => { setForm(null); setSelecionado(null); setErro(""); setConfirmarExclusao(false); }}
+          salvandoEdicao={Boolean(selecionado)}
+          acoes={selecionado ? (
+            <>
+              <span className="mr-auto text-sm text-[#5c3d45]">Status: {selecionado.status_label}</span>
+              {selecionado.status === "SCHEDULED" ? <button type="button" className="rounded-lg bg-[#7a3044] px-3 py-2 text-sm text-white" onClick={() => { void mudarStatus("CONFIRMED"); }}>Confirmar</button> : null}
+              {confirmaWhatsapp && (selecionado.status === "SCHEDULED" || selecionado.status === "CONFIRMED") ? <button type="button" className="rounded-lg border border-gray-300 px-3 py-2 text-sm" onClick={() => { void enviarConfirmacao(); }}>Enviar confirmação</button> : null}
+              {selecionado.status === "SCHEDULED" || selecionado.status === "CONFIRMED" ? <button type="button" className="rounded-lg bg-[#1f8f86] px-3 py-2 text-sm text-white" onClick={() => { void mudarStatus("IN_PROGRESS"); }}>Iniciar atendimento</button> : null}
+              {selecionado.status === "IN_PROGRESS" ? <button type="button" className="rounded-lg bg-[#1f8a4c] px-3 py-2 text-sm text-white" onClick={() => { void mudarStatus("COMPLETED"); }}>Finalizar</button> : null}
+              {selecionado.status === "COMPLETED" && !selecionado.recebido && localRecebimento !== "caixa" ? <button type="button" className="rounded-lg bg-[#7a3044] px-3 py-2 text-sm text-white" onClick={abrirReceber}>Receber</button> : null}
+              {selecionado.status === "COMPLETED" && !selecionado.recebido && localRecebimento === "caixa" ? <Link href={`/loja/${slug}/salao-cabeleireiro/caixa`} className="rounded-lg bg-[#7a3044] px-3 py-2 text-sm text-white">Receber no Caixa/PDV</Link> : null}
+              {selecionado.recebido ? (
+                <>
+                  <span className="rounded-lg bg-[#e8f6ee] px-3 py-2 text-sm text-[#1f8a4c]">Recebido R$ {selecionado.recebido.valor} · {selecionado.recebido.forma_label}</span>
+                  <Link href={`/loja/${slug}/salao-cabeleireiro/financeiro`} className="rounded-lg border border-gray-300 px-3 py-2 text-sm">Ver no caixa</Link>
+                  <button type="button" className="rounded-lg border border-gray-300 px-3 py-2 text-sm" onClick={() => { void desfazerRecebimento(); }}>Desfazer recebimento</button>
+                </>
+              ) : null}
+              {selecionado.status !== "NO_SHOW" && selecionado.status !== "COMPLETED" && selecionado.status !== "CANCELLED" ? <button type="button" className="rounded-lg border border-gray-300 px-3 py-2 text-sm" onClick={() => { void mudarStatus("NO_SHOW"); }}>Faltou</button> : null}
+              {!selecionado.recebido && selecionado.status !== "CANCELLED" ? (
+                confirmarExclusao ? (
+                  <>
+                    <span className="text-sm text-[#8a6e74]">Excluir este agendamento?</span>
+                    <button type="button" className="rounded-lg bg-red-700 px-3 py-2 text-sm text-white" onClick={() => { void excluir(); }}>Excluir</button>
+                    <button type="button" className="text-sm text-[#8a6e74]" onClick={() => setConfirmarExclusao(false)}>Voltar</button>
+                  </>
+                ) : (
+                  <button type="button" className="rounded-lg border border-red-200 px-3 py-2 text-sm text-red-700" onClick={() => setConfirmarExclusao(true)}>Excluir</button>
+                )
+              ) : null}
+            </>
+          ) : null}
         />
       ) : null}
       {selecionado && receberAberto ? (
@@ -1008,59 +1041,6 @@ export default function AgendaSalaoPage() {
           aoFechar={() => { setReceberAberto(false); setErro(""); }}
         />
       ) : null}
-      {selecionado && !form && !receberAberto ? (
-        <div className="fixed inset-0 z-40 grid place-items-center bg-black/40 p-4" role="dialog" aria-modal="true" aria-labelledby="agenda-detalhe" onClick={(evento) => { if (evento.target === evento.currentTarget) { setSelecionado(null); setConfirmarExclusao(false); } }}>
-          <div className="max-h-[90vh] w-full max-w-lg overflow-auto rounded-3xl bg-white p-5">
-          <p id="agenda-detalhe" className="font-medium">{selecionado.cliente_nome}</p>
-          <p className="text-sm text-[#8a6e74]">{selecionado.profissional_nome} · {selecionado.servico_nome}</p>
-          <p className="text-sm text-[#8a6e74]">{new Date(selecionado.inicio).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })} · {selecionado.status_label} · {reais(Number(selecionado.preco || 0))}</p>
-          {fatiasDe(selecionado).length > 1 ? (
-            <ul className="mt-2 text-sm text-[#5c3d45]">
-              {fatiasDe(selecionado).map((fatia, indice) => {
-                const comeco = new Date(fatia.inicio);
-                const fim = new Date(fatia.fim);
-                const hora = (data: Date) => `${dois(data.getHours())}:${dois(data.getMinutes())}`;
-                return <li key={`${fatia.profissional}-${indice}`}>{hora(comeco)}–{hora(fim)} · {fatia.profissional_nome} · {fatia.servico_nome}</li>;
-              })}
-            </ul>
-          ) : null}
-          {erro ? <p className="mt-2 text-sm text-red-700">{erro}</p> : null}
-          <div className="mt-3 flex flex-wrap gap-2">
-            {selecionado.status === "SCHEDULED" ? <button type="button" className="rounded-full bg-[#7a3044] px-3 py-1.5 text-sm text-white" onClick={() => mudarStatus("CONFIRMED")}>Confirmar</button> : null}
-            {confirmaWhatsapp && (selecionado.status === "SCHEDULED" || selecionado.status === "CONFIRMED") ? <button type="button" className="rounded-full border px-3 py-1.5 text-sm" onClick={enviarConfirmacao}>Enviar confirmação</button> : null}
-            {selecionado.status === "SCHEDULED" || selecionado.status === "CONFIRMED" ? <button type="button" className="rounded-full bg-[#1f8f86] px-3 py-1.5 text-sm text-white" onClick={() => mudarStatus("IN_PROGRESS")}>Iniciar atendimento</button> : null}
-            {selecionado.status === "IN_PROGRESS" ? <button type="button" className="rounded-full bg-[#1f8a4c] px-3 py-1.5 text-sm text-white" onClick={() => mudarStatus("COMPLETED")}>Finalizar</button> : null}
-            {selecionado.status === "COMPLETED" && !selecionado.recebido && localRecebimento !== "caixa" ? (
-              <button type="button" className="rounded-full bg-[#7a3044] px-3 py-1.5 text-sm text-white" onClick={abrirReceber}>Receber</button>
-            ) : null}
-            {selecionado.status === "COMPLETED" && !selecionado.recebido && localRecebimento === "caixa" ? (
-              <Link href={`/loja/${slug}/salao-cabeleireiro/caixa`} className="rounded-full bg-[#7a3044] px-3 py-1.5 text-sm text-white">Receber no Caixa/PDV</Link>
-            ) : null}
-            {selecionado.recebido ? (
-              <>
-                <span className="rounded-full bg-[#e8f6ee] px-3 py-1.5 text-sm text-[#1f8a4c]">Recebido R$ {selecionado.recebido.valor} · {selecionado.recebido.forma_label}</span>
-                <Link href={`/loja/${slug}/salao-cabeleireiro/financeiro`} className="rounded-full border px-3 py-1.5 text-sm">Ver no caixa</Link>
-                <button type="button" className="rounded-full border px-3 py-1.5 text-sm" onClick={desfazerRecebimento}>Desfazer recebimento</button>
-              </>
-            ) : null}
-            {!selecionado.recebido && selecionado.status !== "CANCELLED" ? <button type="button" className="rounded-full border px-3 py-1.5 text-sm" onClick={ajustarServico}>Editar</button> : null}
-            {selecionado.status !== "NO_SHOW" && selecionado.status !== "COMPLETED" && selecionado.status !== "CANCELLED" ? <button type="button" className="rounded-full border px-3 py-1.5 text-sm" onClick={() => mudarStatus("NO_SHOW")}>Faltou</button> : null}
-            {!selecionado.recebido && selecionado.status !== "CANCELLED" ? (
-              confirmarExclusao ? (
-                <span className="flex flex-wrap items-center gap-2">
-                  <span className="text-sm text-[#8a6e74]">Excluir este agendamento?</span>
-                  <button type="button" className="rounded-full bg-red-700 px-3 py-1.5 text-sm text-white" onClick={excluir}>Excluir</button>
-                  <button type="button" className="text-sm text-[#8a6e74]" onClick={() => setConfirmarExclusao(false)}>Voltar</button>
-                </span>
-              ) : (
-                <button type="button" className="rounded-full border border-red-200 px-3 py-1.5 text-sm text-red-700" onClick={() => setConfirmarExclusao(true)}>Excluir</button>
-              )
-            ) : null}
-            <button type="button" className="text-sm text-[#8a6e74]" onClick={() => { setSelecionado(null); setConfirmarExclusao(false); }}>Fechar</button>
-          </div>
-          </div>
-        </div>
-      ) : null}
     </div>
   );
 }
@@ -1078,7 +1058,7 @@ function horariosDoPasso(passo: number, atual: string) {
 }
 
 function Formulario({
-  titulo, form, setForm, clientes, profissionais, servicos, escolhidos, aoEscolhidos, erro, aoSalvar, aoClienteCriado, aoFechar,
+  titulo, form, setForm, clientes, profissionais, servicos, escolhidos, aoEscolhidos, erro, aoSalvar, aoClienteCriado, aoFechar, salvandoEdicao = false, acoes = null,
 }: {
   titulo: string;
   form: Record<string, string>;
@@ -1092,6 +1072,8 @@ function Formulario({
   aoSalvar: () => void;
   aoClienteCriado: (cliente: ClienteSalao) => void;
   aoFechar: () => void;
+  salvandoEdicao?: boolean;
+  acoes?: ReactNode;
 }) {
   const [categoria, setCategoria] = useState("");
   const [salvandoCliente, setSalvandoCliente] = useState(false);
@@ -1266,11 +1248,12 @@ function Formulario({
             </div>
           </div>
           <footer className="shrink-0 border-t border-gray-200 bg-white/80 px-4 py-3 sm:px-5 sm:py-4">
-            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end sm:gap-3">
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              {acoes}
               <button type="button" className="rounded-lg border border-gray-300 px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-white sm:min-w-[120px]" onClick={aoFechar}>Cancelar</button>
               <button type="submit" className="flex items-center justify-center gap-2 rounded-lg px-5 py-2.5 text-sm font-medium text-white sm:min-w-[180px]" style={{ backgroundColor: COR_MODAL }}>
                 <Save className="h-4 w-4" />
-                {titulo.startsWith("Editar") ? "Salvar" : "Agendar"}
+                {salvandoEdicao ? "Salvar" : "Agendar"}
               </button>
             </div>
           </footer>

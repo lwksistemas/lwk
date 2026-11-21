@@ -86,8 +86,8 @@ function conteudoEventoSalao(arg: {
   if ((arg.view?.type || "").startsWith("dayGrid")) {
     return (
       <div className={`agenda-fc-event-inner agenda-fc-event-month${folga ? " is-bloqueio" : ""}`}>
-        {hora ? <span className="agenda-fc-event-time">{hora}</span> : null}
-        <span className="agenda-fc-event-status">{status}</span>
+        {hora ? <span className="agenda-fc-event-time">{hora} </span> : null}
+        <span className="agenda-fc-event-status">{status} </span>
         <span className="agenda-fc-event-title">{titulo}</span>
       </div>
     );
@@ -291,6 +291,7 @@ export function SalaoAgendaCalendario({
               }}
               eventClick={(info: { event: { id: string; extendedProps?: Record<string, unknown> }; jsEvent: { preventDefault: () => void } }) => {
                 info.jsEvent.preventDefault();
+                document.querySelectorAll(".fc-popover").forEach((el) => el.remove());
                 const props = info.event.extendedProps || {};
                 if (props.isIntervalo) return;
                 if (props.isBloqueio) {

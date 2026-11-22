@@ -5,10 +5,12 @@ Não substitui o julgamento do profissional.
 """
 from __future__ import annotations
 
+import re
 from datetime import date
 from decimal import Decimal, InvalidOperation
 
 # codigo -> aliases no PDF e faixas (sexo M/F/A, idade_min inclusiva, idade_max exclusiva None=∞)
+# Aliases mais longos/específicos primeiro na prática do extrator (ordenação por tamanho).
 CATALOGO_REFERENCIA: dict[str, dict] = {
     "hemoglobina": {
         "nome": "Hemoglobina",
@@ -30,6 +32,82 @@ CATALOGO_REFERENCIA: dict[str, dict] = {
             {"sexo": "A", "idade_min": 0, "idade_max": 12, "min": 34.0, "max": 44.0},
         ],
     },
+    "eritrocitos": {
+        "nome": "Eritrócitos",
+        "unidade": "10¹²/L",
+        "aliases": ("eritrocitos", "eritrócitos", "hemacias", "hemácias", "rbc"),
+        "faixas": [
+            {"sexo": "F", "idade_min": 12, "idade_max": None, "min": 4.0, "max": 5.2},
+            {"sexo": "M", "idade_min": 12, "idade_max": None, "min": 4.5, "max": 5.5},
+            {"sexo": "A", "idade_min": 0, "idade_max": 12, "min": 4.0, "max": 5.2},
+        ],
+    },
+    "vcm": {
+        "nome": "VCM",
+        "unidade": "fL",
+        "aliases": ("vcm", "volume corpuscular medio", "volume corpuscular médio"),
+        "faixas": [{"sexo": "A", "idade_min": 0, "idade_max": None, "min": 83.0, "max": 101.0}],
+    },
+    "hcm": {
+        "nome": "HCM",
+        "unidade": "pg",
+        "aliases": ("hcm", "hemoglobina corpuscular media", "hemoglobina corpuscular média"),
+        "faixas": [{"sexo": "A", "idade_min": 0, "idade_max": None, "min": 27.0, "max": 31.0}],
+    },
+    "chcm": {
+        "nome": "CHCM",
+        "unidade": "g/dL",
+        "aliases": ("chcm",),
+        "faixas": [{"sexo": "A", "idade_min": 0, "idade_max": None, "min": 31.5, "max": 34.5}],
+    },
+    "rdw": {
+        "nome": "RDW",
+        "unidade": "%",
+        "aliases": ("rdw",),
+        "faixas": [{"sexo": "A", "idade_min": 0, "idade_max": None, "min": 11.6, "max": 14.0}],
+    },
+    "leucocitos": {
+        "nome": "Leucócitos",
+        "unidade": "/mm³",
+        "aliases": ("leucocitos", "leucócitos", "wbc", "globulos brancos", "glóbulos brancos"),
+        "faixas": [{"sexo": "A", "idade_min": 0, "idade_max": None, "min": 4000.0, "max": 10000.0}],
+    },
+    "plaquetas": {
+        "nome": "Plaquetas",
+        "unidade": "/mm³",
+        "aliases": ("plaquetas", "plt"),
+        "faixas": [{"sexo": "A", "idade_min": 0, "idade_max": None, "min": 150000.0, "max": 400000.0}],
+    },
+    "segmentados": {
+        "nome": "Neutrófilos segmentados",
+        "unidade": "%",
+        "aliases": ("segmentados", "neutrofilos segmentados", "neutrófilos segmentados"),
+        "faixas": [{"sexo": "A", "idade_min": 0, "idade_max": None, "min": 48.0, "max": 73.0}],
+    },
+    "linfocitos": {
+        "nome": "Linfócitos",
+        "unidade": "%",
+        "aliases": ("linf. tipicos", "linf. típicos", "linfocitos", "linfócitos"),
+        "faixas": [{"sexo": "A", "idade_min": 0, "idade_max": None, "min": 27.0, "max": 42.0}],
+    },
+    "monocitos": {
+        "nome": "Monócitos",
+        "unidade": "%",
+        "aliases": ("monocitos", "monócitos"),
+        "faixas": [{"sexo": "A", "idade_min": 0, "idade_max": None, "min": 2.0, "max": 12.0}],
+    },
+    "eosinofilos": {
+        "nome": "Eosinófilos",
+        "unidade": "%",
+        "aliases": ("eosinofilos", "eosinófilos"),
+        "faixas": [{"sexo": "A", "idade_min": 0, "idade_max": None, "min": 1.0, "max": 6.0}],
+    },
+    "basofilos": {
+        "nome": "Basófilos",
+        "unidade": "%",
+        "aliases": ("basofilos", "basófilos"),
+        "faixas": [{"sexo": "A", "idade_min": 0, "idade_max": None, "min": 0.0, "max": 2.0}],
+    },
     "glicose": {
         "nome": "Glicose",
         "unidade": "mg/dL",
@@ -41,7 +119,7 @@ CATALOGO_REFERENCIA: dict[str, dict] = {
     "hba1c": {
         "nome": "Hemoglobina glicada (HbA1c)",
         "unidade": "%",
-        "aliases": ("hba1c", "hemoglobina glicada", "a1c"),
+        "aliases": ("hemoglobina glicada", "hba1c", "hb a1c", "a1c"),
         "faixas": [
             {"sexo": "A", "idade_min": 0, "idade_max": None, "min": 4.0, "max": 5.6},
         ],
@@ -49,7 +127,7 @@ CATALOGO_REFERENCIA: dict[str, dict] = {
     "colesterol_total": {
         "nome": "Colesterol total",
         "unidade": "mg/dL",
-        "aliases": ("colesterol total", "colesterol"),
+        "aliases": ("colesterol total",),
         "faixas": [
             {"sexo": "A", "idade_min": 0, "idade_max": 18, "min": 0.0, "max": 170.0},
             {"sexo": "A", "idade_min": 18, "idade_max": None, "min": 0.0, "max": 190.0},
@@ -58,7 +136,7 @@ CATALOGO_REFERENCIA: dict[str, dict] = {
     "hdl": {
         "nome": "HDL colesterol",
         "unidade": "mg/dL",
-        "aliases": ("hdl", "hdl-colesterol", "hdl colesterol"),
+        "aliases": ("colesterol hdl", "hdl-colesterol", "hdl colesterol", "hdl"),
         "faixas": [
             {"sexo": "F", "idade_min": 18, "idade_max": None, "min": 50.0, "max": 999.0},
             {"sexo": "M", "idade_min": 18, "idade_max": None, "min": 40.0, "max": 999.0},
@@ -68,15 +146,29 @@ CATALOGO_REFERENCIA: dict[str, dict] = {
     "ldl": {
         "nome": "LDL colesterol",
         "unidade": "mg/dL",
-        "aliases": ("ldl", "ldl-colesterol", "ldl colesterol"),
+        "aliases": ("colesterol ldl", "ldl-colesterol", "ldl colesterol", "ldl"),
         "faixas": [
             {"sexo": "A", "idade_min": 0, "idade_max": None, "min": 0.0, "max": 100.0},
+        ],
+    },
+    "vldl": {
+        "nome": "VLDL colesterol",
+        "unidade": "mg/dL",
+        "aliases": ("colesterol vldl", "vldl-colesterol", "vldl colesterol", "vldl"),
+        "faixas": [
+            {"sexo": "A", "idade_min": 0, "idade_max": None, "min": 0.0, "max": 35.0},
         ],
     },
     "triglicerides": {
         "nome": "Triglicerídeos",
         "unidade": "mg/dL",
-        "aliases": ("triglicerides", "triglicerídeos", "triglycerides"),
+        "aliases": (
+            "triglicerídeos",
+            "triglicerideos",
+            "triglicérides",
+            "triglicerides",
+            "triglycerides",
+        ),
         "faixas": [
             {"sexo": "A", "idade_min": 0, "idade_max": None, "min": 0.0, "max": 150.0},
         ],
@@ -100,7 +192,7 @@ CATALOGO_REFERENCIA: dict[str, dict] = {
     "vitamina_d": {
         "nome": "Vitamina D (25-OH)",
         "unidade": "ng/mL",
-        "aliases": ("vitamina d", "25-oh", "25 oh vitamina d", "vitamina d 25"),
+        "aliases": ("vitamina d - 25 oh", "vitamina d 25 oh", "25 oh vitamina d", "vitamina d", "25-oh"),
         "faixas": [
             {"sexo": "A", "idade_min": 0, "idade_max": None, "min": 30.0, "max": 100.0},
         ],
@@ -108,7 +200,7 @@ CATALOGO_REFERENCIA: dict[str, dict] = {
     "vitamina_b12": {
         "nome": "Vitamina B12",
         "unidade": "pg/mL",
-        "aliases": ("vitamina b12", "b12", "cobalamina"),
+        "aliases": ("vitamina b12", "cobalamina"),
         "faixas": [
             {"sexo": "A", "idade_min": 0, "idade_max": None, "min": 200.0, "max": 900.0},
         ],
@@ -121,6 +213,56 @@ CATALOGO_REFERENCIA: dict[str, dict] = {
             {"sexo": "F", "idade_min": 12, "idade_max": None, "min": 15.0, "max": 150.0},
             {"sexo": "M", "idade_min": 12, "idade_max": None, "min": 30.0, "max": 400.0},
             {"sexo": "A", "idade_min": 0, "idade_max": 12, "min": 15.0, "max": 140.0},
+        ],
+    },
+    "psa_total": {
+        "nome": "PSA total",
+        "unidade": "ng/mL",
+        "aliases": ("psa total", "antigeno prostatico especifico - psa total", "antígeno prostático específico - psa total", "psa"),
+        "faixas": [
+            {"sexo": "M", "idade_min": 0, "idade_max": None, "min": 0.0, "max": 4.0},
+            {"sexo": "A", "idade_min": 0, "idade_max": None, "min": 0.0, "max": 4.0},
+        ],
+    },
+    "psa_livre": {
+        "nome": "PSA livre",
+        "unidade": "ng/mL",
+        "aliases": ("psa livre", "antigeno prostatico especifico - psa livre", "antígeno prostático específico - psa livre"),
+        "faixas": [
+            {"sexo": "M", "idade_min": 0, "idade_max": None, "min": 0.0, "max": 0.9},
+            {"sexo": "A", "idade_min": 0, "idade_max": None, "min": 0.0, "max": 0.9},
+        ],
+    },
+    "testosterona_total": {
+        "nome": "Testosterona total",
+        "unidade": "ng/dL",
+        "aliases": ("testosterona total",),
+        "faixas": [
+            {"sexo": "M", "idade_min": 18, "idade_max": 50, "min": 197.5, "max": 669.5},
+            {"sexo": "M", "idade_min": 50, "idade_max": None, "min": 187.7, "max": 684.1},
+            {"sexo": "F", "idade_min": 18, "idade_max": 50, "min": 8.3, "max": 35.0},
+            {"sexo": "F", "idade_min": 50, "idade_max": None, "min": 0.0, "max": 35.9},
+        ],
+    },
+    "testosterona_livre": {
+        "nome": "Testosterona livre",
+        "unidade": "ng/dL",
+        "aliases": ("testosterona livre",),
+        "faixas": [
+            {"sexo": "M", "idade_min": 17, "idade_max": 41, "min": 3.4, "max": 24.6},
+            {"sexo": "M", "idade_min": 41, "idade_max": 61, "min": 1.67, "max": 18.3},
+            {"sexo": "M", "idade_min": 61, "idade_max": None, "min": 1.86, "max": 19.0},
+        ],
+    },
+    "shbg": {
+        "nome": "SHBG",
+        "unidade": "nmol/L",
+        "aliases": ("shbg",),
+        "faixas": [
+            {"sexo": "M", "idade_min": 0, "idade_max": 50, "min": 0.0, "max": 54.49},
+            {"sexo": "M", "idade_min": 50, "idade_max": None, "min": 0.0, "max": 71.49},
+            {"sexo": "F", "idade_min": 0, "idade_max": 50, "min": 0.0, "max": 138.26},
+            {"sexo": "F", "idade_min": 50, "idade_max": None, "min": 0.0, "max": 110.61},
         ],
     },
     "creatinina": {
@@ -144,7 +286,7 @@ CATALOGO_REFERENCIA: dict[str, dict] = {
     "tgo": {
         "nome": "TGO (AST)",
         "unidade": "U/L",
-        "aliases": ("tgo", "ast", "tgo/ast"),
+        "aliases": ("tgo/ast", "tgo", "ast"),
         "faixas": [
             {"sexo": "A", "idade_min": 0, "idade_max": None, "min": 0.0, "max": 40.0},
         ],
@@ -152,7 +294,7 @@ CATALOGO_REFERENCIA: dict[str, dict] = {
     "tgp": {
         "nome": "TGP (ALT)",
         "unidade": "U/L",
-        "aliases": ("tgp", "alt", "tgp/alt"),
+        "aliases": ("tgp/alt", "tgp", "alt"),
         "faixas": [
             {"sexo": "A", "idade_min": 0, "idade_max": None, "min": 0.0, "max": 41.0},
         ],
@@ -160,7 +302,7 @@ CATALOGO_REFERENCIA: dict[str, dict] = {
     "pcr": {
         "nome": "PCR",
         "unidade": "mg/L",
-        "aliases": ("pcr", "proteina c reativa", "proteína c reativa"),
+        "aliases": ("proteina c reativa", "proteína c reativa", "pcr"),
         "faixas": [
             {"sexo": "A", "idade_min": 0, "idade_max": None, "min": 0.0, "max": 5.0},
         ],
@@ -235,7 +377,11 @@ def para_decimal(texto) -> float | None:
     if not bruto:
         return None
     if "," in bruto and "." in bruto:
-        bruto = bruto.replace(".", "").replace(",", ".")
+        # 1.920,5 → milhar com decimal BR; 192.000,3 idem
+        if re.search(r"\.\d{3}(?:[.,]|$)", bruto):
+            bruto = bruto.replace(".", "").replace(",", ".")
+        else:
+            bruto = bruto.replace(",", "")
     elif "," in bruto:
         bruto = bruto.replace(",", ".")
     try:
@@ -248,8 +394,12 @@ def alias_para_codigo(nome: str) -> str | None:
     chave = (nome or "").strip().lower()
     if not chave:
         return None
+    melhores: list[tuple[int, str]] = []
     for codigo, item in CATALOGO_REFERENCIA.items():
         for alias in item["aliases"]:
             if alias in chave or chave in alias:
-                return codigo
-    return None
+                melhores.append((len(alias), codigo))
+    if not melhores:
+        return None
+    melhores.sort(reverse=True)
+    return melhores[0][1]

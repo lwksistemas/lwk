@@ -30,6 +30,52 @@ class ExameReferenciaTest(SimpleTestCase):
         self.assertEqual(idade_em_anos(date(2000, 1, 1), date(2026, 11, 22)), 26)
 
 
+LAUDO_HAPVIDA_AMOSTRA = """
+GLICOSE
+Resultado: 97.9 mg/dL                                                                 65 - 100 mg/dL
+LIPIDOGRAMA
+Resultado: Colesterol Total....: 166 mg/dL
+           Colesterol HDL......: 34 mg/dL
+           Colesterol LDL......: 109 mg/dL
+           Triglicérides.......: 121 mg/dL
+           Colesterol VLDL.....: 24 mg/dL
+Adulto......: Colesterol Total (com ou sem jejum): Inferior a 190 mg/dL
+HEMOGLOBINA GLICADA
+Resultado: 5.33 %
+Glicose Média Estimada: 106 mg/dL
+HEMOGRAMA COMPLETO
+Eritrócitos...:                             5.29 10¹²/L                                                            4.5 - 5.5 10¹²/L
+Hemoglobina...:                             16.0 g/dL                                                              13 - 17 g/dL
+Hematócrito...:                             45.8 %                                                                 40 - 50 %
+VCM...........:                             86.6 fL                                                                83 - 101 fL
+HCM...........:                             30.2 pg                                                                27 - 31 pg
+CHCM..........:                             34.9 g/dL                                                              31.5 - 34.5 g/dL
+RDW...........:                             12.7 %                                                                 11.6 - 14 %
+Leucócitos....:                       5710 /mm³                             4000 - 10000 /mm³
+Segmentados...:         58 %             3312 /mm³                          48 à 73%
+Eosinófilos...:         1 %              57 /mm³                            1 à 6%
+Basófilos.....:         0 %              0 /mm³                             0 à 2%
+Linf. Típicos:          32 %             1827 /mm³                          27 à 42%
+Monócitos.....:         9 %              514 /mm³                           2 à 12%
+Plaquetas.....:                  192000 /mm³                                                                       150000 - 400000 /mm³
+VITAMINA B12
+Resultado: 201 pg/mL                                                                                             211 - 911 pg/mL
+FERRITINA
+Resultado: 349,3 ng/mL                                                                                           Homens..: 22,0 - 322,0 ng/mL
+ANTÍGENO PROSTÁTICO ESPECÍFICO - PSA TOTAL
+Resultado: 0.91 ng/mL                                                                                            Até 4.00 ng/mL
+ANTÍGENO PROSTÁTICO ESPECÍFICO - PSA LIVRE
+Resultado: 0.24 ng/mL                                                                                     Inferior a 0,90 ng/mL
+TESTOSTERONA LIVRE
+SHBG..............: 41,30 mmol/L
+Testosterona Livre: 5,564 ng/dL
+TESTOSTERONA TOTAL
+Resultado: 320,4 ng/dL                                                                                           Homens abaixo de 50 anos..: 197,5 a 669,5 ng/dL
+VITAMINA D - 25 OH
+Resultado: 25.4 ng/mL                                                                      Desejável (até 60 anos).....: Superior a 20 ng/mL
+"""
+
+
 class ExtracaoESugestaoTest(SimpleTestCase):
     def test_extrai_glicose_e_tsh_do_texto(self):
         texto = "GLICOSE 95 mg/dL 70 a 99\nTSH 5,20 µUI/mL 0,40 - 4,00"
@@ -40,6 +86,49 @@ class ExtracaoESugestaoTest(SimpleTestCase):
         glicose = next(m for m in marcadores if m["codigo"] == "glicose")
         self.assertEqual(glicose["valor"], 95.0)
         self.assertEqual(glicose["faixa_min"], 70.0)
+
+    def test_extrai_laudo_hapvida_completo(self):
+        marcadores = extrair_marcadores_do_texto(LAUDO_HAPVIDA_AMOSTRA)
+        por_codigo = {m["codigo"]: m for m in marcadores}
+        esperados = {
+            "glicose": 97.9,
+            "colesterol_total": 166.0,
+            "hdl": 34.0,
+            "ldl": 109.0,
+            "triglicerides": 121.0,
+            "vldl": 24.0,
+            "hba1c": 5.33,
+            "eritrocitos": 5.29,
+            "hemoglobina": 16.0,
+            "hematocrito": 45.8,
+            "vcm": 86.6,
+            "hcm": 30.2,
+            "chcm": 34.9,
+            "rdw": 12.7,
+            "leucocitos": 5710.0,
+            "plaquetas": 192000.0,
+            "segmentados": 58.0,
+            "linfocitos": 32.0,
+            "monocitos": 9.0,
+            "eosinofilos": 1.0,
+            "basofilos": 0.0,
+            "vitamina_b12": 201.0,
+            "ferritina": 349.3,
+            "psa_total": 0.91,
+            "psa_livre": 0.24,
+            "shbg": 41.3,
+            "testosterona_livre": 5.564,
+            "testosterona_total": 320.4,
+            "vitamina_d": 25.4,
+        }
+        faltando = [c for c in esperados if c not in por_codigo]
+        self.assertFalse(faltando, f"Marcadores faltando: {faltando}")
+        for codigo, valor in esperados.items():
+            self.assertAlmostEqual(por_codigo[codigo]["valor"], valor, places=2, msg=codigo)
+        # Não deve pegar a glicose média estimada (106) no lugar da glicose
+        self.assertAlmostEqual(por_codigo["glicose"]["valor"], 97.9, places=1)
+        # Hemoglobina não deve ser a HbA1c
+        self.assertAlmostEqual(por_codigo["hemoglobina"]["valor"], 16.0, places=1)
 
     def test_sugestao_usa_sexo_do_cadastro(self):
         patient = SimpleNamespace(sexo="F", data_nascimento=date(1990, 5, 1))

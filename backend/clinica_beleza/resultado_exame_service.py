@@ -23,13 +23,31 @@ from .models import Consulta, DocumentoClinico, PrescricaoMemed, ResultadoExameP
 logger = logging.getLogger(__name__)
 
 PDF_MAX_BYTES = 8 * 1024 * 1024
+# Aceita inteiros grandes (plaquetas 192000) e decimais BR/US.
 _NUMERO = re.compile(
-    r"(?<![\w./])(\d{1,3}(?:[.,]\d{1,4})?)(?![\w./])",
+    r"(?<![\w/])(\d{1,3}(?:\.\d{3})+(?:,\d+)?|\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:[.,]\d+)?)(?![\w/])",
 )
 _FAIXA = re.compile(
-    r"(\d{1,3}(?:[.,]\d{1,4})?)\s*(?:a|–|-|—|ate|até)\s*(\d{1,3}(?:[.,]\d{1,4})?)",
+    r"(\d{1,3}(?:[.,]\d{1,4})?|\d{4,7})\s*(?:a|à|–|-|—|ate|até)\s*(\d{1,3}(?:[.,]\d{1,4})?|\d{4,7})",
     re.IGNORECASE,
 )
+_FAIXA_ATE = re.compile(
+    r"(?:até|ate|inferior\s+a|<|<=)\s*(\d{1,3}(?:[.,]\d{1,4})?|\d{4,7})",
+    re.IGNORECASE,
+)
+_FAIXA_SUPERIOR = re.compile(
+    r"(?:superior\s+a|acima\s+de|>|>=)\s*(\d{1,3}(?:[.,]\d{1,4})?|\d{4,7})",
+    re.IGNORECASE,
+)
+_RESULTADO_LINHA = re.compile(
+    r"(?im)^\s*resultado\s*:\s*(?:[^\d\n]{0,60}?)(\d{1,3}(?:\.\d{3})+(?:,\d+)?|\d+(?:[.,]\d+)?)",
+)
+# Evita capturar "hemoglobina" dentro de "hemoglobina glicada", etc.
+_ALIAS_BLOQUEIO: dict[str, tuple[str, ...]] = {
+    "hemoglobina": ("glicada", "a1c", "hba1c"),
+    "psa_total": ("livre",),
+    "glicose": ("media estimada", "média estimada", "estimada"),
+}
 
 
 class ResultadoExameErro(ValueError):
@@ -54,40 +72,113 @@ def _texto_pdf(data: bytes) -> str:
     return "\n".join(partes).strip()
 
 
+def _normalizar_texto_laudo(texto: str) -> str:
+    linhas = [re.sub(r"[ \t]+", " ", ln).strip() for ln in (texto or "").splitlines()]
+    return "\n".join(ln for ln in linhas if ln)
+
+
+def _alias_contexto_ok(codigo: str, trecho_pos: str) -> bool:
+    bloqueios = _ALIAS_BLOQUEIO.get(codigo) or ()
+    baixo = trecho_pos.lower()
+    return not any(b in baixo for b in bloqueios)
+
+
+def _janela_apos(texto: str, inicio: int, tamanho: int = 520) -> str:
+    fim = min(len(texto), inicio + tamanho)
+    return texto[inicio:fim]
+
+
+def _extrair_faixa(trecho: str) -> tuple[float | None, float | None, str | None]:
+    # Preferência: faixa "min - max" / "min a max" perto do resultado.
+    faixa_m = _FAIXA.search(trecho)
+    if faixa_m:
+        return para_decimal(faixa_m.group(1)), para_decimal(faixa_m.group(2)), "laudo"
+    ate_m = _FAIXA_ATE.search(trecho)
+    if ate_m:
+        return 0.0, para_decimal(ate_m.group(1)), "laudo"
+    sup_m = _FAIXA_SUPERIOR.search(trecho)
+    if sup_m:
+        return para_decimal(sup_m.group(1)), None, "laudo"
+    return None, None, None
+
+
+def _valor_na_janela(janela: str, alias: str) -> float | None:
+    """Extrai o valor do exame na janela, priorizando 'Resultado:' e linha do alias."""
+    # 1) Linha Resultado: (formato Hapvida / muitos labs BR)
+    for m in _RESULTADO_LINHA.finditer(janela):
+        valor = para_decimal(m.group(1))
+        if valor is not None:
+            return valor
+
+    # 2) Alias na mesma linha com "....: valor" (hemograma / lipidograma)
+    alias_re = re.compile(
+        rf"(?im)\b{re.escape(alias)}\b[^\n]{{0,80}}?[:=\.\s]+(\d{{1,3}}(?:\.\d{{3}})+(?:,\d+)?|\d+(?:[.,]\d+)?)",
+    )
+    m_alias = alias_re.search(janela)
+    if m_alias:
+        valor = para_decimal(m_alias.group(1))
+        if valor is not None:
+            return valor
+
+    # 3) Primeiro número após o alias na mesma linha / primeiras linhas (sem faixa)
+    linhas = janela.splitlines()
+    if not linhas:
+        return None
+    # Pula números que claramente são só da tabela de referência adulta genérica
+    trecho_valor = "\n".join(linhas[:6])
+    # Remove trechos de faixa para não pegar o mínimo da referência como valor
+    trecho_limpo = _FAIXA.sub(" ", trecho_valor)
+    trecho_limpo = _FAIXA_ATE.sub(" ", trecho_limpo)
+    trecho_limpo = _FAIXA_SUPERIOR.sub(" ", trecho_limpo)
+    # Remove o próprio alias e tokens tipo 25-OH do título
+    trecho_limpo = re.sub(rf"(?i)\b{re.escape(alias)}\b", " ", trecho_limpo)
+    trecho_limpo = re.sub(r"(?i)\b\d{1,2}\s*-\s*oh\b", " ", trecho_limpo)
+    numeros = _NUMERO.findall(trecho_limpo)
+    for bruto in numeros:
+        valor = para_decimal(bruto)
+        if valor is None:
+            continue
+        # Ignora anos/códigos muito à esquerda em cabeçalho (ex.: 2026)
+        if valor >= 1900 and valor <= 2100 and "." not in bruto and "," not in bruto:
+            continue
+        return valor
+    return None
+
+
 def extrair_marcadores_do_texto(texto: str) -> list[dict]:
-    """Procura biomarcadores conhecidos no texto do laudo."""
-    if not texto:
+    """Procura biomarcadores conhecidos no texto do laudo (multi-linha / Hapvida)."""
+    bloco = _normalizar_texto_laudo(texto)
+    if not bloco:
         return []
-    linhas = [ln.strip() for ln in texto.splitlines() if ln.strip()]
-    bloco = "\n".join(linhas)
+
+    # Aliases mais longos primeiro (hemoglobina glicada antes de hemoglobina, PSA livre antes de PSA).
+    candidatos: list[tuple[int, str, str, dict]] = []
+    for codigo, meta in CATALOGO_REFERENCIA.items():
+        for alias in meta["aliases"]:
+            candidatos.append((len(alias), codigo, alias, meta))
+    candidatos.sort(key=lambda item: (-item[0], item[1], item[2]))
+
     achados: list[dict] = []
     usados: set[str] = set()
-    for codigo, meta in CATALOGO_REFERENCIA.items():
+    for _tam, codigo, alias, meta in candidatos:
         if codigo in usados:
             continue
-        for alias in meta["aliases"]:
-            padrao = re.compile(rf"(?i)\b{re.escape(alias)}\b[^\n]{{0,80}}")
-            m = padrao.search(bloco)
-            if not m:
+        padrao = re.compile(rf"(?i)(?<![A-Za-zÀ-ÿ0-9]){re.escape(alias)}(?![A-Za-zÀ-ÿ0-9])")
+        encontrado = None
+        for m in padrao.finditer(bloco):
+            apos = bloco[m.end() : m.end() + 40]
+            if not _alias_contexto_ok(codigo, apos):
                 continue
-            trecho = m.group(0)
-            faixa_m = _FAIXA.search(trecho)
-            faixa_min = faixa_max = None
-            origem_faixa = None
-            if faixa_m:
-                faixa_min = para_decimal(faixa_m.group(1))
-                faixa_max = para_decimal(faixa_m.group(2))
-                origem_faixa = "laudo"
-                trecho_valor = trecho[: faixa_m.start()]
-            else:
-                trecho_valor = trecho
-            numeros = _NUMERO.findall(trecho_valor)
-            if not numeros:
-                continue
-            valor = para_decimal(numeros[0])
+            janela = _janela_apos(bloco, m.start(), 560)
+            # Preferir janelas com Resultado: ou com número logo após o alias
+            valor = _valor_na_janela(janela, alias)
             if valor is None:
                 continue
-            achados.append({
+            faixa_min, faixa_max, origem_faixa = _extrair_faixa(janela)
+            # Se a "faixa" capturou o próprio valor (janela curta), descarta
+            if faixa_min is not None and faixa_max is not None and faixa_min == valor and faixa_max == valor:
+                faixa_min = faixa_max = origem_faixa = None
+            encontrado = {
                 "codigo": codigo,
                 "nome": meta["nome"],
                 "valor": valor,
@@ -95,10 +186,46 @@ def extrair_marcadores_do_texto(texto: str) -> list[dict]:
                 "faixa_min": faixa_min,
                 "faixa_max": faixa_max,
                 "origem_faixa": origem_faixa,
-            })
-            usados.add(codigo)
+            }
             break
+        if encontrado:
+            achados.append(encontrado)
+            usados.add(codigo)
+
+    # Ordem estável por aparição aproximada: glicose → lipídios → HbA1c → hemograma → demais
+    ordem = {c: i for i, c in enumerate(CATALOGO_REFERENCIA.keys())}
+    achados.sort(key=lambda item: ordem.get(item["codigo"], 999))
     return achados
+
+
+def _assinatura_marcadores(marcadores: list) -> tuple:
+    out = []
+    for m in marcadores or []:
+        out.append((
+            m.get("codigo"),
+            round(float(m["valor"]), 4) if m.get("valor") is not None else None,
+            m.get("status"),
+        ))
+    return tuple(out)
+
+
+def reprocessar_resultado_salvo(resultado: ResultadoExamePaciente) -> ResultadoExamePaciente:
+    """Reaplica extrator + catálogo no texto já gravado (melhorias sem reenviar PDF)."""
+    texto = (resultado.texto_extraido or "").strip()
+    if len(texto) < 20:
+        return resultado
+    brutos = extrair_marcadores_do_texto(texto)
+    if not brutos:
+        return resultado
+    marcadores, sugestao, aviso = montar_sugestao(brutos, resultado.patient, date.today())
+    if _assinatura_marcadores(marcadores) == _assinatura_marcadores(resultado.marcadores or []):
+        return resultado
+    resultado.marcadores = marcadores
+    resultado.sugestao_texto = sugestao
+    resultado.aviso_cadastro = aviso
+    resultado.updated_at = timezone.now()
+    resultado.save(update_fields=["marcadores", "sugestao_texto", "aviso_cadastro", "updated_at"])
+    return resultado
 
 
 def perfil_paciente(patient, referencia: date | None = None) -> dict:
@@ -262,10 +389,13 @@ def serializar_resultado(resultado: ResultadoExamePaciente) -> dict:
 
 def listar_resultados_consulta(consulta: Consulta) -> dict:
     patient_id = consulta.patient_id
-    resultados = (
+    resultados = list(
         ResultadoExamePaciente.objects.filter(patient_id=patient_id)
+        .select_related("patient")
         .order_by("-created_at")[:40]
     )
+    # Melhorias no extrator/catálogo atualizam laudos já importados sem reenviar o PDF.
+    resultados = [reprocessar_resultado_salvo(r) for r in resultados]
     pedidos = listar_pedidos_pendentes(patient_id, consulta.id)
     return {
         "pode_importar": bool(pedidos),

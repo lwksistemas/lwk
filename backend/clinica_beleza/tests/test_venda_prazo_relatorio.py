@@ -11,7 +11,7 @@ from clinica_beleza.venda_prazo_relatorio_service import calcular_venda_prazo
 
 def _pagamento(*, pid, nome, paciente, vencimento, total, pago, saldo, dia, patient_id=1, consulta_numero=None):
     professional = SimpleNamespace(nome=nome)
-    patient = SimpleNamespace(nome=paciente, telefone="(16) 99999-0000")
+    patient = SimpleNamespace(nome=paciente, telefone="5516999990000")
     appt = SimpleNamespace(
         professional_id=pid,
         professional=professional,
@@ -98,6 +98,7 @@ class CalcularVendaPrazoTest(SimpleTestCase):
         self.assertEqual(len(result["clientes"]), 1)
         cliente = result["clientes"][0]
         self.assertEqual(cliente["nome"], "RENATA COELHO")
+        self.assertEqual(cliente["telefone"], "(16) 99999-0000")
         self.assertEqual(cliente["total_consultas"], 2)
         self.assertEqual(cliente["valor_aberto"], 420.0)
         numeros = [c["consulta_numero"] for c in cliente["consultas"]]

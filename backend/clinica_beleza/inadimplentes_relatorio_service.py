@@ -9,6 +9,8 @@ from datetime import date
 
 from django.utils.timezone import now
 
+from core.phone_utils import telefone_exibicao_brasileiro
+
 from .financeiro_service import queryset_inadimplentes
 
 
@@ -25,7 +27,7 @@ def _serialize_linha(payment, hoje: date) -> dict:
         "payment_id": payment.id,
         "patient_id": getattr(patient, "id", None),
         "paciente_nome": getattr(patient, "nome", "") or "",
-        "telefone": getattr(patient, "telefone", "") or "",
+        "telefone": telefone_exibicao_brasileiro(getattr(patient, "telefone", "") or ""),
         "email": getattr(patient, "email", "") or "",
         "valor_aberto": saldo,
         "vencimento": venc.isoformat() if venc else None,

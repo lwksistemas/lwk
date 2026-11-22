@@ -13,6 +13,8 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import Q
 from django.utils.timezone import now
 
+from core.phone_utils import telefone_exibicao_brasileiro
+
 from .financeiro_service import payments_visiveis_financeiro
 from .serializers.financeiro import _procedimentos_nome_agendamento
 
@@ -122,7 +124,7 @@ def calcular_venda_prazo(
 
         patient = appt.patient if appt.patient_id else None
         paciente_nome = getattr(patient, "nome", "") or "—"
-        telefone = getattr(patient, "telefone", "") or ""
+        telefone = telefone_exibicao_brasileiro(getattr(patient, "telefone", "") or "")
         profissional_nome = grupo["nome"]
         venc = payment.data_vencimento
         codigo, rotulo, dias = _situacao(venc, hoje)

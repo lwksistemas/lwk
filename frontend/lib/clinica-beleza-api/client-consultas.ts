@@ -156,6 +156,75 @@ export const consultasApi = {
     excluir: (consultaId: number, fotoId: number) =>
       cbDelete(`/consultas/${consultaId}/fotos/${fotoId}/`),
   },
+  resultadosExame: {
+    list: (consultaId: number) =>
+      cbGet<{
+        pode_importar: boolean;
+        pedidos_pendentes: Array<{
+          tipo: "documento" | "memed";
+          id: number;
+          consulta_id: number;
+          titulo: string;
+          quando: string | null;
+        }>;
+        resultados: Array<{
+          id: number;
+          patient_id: number;
+          consulta_id: number;
+          consulta_origem_id: number | null;
+          documento_origem_id: number | null;
+          prescricao_origem_id: number | null;
+          pdf_url: string;
+          nome_arquivo: string;
+          marcadores: Array<{
+            codigo: string;
+            nome: string;
+            valor: number;
+            unidade: string;
+            faixa_min: number | null;
+            faixa_max: number | null;
+            origem_faixa: string;
+            status: string;
+          }>;
+          sugestao_texto: string;
+          aviso_cadastro: string;
+          created_at: string | null;
+        }>;
+        perfil: {
+          sexo: string;
+          idade: number | null;
+          faixa_etaria: string;
+          aviso: string;
+        };
+      }>(`/consultas/${consultaId}/resultados-exame/`),
+    importar: (
+      consultaId: number,
+      file: File,
+      extras?: {
+        documento_origem_id?: number;
+        prescricao_origem_id?: number;
+        consulta_origem_id?: number;
+      },
+    ) => {
+      const formData = new FormData();
+      formData.append("arquivo", file);
+      if (extras?.documento_origem_id) {
+        formData.append("documento_origem_id", String(extras.documento_origem_id));
+      }
+      if (extras?.prescricao_origem_id) {
+        formData.append("prescricao_origem_id", String(extras.prescricao_origem_id));
+      }
+      if (extras?.consulta_origem_id) {
+        formData.append("consulta_origem_id", String(extras.consulta_origem_id));
+      }
+      return cbPostFormData<{ message: string; resultado: Record<string, unknown> }>(
+        `/consultas/${consultaId}/resultados-exame/`,
+        formData,
+      );
+    },
+    excluir: (consultaId: number, resultadoId: number) =>
+      cbDelete(`/consultas/${consultaId}/resultados-exame/${resultadoId}/`),
+  },
   simulacao: {
     list: (consultaId: number) =>
       cbGet<{ resultados: SimulacaoConsultaItem[] }>(`/consultas/${consultaId}/simulacao/`),

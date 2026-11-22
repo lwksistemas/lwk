@@ -4,6 +4,7 @@ import { DigitarManualModal } from "./DigitarManualModal";
 import { UsarTemplateModal } from "./UsarTemplateModal";
 import { DocumentoCriarSection } from "./documentos/DocumentoCriarSection";
 import { DocumentoListaSection } from "./documentos/DocumentoListaSection";
+import { ResultadoExameSection } from "./documentos/ResultadoExameSection";
 import { useConsultaDocumentos } from "./documentos/useConsultaDocumentos";
 
 export type { DocumentoAcao, DocumentoTipo } from "./documentos/documentos-types";
@@ -60,6 +61,8 @@ export function ConsultaDocumentosTab({
         onAcao={(tipo, acao) => handleAcao(tipo, acao, onUsarMemed)}
         permiteMemed={permiteMemed}
       />
+
+      <ResultadoExameSection consultaId={consultaId} consultaAtiva={consultaAtiva} />
 
       <DocumentoListaSection
         loading={loadingDocs}

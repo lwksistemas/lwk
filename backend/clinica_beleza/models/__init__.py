@@ -58,6 +58,7 @@ from .protocolo import (
     ProtocoloProcedimento,
     ProtocoloProduto,
 )
+from .resultado_exame import ResultadoExamePaciente
 from .retorno import AgendaRetornoConfig, RetornoProcedimentoRegra
 from .simulacao_estetica import SimulacaoConsulta, SimulacaoEsteticaConfig
 from .termos_consentimento import TermoConsentimentoConfig, TermoConsentimentoTemplate
@@ -126,6 +127,7 @@ __all__ = [
     "VinculoProdutoFornecedor",
     "Professional",
     "ProfessionalCommission",
+    "ResultadoExamePaciente",
     "RetornoProcedimentoRegra",
     "SimulacaoConsulta",
     "SimulacaoEsteticaConfig",

@@ -152,6 +152,7 @@ from .views_fornecedores import (
     FornecedorListView,
     FornecedorProdutoListView,
 )
+from .views_resultado_exame import ConsultaResultadoExameDetailView, ConsultaResultadoExameView
 from .views_foto_paciente import (
     ConsultaFotoDeleteView,
     ConsultaFotoQrView,
@@ -326,6 +327,12 @@ urlpatterns = [
     path("assinar-recibo/<path:token>/pdf/", ReciboAssinaturaPdfPublicaView.as_view(), name="assinar-recibo-pdf"),
     path("assinar-recibo/<path:token>/", ReciboAssinaturaPublicaView.as_view(), name="assinar-recibo"),
     path("consultas/<int:pk>/fotos/", ConsultaFotosPacienteView.as_view(), name="consultas-fotos"),
+    path("consultas/<int:pk>/resultados-exame/", ConsultaResultadoExameView.as_view(), name="consultas-resultados-exame"),
+    path(
+        "consultas/<int:pk>/resultados-exame/<int:resultado_id>/",
+        ConsultaResultadoExameDetailView.as_view(),
+        name="consultas-resultados-exame-detail",
+    ),
     path("consultas/<int:pk>/simulacao/", ConsultaSimulacaoListView.as_view(), name="consultas-simulacao"),
     path(
         "consultas/<int:pk>/simulacao/<int:simulacao_id>/",

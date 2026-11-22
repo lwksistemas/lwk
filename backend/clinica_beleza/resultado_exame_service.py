@@ -10,6 +10,7 @@ from django.utils import timezone
 
 from core.media_pdf import salvar_pdf_pessoa
 
+from .exame_apoio_clinico import apoio_para_marcador
 from .exame_referencia import (
     CATALOGO_REFERENCIA,
     alias_para_codigo,
@@ -263,6 +264,8 @@ def _assinatura_marcadores(marcadores: list) -> tuple:
             m.get("codigo"),
             round(float(m["valor"]), 4) if m.get("valor") is not None else None,
             m.get("status"),
+            tuple(m.get("sintomas_possiveis") or []),
+            tuple(m.get("recomendacoes") or []),
         ))
     return tuple(out)
 
@@ -348,6 +351,7 @@ def montar_sugestao(marcadores: list[dict], patient, referencia: date | None = N
             float(faixa_min) if faixa_min is not None else None,
             float(faixa_max) if faixa_max is not None else None,
         )
+        apoio = apoio_para_marcador(codigo, status)
         item = {
             "codigo": codigo or "",
             "nome": nome,
@@ -357,6 +361,9 @@ def montar_sugestao(marcadores: list[dict], patient, referencia: date | None = N
             "faixa_max": float(faixa_max) if faixa_max is not None else None,
             "origem_faixa": origem or "sem_referencia",
             "status": status,
+            "sintomas_possiveis": apoio["sintomas_possiveis"],
+            "recomendacoes": apoio["recomendacoes"],
+            "origem_apoio": apoio["origem_apoio"],
         }
         enriquecidos.append(item)
         faixa_txt = "—"
@@ -376,6 +383,19 @@ def montar_sugestao(marcadores: list[dict], patient, referencia: date | None = N
         texto = cabeca + " Nenhum biomarcador reconhecido no PDF. Revise o laudo ou informe os valores."
     else:
         texto = cabeca + "\n" + "\n".join(linhas_texto)
+        fora = [m for m in enriquecidos if m.get("status") in ("alto", "baixo")]
+        if fora:
+            blocos_fora: list[str] = ["", "Fora da referência — sintomas possíveis e recomendações de apoio:"]
+            for m in fora:
+                blocos_fora.append(
+                    f"- {m['nome']} ({'acima' if m['status'] == 'alto' else 'abaixo'}): "
+                    f"{m['valor']} {m.get('unidade') or ''}".strip()
+                )
+                if m.get("sintomas_possiveis"):
+                    blocos_fora.append("  Sintomas possíveis: " + "; ".join(m["sintomas_possiveis"]))
+                if m.get("recomendacoes"):
+                    blocos_fora.append("  Recomendações: " + "; ".join(m["recomendacoes"]))
+            texto += "\n" + "\n".join(blocos_fora)
     return enriquecidos, texto, perfil["aviso"]
 
 

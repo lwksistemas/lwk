@@ -114,15 +114,33 @@ def gerar_pdf_resultado_exame(consulta, resultado) -> BytesIO:
         fora = [m for m in marcadores if m.get("status") in ("alto", "baixo")]
         if fora:
             elements.append(Paragraph("<b>Fora da referência</b>", styles["DocTitle"]))
+            elements.append(
+                Paragraph(
+                    "Sintomas possíveis e recomendações de apoio (educativos — não substituem avaliação profissional).",
+                    styles["DocBody"],
+                )
+            )
+            elements.append(Spacer(1, 2 * mm))
             for item in fora:
                 rotulo = _STATUS_ROTULO.get(item.get("status") or "", item.get("status") or "")
                 linha = (
-                    f"{xml_escape(str(item.get('nome') or ''))}: "
+                    f"<b>{xml_escape(str(item.get('nome') or ''))}</b>: "
                     f"{_fmt_num(item.get('valor'))} {xml_escape(str(item.get('unidade') or ''))} "
                     f"({rotulo}; ref. {_fmt_faixa(item)})"
                 )
                 elements.append(Paragraph(linha.strip(), styles["DocBody"]))
-            elements.append(Spacer(1, 3 * mm))
+                sintomas = [str(s).strip() for s in (item.get("sintomas_possiveis") or []) if str(s).strip()]
+                recomendacoes = [str(s).strip() for s in (item.get("recomendacoes") or []) if str(s).strip()]
+                if sintomas:
+                    elements.append(Paragraph("<b>Sintomas possíveis</b>", styles["DocBody"]))
+                    for s in sintomas:
+                        elements.append(Paragraph(f"• {xml_escape(s)}", styles["DocBody"]))
+                if recomendacoes:
+                    elements.append(Paragraph("<b>Recomendações de apoio</b>", styles["DocBody"]))
+                    for s in recomendacoes:
+                        elements.append(Paragraph(f"• {xml_escape(s)}", styles["DocBody"]))
+                elements.append(Spacer(1, 2 * mm))
+            elements.append(Spacer(1, 2 * mm))
 
     elements.extend(_build_rodape_impressao(styles))
     return _build_pdf(loja_id, elements)

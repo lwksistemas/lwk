@@ -28,6 +28,9 @@ type Marcador = {
   faixa_max: number | null;
   origem_faixa: string;
   status: string;
+  sintomas_possiveis?: string[];
+  recomendacoes?: string[];
+  origem_apoio?: string;
 };
 
 type Resultado = {
@@ -301,6 +304,49 @@ export function ResultadoExameSection({
                   Nenhum biomarcador reconhecido automaticamente. Abra o PDF e avalie o laudo.
                 </p>
               )}
+              {r.marcadores?.some((m) => m.status === "alto" || m.status === "baixo") ? (
+                <div className="space-y-2">
+                  <p className="text-[11px] font-medium text-amber-800 dark:text-amber-200">
+                    Fora da referência — sintomas possíveis e recomendações de apoio
+                  </p>
+                  {r.marcadores
+                    .filter((m) => m.status === "alto" || m.status === "baixo")
+                    .map((m, idx) => (
+                      <div
+                        key={`apoio-${m.codigo}-${idx}`}
+                        className="rounded-lg border border-amber-200/80 dark:border-amber-900/50 bg-amber-50/60 dark:bg-amber-950/30 p-2.5 space-y-1.5"
+                      >
+                        <p className={`text-xs font-semibold ${corStatus(m.status)}`}>
+                          {m.nome}: {m.valor} {m.unidade} ({rotuloStatus(m.status)})
+                        </p>
+                        {m.sintomas_possiveis && m.sintomas_possiveis.length > 0 ? (
+                          <div>
+                            <p className="text-[11px] font-medium text-gray-700 dark:text-gray-200">
+                              Sintomas possíveis
+                            </p>
+                            <ul className="mt-0.5 list-disc pl-4 text-[11px] text-gray-600 dark:text-gray-300 space-y-0.5">
+                              {m.sintomas_possiveis.map((s) => (
+                                <li key={s}>{s}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        ) : null}
+                        {m.recomendacoes && m.recomendacoes.length > 0 ? (
+                          <div>
+                            <p className="text-[11px] font-medium text-gray-700 dark:text-gray-200">
+                              Recomendações de apoio
+                            </p>
+                            <ul className="mt-0.5 list-disc pl-4 text-[11px] text-gray-600 dark:text-gray-300 space-y-0.5">
+                              {m.recomendacoes.map((s) => (
+                                <li key={s}>{s}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        ) : null}
+                      </div>
+                    ))}
+                </div>
+              ) : null}
               {r.sugestao_texto ? (
                 <pre className="whitespace-pre-wrap rounded-lg bg-gray-50 dark:bg-gray-800/60 p-2 text-[11px] text-gray-700 dark:text-gray-200">
                   {r.sugestao_texto}

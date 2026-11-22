@@ -145,6 +145,27 @@ class ExtracaoESugestaoTest(SimpleTestCase):
         self.assertIn("mulher", texto)
         self.assertFalse(aviso)
 
+    def test_apoio_so_fora_da_faixa(self):
+        patient = SimpleNamespace(sexo="M", data_nascimento=date(1982, 6, 25))
+        marcadores, texto, _aviso = montar_sugestao(
+            [
+                {"codigo": "hdl", "nome": "HDL colesterol", "valor": 34, "unidade": "mg/dL"},
+                {"codigo": "colesterol_total", "nome": "Colesterol total", "valor": 166, "unidade": "mg/dL"},
+            ],
+            patient,
+            date(2026, 11, 22),
+        )
+        por = {m["codigo"]: m for m in marcadores}
+        self.assertEqual(por["hdl"]["status"], "baixo")
+        self.assertTrue(por["hdl"]["sintomas_possiveis"])
+        self.assertTrue(por["hdl"]["recomendacoes"])
+        self.assertEqual(por["hdl"]["origem_apoio"], "catalogo")
+        self.assertEqual(por["colesterol_total"]["status"], "dentro")
+        self.assertEqual(por["colesterol_total"]["sintomas_possiveis"], [])
+        self.assertEqual(por["colesterol_total"]["recomendacoes"], [])
+        self.assertIn("Sintomas possíveis", texto)
+        self.assertIn("Recomendações", texto)
+
     def test_aviso_sem_sexo_nem_nascimento(self):
         patient = SimpleNamespace(sexo="", data_nascimento=None)
         _marcadores, texto, aviso = montar_sugestao(

@@ -185,6 +185,9 @@ export const consultasApi = {
             faixa_max: number | null;
             origem_faixa: string;
             status: string;
+            sintomas_possiveis?: string[];
+            recomendacoes?: string[];
+            origem_apoio?: string;
           }>;
           sugestao_texto: string;
           aviso_cadastro: string;

@@ -115,7 +115,17 @@ class ConsultaResultadoExameDetailView(GetObjectMixin, APIView):
                 {"error": "Não foi possível gerar o PDF da análise."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        filename = f"analise_exame_consulta_{consulta.id}_{resultado.id}.pdf"
+        from django.utils import timezone
+
+        from .resultado_exame_pdf import content_disposition_analise, nome_arquivo_analise_exame
+
+        paciente_nome = getattr(consulta.patient, "nome", None) or "cliente"
+        data_ref = (
+            timezone.localtime(resultado.created_at).date()
+            if getattr(resultado, "created_at", None)
+            else timezone.localdate()
+        )
+        filename = nome_arquivo_analise_exame(paciente_nome, data_ref)
         try:
             from clinica_beleza.media_docs_service import arquivar_pdf_gerado
 
@@ -123,7 +133,7 @@ class ConsultaResultadoExameDetailView(GetObjectMixin, APIView):
         except Exception:
             logger.exception("Falha ao arquivar PDF de análise de exame")
         response = HttpResponse(buffer.getvalue(), content_type="application/pdf")
-        response["Content-Disposition"] = f'inline; filename="{filename}"'
+        response["Content-Disposition"] = content_disposition_analise(filename)
         return response
 
     def patch(self, request, pk, resultado_id):

@@ -132,6 +132,20 @@ export function fecharJanelaPdf(win: Window | null): void {
   }
 }
 
+function filenameFromContentDisposition(header: string | null | undefined): string | null {
+  if (!header) return null;
+  const star = header.match(/filename\*=(?:UTF-8''|utf-8'')([^;]+)/i);
+  if (star?.[1]) {
+    try {
+      return decodeURIComponent(star[1].trim().replace(/^"+|"+$/g, ""));
+    } catch {
+      return star[1].trim().replace(/^"+|"+$/g, "");
+    }
+  }
+  const plain = header.match(/filename="([^"]+)"/i) || header.match(/filename=([^;]+)/i);
+  return plain?.[1]?.trim() || null;
+}
+
 export async function abrirPdfBlobFromResponse(
   response: Response,
   modo: ConsultaPdfModo = "visualizar",
@@ -146,7 +160,13 @@ export async function abrirPdfBlobFromResponse(
   if (blob.size < 100) {
     throw new Error("PDF vazio ou inválido.");
   }
-  const url = window.URL.createObjectURL(blob);
+  // File com nome do Content-Disposition: o Chrome usa esse nome no download (não o UUID do blob:).
+  const nome = filenameFromContentDisposition(response.headers.get("content-disposition"));
+  const arquivo =
+    nome && nome.toLowerCase().endsWith(".pdf")
+      ? new File([blob], nome, { type: "application/pdf" })
+      : blob;
+  const url = window.URL.createObjectURL(arquivo);
   try {
     if (janela !== undefined) {
       direcionarJanelaPdf(janela, url, modo);

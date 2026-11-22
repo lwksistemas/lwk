@@ -1,9 +1,13 @@
 """PDF de impressão da análise de resultado de exame (padrão prontuário/timbrado)."""
 from __future__ import annotations
 
+from datetime import date
 from io import BytesIO
+from urllib.parse import quote
 from xml.sax.saxutils import escape as xml_escape
 
+from django.utils import timezone
+from django.utils.text import slugify
 from reportlab.lib import colors
 from reportlab.lib.units import mm
 from reportlab.platypus import Paragraph, Spacer, Table, TableStyle
@@ -34,6 +38,19 @@ _EVOLUCAO_ROTULO = {
     "piorou": "Piorou",
     "estavel": "Estável",
 }
+
+
+def nome_arquivo_analise_exame(nome_paciente: str, quando: date | None = None) -> str:
+    """Analise_Exame_LUIZ_HENRIQUE_FELIX_22-11-2026.pdf"""
+    slug = (slugify(nome_paciente or "") or "cliente").replace("-", "_")[:60].strip("_") or "cliente"
+    data_ref = quando or timezone.localdate()
+    return f"Analise_Exame_{slug.upper()}_{data_ref.strftime('%d-%m-%Y')}.pdf"
+
+
+def content_disposition_analise(filename: str) -> str:
+    """inline com filename ASCII + filename* UTF-8 para o download usar o nome certo."""
+    ascii_name = filename.encode("ascii", "ignore").decode("ascii") or "Analise_Exame.pdf"
+    return f"inline; filename=\"{ascii_name}\"; filename*=UTF-8''{quote(filename)}"
 
 
 def _fmt_num(valor) -> str:

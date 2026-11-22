@@ -7,6 +7,7 @@ from django.test import SimpleTestCase
 
 from clinica_beleza.exame_comparacao import comparar_marcadores
 from clinica_beleza.exame_referencia import classificar_valor, idade_em_anos, resolver_faixa_catalogo
+from clinica_beleza.resultado_exame_pdf import nome_arquivo_analise_exame
 from clinica_beleza.resultado_exame_service import (
     extrair_marcadores_do_texto,
     montar_sugestao,
@@ -177,6 +178,12 @@ class ExtracaoESugestaoTest(SimpleTestCase):
         self.assertIn("sexo", aviso.lower())
         self.assertIn("nascimento", aviso.lower())
         self.assertIn("Sugestão", texto)
+
+
+class NomeArquivoAnaliseTest(SimpleTestCase):
+    def test_nome_com_paciente_e_data(self):
+        nome = nome_arquivo_analise_exame("LUIZ HENRIQUE FELIX", date(2026, 11, 22))
+        self.assertEqual(nome, "Analise_Exame_LUIZ_HENRIQUE_FELIX_22-11-2026.pdf")
 
 
 class ComparacaoLaudosTest(SimpleTestCase):

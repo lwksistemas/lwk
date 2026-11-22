@@ -15,6 +15,7 @@ from .prontuario_pdf.elements import (
 )
 from .prontuario_pdf.generators import _build_pdf
 from .prontuario_pdf.styles import _get_styles
+from .resultado_exame_service import montar_comparacao_resultado
 
 _AVISO_PADRAO = (
     "A sugestão usa a faixa do laudo ou o catálogo interno conforme sexo e idade "
@@ -26,6 +27,12 @@ _STATUS_ROTULO = {
     "baixo": "Abaixo",
     "dentro": "Dentro da faixa",
     "sem_referencia": "Sem referência",
+}
+
+_EVOLUCAO_ROTULO = {
+    "melhorou": "Melhorou",
+    "piorou": "Piorou",
+    "estavel": "Estável",
 }
 
 
@@ -110,6 +117,46 @@ def gerar_pdf_resultado_exame(consulta, resultado) -> BytesIO:
         )
         elements.append(table)
         elements.append(Spacer(1, 4 * mm))
+
+        comparacao = montar_comparacao_resultado(resultado)
+        if comparacao and comparacao.get("itens"):
+            elements.append(Paragraph("<b>Evolução em relação ao laudo anterior</b>", styles["DocTitle"]))
+            elements.append(Paragraph(xml_escape(comparacao.get("texto") or ""), styles["DocBody"]))
+            elements.append(Spacer(1, 2 * mm))
+            rows_ev = [["Exame", "Anterior", "Atual", "Δ", "Evolução"]]
+            for item in comparacao["itens"]:
+                delta = item.get("delta")
+                pct = item.get("delta_pct")
+                delta_txt = _fmt_num(delta)
+                if pct is not None:
+                    sinal = "+" if pct > 0 else ""
+                    delta_txt = f"{delta_txt} ({sinal}{_fmt_num(pct)}%)"
+                unidade = xml_escape(str(item.get("unidade") or "").strip())
+                rows_ev.append([
+                    xml_escape(str(item.get("nome") or "")),
+                    f"{_fmt_num(item.get('valor_anterior'))} {unidade}".strip(),
+                    f"{_fmt_num(item.get('valor_atual'))} {unidade}".strip(),
+                    delta_txt,
+                    _EVOLUCAO_ROTULO.get(str(item.get("evolucao") or ""), str(item.get("evolucao") or "—")),
+                ])
+            table_ev = Table(rows_ev, colWidths=[120, 85, 85, 85, 70])
+            table_ev.setStyle(
+                TableStyle(
+                    [
+                        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#f3f4f6")),
+                        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                        ("FONTSIZE", (0, 0), (-1, -1), 8),
+                        ("GRID", (0, 0), (-1, -1), 0.25, colors.grey),
+                        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                        ("LEFTPADDING", (0, 0), (-1, -1), 3),
+                        ("RIGHTPADDING", (0, 0), (-1, -1), 3),
+                        ("TOPPADDING", (0, 0), (-1, -1), 3),
+                        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+                    ]
+                )
+            )
+            elements.append(table_ev)
+            elements.append(Spacer(1, 4 * mm))
 
         fora = [m for m in marcadores if m.get("status") in ("alto", "baixo")]
         if fora:

@@ -11,6 +11,7 @@ from django.utils import timezone
 from core.media_pdf import salvar_pdf_pessoa
 
 from .exame_apoio_clinico import apoio_para_marcador
+from .exame_comparacao import comparar_marcadores
 from .exame_referencia import (
     CATALOGO_REFERENCIA,
     alias_para_codigo,
@@ -457,8 +458,41 @@ def listar_pedidos_pendentes(patient_id: int, consulta_atual_id: int) -> list[di
     return pedidos
 
 
-def serializar_resultado(resultado: ResultadoExamePaciente) -> dict:
-    return {
+def buscar_resultado_anterior(resultado: ResultadoExamePaciente) -> ResultadoExamePaciente | None:
+    """Laudo imediatamente anterior do mesmo paciente (por data de importação)."""
+    if not resultado or not resultado.patient_id or not resultado.created_at:
+        return None
+    return (
+        ResultadoExamePaciente.objects.filter(
+            patient_id=resultado.patient_id,
+            created_at__lt=resultado.created_at,
+        )
+        .exclude(pk=resultado.pk)
+        .order_by("-created_at")
+        .first()
+    )
+
+
+def montar_comparacao_resultado(resultado: ResultadoExamePaciente) -> dict | None:
+    """Compara o laudo atual com o anterior do paciente, se existir."""
+    anterior = buscar_resultado_anterior(resultado)
+    if not anterior:
+        return None
+    data_atual = timezone.localtime(resultado.created_at).date() if resultado.created_at else None
+    data_anterior = timezone.localtime(anterior.created_at).date() if anterior.created_at else None
+    comp = comparar_marcadores(
+        resultado.marcadores or [],
+        anterior.marcadores or [],
+        data_atual=data_atual,
+        data_anterior=data_anterior,
+    )
+    comp["resultado_anterior_id"] = anterior.id
+    comp["nome_arquivo_anterior"] = anterior.nome_arquivo or ""
+    return comp
+
+
+def serializar_resultado(resultado: ResultadoExamePaciente, *, incluir_comparacao: bool = True) -> dict:
+    payload = {
         "id": resultado.id,
         "patient_id": resultado.patient_id,
         "consulta_id": resultado.consulta_id,
@@ -471,7 +505,11 @@ def serializar_resultado(resultado: ResultadoExamePaciente) -> dict:
         "sugestao_texto": resultado.sugestao_texto or "",
         "aviso_cadastro": resultado.aviso_cadastro or "",
         "created_at": resultado.created_at.isoformat() if resultado.created_at else None,
+        "comparacao": None,
     }
+    if incluir_comparacao:
+        payload["comparacao"] = montar_comparacao_resultado(resultado)
+    return payload
 
 
 def listar_resultados_consulta(consulta: Consulta) -> dict:

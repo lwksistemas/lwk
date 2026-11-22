@@ -192,6 +192,32 @@ export const consultasApi = {
           sugestao_texto: string;
           aviso_cadastro: string;
           created_at: string | null;
+          comparacao?: {
+            tem_anterior: boolean;
+            resultado_anterior_id?: number;
+            nome_arquivo_anterior?: string;
+            data_atual: string | null;
+            data_anterior: string | null;
+            resumo: {
+              total_comuns: number;
+              melhoraram: number;
+              pioraram: number;
+              estaveis: number;
+            };
+            itens: Array<{
+              codigo: string;
+              nome: string;
+              unidade: string;
+              valor_anterior: number;
+              valor_atual: number;
+              delta: number;
+              delta_pct: number | null;
+              status_anterior: string;
+              status_atual: string;
+              evolucao: "melhorou" | "piorou" | "estavel" | string;
+            }>;
+            texto: string;
+          } | null;
         }>;
         perfil: {
           sexo: string;

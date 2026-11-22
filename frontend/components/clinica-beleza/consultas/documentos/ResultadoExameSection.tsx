@@ -33,6 +33,35 @@ type Marcador = {
   origem_apoio?: string;
 };
 
+type ComparacaoItem = {
+  codigo: string;
+  nome: string;
+  unidade: string;
+  valor_anterior: number;
+  valor_atual: number;
+  delta: number;
+  delta_pct: number | null;
+  status_anterior: string;
+  status_atual: string;
+  evolucao: string;
+};
+
+type Comparacao = {
+  tem_anterior: boolean;
+  resultado_anterior_id?: number;
+  nome_arquivo_anterior?: string;
+  data_atual: string | null;
+  data_anterior: string | null;
+  resumo: {
+    total_comuns: number;
+    melhoraram: number;
+    pioraram: number;
+    estaveis: number;
+  };
+  itens: ComparacaoItem[];
+  texto: string;
+};
+
 type Resultado = {
   id: number;
   pdf_url: string;
@@ -43,6 +72,7 @@ type Resultado = {
   created_at: string | null;
   documento_origem_id: number | null;
   prescricao_origem_id: number | null;
+  comparacao?: Comparacao | null;
 };
 
 function corStatus(status: string) {
@@ -56,6 +86,26 @@ function rotuloStatus(status: string) {
   if (status === "baixo") return "Abaixo";
   if (status === "dentro") return "Dentro da faixa";
   return "Sem referência";
+}
+
+function corEvolucao(evolucao: string) {
+  if (evolucao === "melhorou") return "text-emerald-700 dark:text-emerald-300";
+  if (evolucao === "piorou") return "text-amber-700 dark:text-amber-300";
+  return "text-gray-600 dark:text-gray-300";
+}
+
+function rotuloEvolucao(evolucao: string) {
+  if (evolucao === "melhorou") return "Melhorou";
+  if (evolucao === "piorou") return "Piorou";
+  if (evolucao === "estavel") return "Estável";
+  return evolucao || "—";
+}
+
+function fmtDataCurta(iso: string | null | undefined) {
+  if (!iso) return "—";
+  const d = new Date(`${iso}T12:00:00`);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString("pt-BR");
 }
 
 export function ResultadoExameSection({
@@ -304,6 +354,60 @@ export function ResultadoExameSection({
                   Nenhum biomarcador reconhecido automaticamente. Abra o PDF e avalie o laudo.
                 </p>
               )}
+              {r.comparacao?.itens && r.comparacao.itens.length > 0 ? (
+                <div className="space-y-2 rounded-lg border border-sky-200/80 dark:border-sky-900/50 bg-sky-50/50 dark:bg-sky-950/20 p-2.5">
+                  <p className="text-[11px] font-medium text-sky-900 dark:text-sky-100">
+                    Evolução vs laudo anterior
+                    {r.comparacao.data_anterior || r.comparacao.data_atual
+                      ? ` (${fmtDataCurta(r.comparacao.data_anterior)} → ${fmtDataCurta(r.comparacao.data_atual)})`
+                      : ""}
+                  </p>
+                  <p className="text-[11px] text-sky-800/90 dark:text-sky-200/80">{r.comparacao.texto}</p>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="text-left text-gray-500">
+                          <th className="py-1 pr-2 font-medium">Exame</th>
+                          <th className="py-1 pr-2 font-medium">Anterior</th>
+                          <th className="py-1 pr-2 font-medium">Atual</th>
+                          <th className="py-1 pr-2 font-medium">Δ</th>
+                          <th className="py-1 font-medium">Evolução</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {r.comparacao.itens.map((c) => {
+                          const pct =
+                            c.delta_pct != null
+                              ? ` (${c.delta_pct > 0 ? "+" : ""}${c.delta_pct}%)`
+                              : "";
+                          return (
+                            <tr
+                              key={`cmp-${c.codigo}`}
+                              className="border-t border-sky-100/80 dark:border-sky-900/40"
+                            >
+                              <td className="py-1 pr-2">{c.nome}</td>
+                              <td className="py-1 pr-2 tabular-nums">
+                                {c.valor_anterior} {c.unidade}
+                              </td>
+                              <td className="py-1 pr-2 tabular-nums">
+                                {c.valor_atual} {c.unidade}
+                              </td>
+                              <td className="py-1 pr-2 tabular-nums text-gray-600 dark:text-gray-300">
+                                {c.delta > 0 ? "+" : ""}
+                                {c.delta}
+                                {pct}
+                              </td>
+                              <td className={`py-1 font-medium ${corEvolucao(c.evolucao)}`}>
+                                {rotuloEvolucao(c.evolucao)}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ) : null}
               {r.marcadores?.some((m) => m.status === "alto" || m.status === "baixo") ? (
                 <div className="space-y-2">
                   <p className="text-[11px] font-medium text-amber-800 dark:text-amber-200">

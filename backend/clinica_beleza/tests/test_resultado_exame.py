@@ -5,6 +5,7 @@ from unittest.mock import patch
 
 from django.test import SimpleTestCase
 
+from clinica_beleza.exame_comparacao import comparar_marcadores
 from clinica_beleza.exame_referencia import classificar_valor, idade_em_anos, resolver_faixa_catalogo
 from clinica_beleza.resultado_exame_service import (
     extrair_marcadores_do_texto,
@@ -176,6 +177,35 @@ class ExtracaoESugestaoTest(SimpleTestCase):
         self.assertIn("sexo", aviso.lower())
         self.assertIn("nascimento", aviso.lower())
         self.assertIn("Sugestão", texto)
+
+
+class ComparacaoLaudosTest(SimpleTestCase):
+    def test_compara_hdl_melhorou_e_ldl_piorou(self):
+        anterior = [
+            {"codigo": "hdl", "nome": "HDL", "valor": 34, "unidade": "mg/dL", "status": "baixo"},
+            {"codigo": "ldl", "nome": "LDL", "valor": 109, "unidade": "mg/dL", "status": "alto"},
+        ]
+        atual = [
+            {"codigo": "hdl", "nome": "HDL", "valor": 42, "unidade": "mg/dL", "status": "dentro"},
+            {"codigo": "ldl", "nome": "LDL", "valor": 118, "unidade": "mg/dL", "status": "alto"},
+            {"codigo": "glicose", "nome": "Glicose", "valor": 90, "unidade": "mg/dL", "status": "dentro"},
+        ]
+        comp = comparar_marcadores(atual, anterior, data_atual=date(2026, 11, 22), data_anterior=date(2026, 5, 10))
+        por = {i["codigo"]: i for i in comp["itens"]}
+        self.assertEqual(set(por), {"hdl", "ldl"})
+        self.assertEqual(por["hdl"]["evolucao"], "melhorou")
+        self.assertEqual(por["ldl"]["evolucao"], "piorou")
+        self.assertEqual(comp["resumo"]["melhoraram"], 1)
+        self.assertEqual(comp["resumo"]["pioraram"], 1)
+        self.assertIn("Comparação", comp["texto"])
+
+    def test_sem_marcadores_comuns(self):
+        comp = comparar_marcadores(
+            [{"codigo": "hdl", "nome": "HDL", "valor": 40, "status": "dentro"}],
+            [{"codigo": "glicose", "nome": "Glicose", "valor": 90, "status": "dentro"}],
+        )
+        self.assertEqual(comp["itens"], [])
+        self.assertIn("comum", comp["texto"].lower())
 
 
 class ImportarPdfTest(SimpleTestCase):

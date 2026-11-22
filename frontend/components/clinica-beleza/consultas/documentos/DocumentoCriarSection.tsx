@@ -1,4 +1,4 @@
-import { ChevronDown, ExternalLink, FileText, Layers, PenLine } from "lucide-react";
+import { ChevronDown, ExternalLink, FileText, Layers, PenLine, Plus } from "lucide-react";
 import type { DocumentoAcao, DocumentoTipo } from "./documentos-types";
 import { DOCUMENTO_BUTTONS } from "./documentos-types";
 
@@ -8,13 +8,46 @@ export function DocumentoCriarSection({
   onToggleDropdown,
   onAcao,
   permiteMemed = true,
+  opcoesOcultas = false,
+  ultimaAcaoLabel = null,
+  onMostrarOpcoes,
 }: {
   consultaAtiva: boolean;
   openDropdown: DocumentoTipo | null;
   onToggleDropdown: (tipo: DocumentoTipo) => void;
   onAcao: (tipo: DocumentoTipo, acao: DocumentoAcao) => void;
   permiteMemed?: boolean;
+  /** Após escolher Memed/template/manual, esconde o grid de opções. */
+  opcoesOcultas?: boolean;
+  ultimaAcaoLabel?: string | null;
+  onMostrarOpcoes?: () => void;
 }) {
+  if (consultaAtiva && opcoesOcultas) {
+    return (
+      <div className="rounded-xl border border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-800/80 px-4 py-3 md:px-6 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2 min-w-0">
+          <FileText size={18} className="text-gray-600 dark:text-gray-400 shrink-0" />
+          <div className="min-w-0">
+            <h3 className="font-semibold text-gray-900 dark:text-gray-100 text-sm">Documentos</h3>
+            {ultimaAcaoLabel ? (
+              <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                Opção escolhida: {ultimaAcaoLabel}
+              </p>
+            ) : null}
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={onMostrarOpcoes}
+          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium border border-gray-200 dark:border-neutral-600 bg-gray-50 dark:bg-neutral-700 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-neutral-600 transition-colors"
+        >
+          <Plus size={14} />
+          Criar outro documento
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="rounded-xl border border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-800/80 p-4 md:p-6">
       <div className="flex items-center gap-2 mb-4">

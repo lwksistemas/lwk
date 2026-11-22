@@ -4,6 +4,7 @@ import { useToast } from "@/components/ui/Toast";
 import { logger } from "@/lib/logger";
 import { parseListaDocumentos } from "../historico/historico-utils";
 import type { DocumentoAcao, DocumentoTipo } from "./documentos-types";
+import { labelAcaoDocumento } from "./documentos-types";
 
 export function useConsultaDocumentos(consultaId: number, refreshPrescricoes = 0) {
   const toast = useToast();
@@ -19,6 +20,8 @@ export function useConsultaDocumentos(consultaId: number, refreshPrescricoes = 0
   const [templateModalTipo, setTemplateModalTipo] = useState<DocumentoTipo | null>(null);
   const [manualModalTipo, setManualModalTipo] = useState<DocumentoTipo | null>(null);
   const [savingManualDoc, setSavingManualDoc] = useState(false);
+  const [opcoesOcultas, setOpcoesOcultas] = useState(false);
+  const [ultimaAcaoLabel, setUltimaAcaoLabel] = useState<string | null>(null);
 
   const fetchDocumentos = useCallback(async () => {
     try {
@@ -90,6 +93,8 @@ export function useConsultaDocumentos(consultaId: number, refreshPrescricoes = 0
 
   const handleAcao = (tipo: DocumentoTipo, acao: DocumentoAcao, onUsarMemed?: () => void) => {
     setOpenDropdown(null);
+    setUltimaAcaoLabel(labelAcaoDocumento(tipo, acao));
+    setOpcoesOcultas(true);
     switch (acao) {
       case "memed":
         onUsarMemed?.();
@@ -101,6 +106,11 @@ export function useConsultaDocumentos(consultaId: number, refreshPrescricoes = 0
         setManualModalTipo(tipo);
         break;
     }
+  };
+
+  const mostrarOpcoesDocumentos = () => {
+    setOpcoesOcultas(false);
+    setOpenDropdown(null);
   };
 
   const salvarDocumentoManual = async (data: { tipo: DocumentoTipo; conteudo: string; titulo: string }) => {
@@ -152,5 +162,8 @@ export function useConsultaDocumentos(consultaId: number, refreshPrescricoes = 0
     salvarDocumentoManual,
     atualizarPdfUrlPrescricao,
     permiteMemed,
+    opcoesOcultas,
+    ultimaAcaoLabel,
+    mostrarOpcoesDocumentos,
   };
 }

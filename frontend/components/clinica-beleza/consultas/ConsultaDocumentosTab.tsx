@@ -50,6 +50,9 @@ export function ConsultaDocumentosTab({
     salvarDocumentoManual,
     atualizarPdfUrlPrescricao,
     permiteMemed,
+    opcoesOcultas,
+    ultimaAcaoLabel,
+    mostrarOpcoesDocumentos,
   } = useConsultaDocumentos(consultaId, refreshPrescricoes);
 
   return (
@@ -60,6 +63,9 @@ export function ConsultaDocumentosTab({
         onToggleDropdown={toggleDropdown}
         onAcao={(tipo, acao) => handleAcao(tipo, acao, onUsarMemed)}
         permiteMemed={permiteMemed}
+        opcoesOcultas={opcoesOcultas}
+        ultimaAcaoLabel={ultimaAcaoLabel}
+        onMostrarOpcoes={mostrarOpcoesDocumentos}
       />
 
       <ResultadoExameSection consultaId={consultaId} consultaAtiva={consultaAtiva} />

@@ -31,3 +31,10 @@ export const DOCUMENTO_BUTTONS: DocumentoButtonConfig[] = [
   { tipo: "atestado", label: DOCUMENTO_TIPO_LABEL.atestado, icon: ClipboardCheck, hasMemed: true },
   { tipo: "documento_personalizado", label: DOCUMENTO_TIPO_LABEL.documento_personalizado, icon: File, hasMemed: true },
 ];
+
+export function labelAcaoDocumento(tipo: DocumentoTipo, acao: DocumentoAcao): string {
+  const tipoLabel = DOCUMENTO_TIPO_LABEL[tipo];
+  const acaoLabel =
+    acao === "memed" ? "Memed" : acao === "template" ? "Template" : "Manual";
+  return `${tipoLabel} · ${acaoLabel}`;
+}

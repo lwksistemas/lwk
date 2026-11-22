@@ -2,7 +2,14 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { FileUp, FlaskConical, Loader2, Trash2 } from "lucide-react";
+import { ConsultaPrintButton } from "@/components/clinica-beleza/consultas/ConsultaPrintButton";
 import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api/client";
+import {
+  abrirPdfBlobFromResponse,
+  fecharJanelaPdf,
+  type ConsultaPdfModo,
+} from "@/lib/consulta-print";
+import { clinicaBelezaFetch } from "@/lib/clinica-beleza-api";
 
 type PedidoPendente = {
   tipo: "documento" | "memed";
@@ -64,6 +71,20 @@ export function ResultadoExameSection({
   const [resultados, setResultados] = useState<Resultado[]>([]);
   const [pedidoEscolhido, setPedidoEscolhido] = useState<string>("");
   const [perfilAviso, setPerfilAviso] = useState("");
+
+  const imprimirAnalise = async (
+    resultadoId: number,
+    _modo: ConsultaPdfModo,
+    janela?: Window | null,
+  ) => {
+    const path = ClinicaBelezaAPI.consultas.resultadosExame.pdfUrl(consultaId, resultadoId);
+    const response = await clinicaBelezaFetch(path);
+    if (!response.ok) {
+      fecharJanelaPdf(janela ?? null);
+      throw new Error("Não foi possível gerar o PDF da análise.");
+    }
+    await abrirPdfBlobFromResponse(response, "visualizar", janela);
+  };
 
   const carregar = useCallback(async () => {
     setLoading(true);
@@ -224,17 +245,27 @@ export function ResultadoExameSection({
                     </p>
                   ) : null}
                 </div>
-                {consultaAtiva ? (
-                  <button
-                    type="button"
-                    aria-label="Excluir resultado"
-                    className="rounded-lg p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600"
-                    onClick={() => void excluir(r.id)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                ) : null}
+                <div className="flex items-center gap-1 shrink-0">
+                  <ConsultaPrintButton
+                    labelVisualizar="PDF análise"
+                    onAction={(modo, janela) => imprimirAnalise(r.id, modo, janela)}
+                  />
+                  {consultaAtiva ? (
+                    <button
+                      type="button"
+                      aria-label="Excluir resultado"
+                      className="rounded-lg p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600"
+                      onClick={() => void excluir(r.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  ) : null}
+                </div>
               </div>
+              <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                A sugestão usa a faixa do laudo ou o catálogo interno conforme sexo e idade do
+                cadastro — não substitui a avaliação profissional.
+              </p>
               {r.aviso_cadastro ? <p className="text-[11px] text-amber-700">{r.aviso_cadastro}</p> : null}
               {r.marcadores?.length ? (
                 <div className="overflow-x-auto">

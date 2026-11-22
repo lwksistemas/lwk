@@ -224,6 +224,8 @@ export const consultasApi = {
     },
     excluir: (consultaId: number, resultadoId: number) =>
       cbDelete(`/consultas/${consultaId}/resultados-exame/${resultadoId}/`),
+    pdfUrl: (consultaId: number, resultadoId: number) =>
+      `/consultas/${consultaId}/resultados-exame/${resultadoId}/?pdf=1`,
   },
   simulacao: {
     list: (consultaId: number) =>

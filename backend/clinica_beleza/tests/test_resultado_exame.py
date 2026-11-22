@@ -129,6 +129,10 @@ class ExtracaoESugestaoTest(SimpleTestCase):
         self.assertAlmostEqual(por_codigo["glicose"]["valor"], 97.9, places=1)
         # Hemoglobina não deve ser a HbA1c
         self.assertAlmostEqual(por_codigo["hemoglobina"]["valor"], 16.0, places=1)
+        self.assertEqual(por_codigo["leucocitos"]["faixa_max"], 10000.0)
+        self.assertEqual(por_codigo["plaquetas"]["faixa_max"], 400000.0)
+        # Não deve usar "0 a 09 anos" como faixa de colesterol
+        self.assertGreater(por_codigo["colesterol_total"].get("faixa_max") or 0, 20)
 
     def test_sugestao_usa_sexo_do_cadastro(self):
         patient = SimpleNamespace(sexo="F", data_nascimento=date(1990, 5, 1))

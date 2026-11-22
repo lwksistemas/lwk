@@ -27,16 +27,17 @@ PDF_MAX_BYTES = 8 * 1024 * 1024
 _NUMERO = re.compile(
     r"(?<![\w/])(\d{1,3}(?:\.\d{3})+(?:,\d+)?|\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:[.,]\d+)?)(?![\w/])",
 )
+# Números longos primeiro (10000, não 100) para não truncar 4000-10000.
 _FAIXA = re.compile(
-    r"(\d{1,3}(?:[.,]\d{1,4})?|\d{4,7})\s*(?:a|à|–|-|—|ate|até)\s*(\d{1,3}(?:[.,]\d{1,4})?|\d{4,7})",
+    r"(\d{4,7}|\d{1,3}(?:[.,]\d{1,4})?)\s*(?:a|à|–|-|—|ate|até)\s*(\d{4,7}|\d{1,3}(?:[.,]\d{1,4})?)",
     re.IGNORECASE,
 )
 _FAIXA_ATE = re.compile(
-    r"(?:até|ate|inferior\s+a|<|<=)\s*(\d{1,3}(?:[.,]\d{1,4})?|\d{4,7})",
+    r"(?:até|ate|inferior\s+a|<|<=)\s*(\d{4,7}|\d{1,3}(?:[.,]\d{1,4})?)",
     re.IGNORECASE,
 )
 _FAIXA_SUPERIOR = re.compile(
-    r"(?:superior\s+a|acima\s+de|>|>=)\s*(\d{1,3}(?:[.,]\d{1,4})?|\d{4,7})",
+    r"(?:superior\s+a|acima\s+de|>|>=)\s*(\d{4,7}|\d{1,3}(?:[.,]\d{1,4})?)",
     re.IGNORECASE,
 )
 _RESULTADO_LINHA = re.compile(
@@ -88,18 +89,74 @@ def _janela_apos(texto: str, inicio: int, tamanho: int = 520) -> str:
     return texto[inicio:fim]
 
 
-def _extrair_faixa(trecho: str) -> tuple[float | None, float | None, str | None]:
-    # Preferência: faixa "min - max" / "min a max" perto do resultado.
-    faixa_m = _FAIXA.search(trecho)
-    if faixa_m:
+def _faixa_parece_idade(texto: str, match: re.Match) -> bool:
+    """Ignora '0 a 09 anos' / '17 a 40 anos' das tabelas demográficas do laudo."""
+    inicio = max(0, match.start() - 24)
+    fim = min(len(texto), match.end() + 24)
+    return bool(re.search(r"\banos?\b", texto[inicio:fim], re.IGNORECASE))
+
+
+def _extrair_faixa_de_texto(trecho: str) -> tuple[float | None, float | None, str | None]:
+    for faixa_m in _FAIXA.finditer(trecho):
+        if _faixa_parece_idade(trecho, faixa_m):
+            continue
         return para_decimal(faixa_m.group(1)), para_decimal(faixa_m.group(2)), "laudo"
     ate_m = _FAIXA_ATE.search(trecho)
-    if ate_m:
+    if ate_m and not _faixa_parece_idade(trecho, ate_m):
         return 0.0, para_decimal(ate_m.group(1)), "laudo"
-    sup_m = _FAIXA_SUPERIOR.search(trecho)
-    if sup_m:
+    for sup_m in _FAIXA_SUPERIOR.finditer(trecho):
+        if _faixa_parece_idade(trecho, sup_m):
+            continue
+        # "Superior a 40" no HDL = mínimo desejável
         return para_decimal(sup_m.group(1)), None, "laudo"
     return None, None, None
+
+
+def _extrair_faixa(janela: str, valor: float | None = None) -> tuple[float | None, float | None, str | None]:
+    """Pega a faixa na linha do Resultado/valor — evita tabelas de idade do lipidograma."""
+    linhas = janela.splitlines()
+    candidatas: list[str] = []
+    for idx, linha in enumerate(linhas[:10]):
+        baixa = linha.lower()
+        if "resultado" in baixa or (valor is not None and _linha_contem_valor(linha, valor)):
+            candidatas.append(linha)
+            if idx + 1 < len(linhas):
+                candidatas.append(linhas[idx + 1])
+            break
+    if not candidatas:
+        candidatas = linhas[:3]
+    for linha in candidatas:
+        faixa = _extrair_faixa_de_texto(linha)
+        if faixa[0] is not None or faixa[1] is not None:
+            return faixa
+    # Fallback curto: só primeiros 220 caracteres após o valor/resultado
+    return _extrair_faixa_de_texto("\n".join(linhas[:4])[:220])
+
+
+def _linha_contem_valor(linha: str, valor: float) -> bool:
+    for bruto in _NUMERO.findall(linha):
+        lido = para_decimal(bruto)
+        if lido is not None and abs(lido - valor) < 0.0001:
+            return True
+    return False
+
+
+def _faixa_suspeita(codigo: str, valor: float, fmin: float | None, fmax: float | None) -> bool:
+    """Descarta faixas claramente erradas (idade, truncamento, risco HbA1c)."""
+    if fmin is not None and fmax is not None and fmax < fmin:
+        return True
+    if valor >= 1000 and fmax is not None and fmax < 1000:
+        return True
+    if codigo in {"colesterol_total", "hdl", "ldl", "vldl", "triglicerides"} and fmax is not None and fmax < 20:
+        return True
+    if codigo == "psa_total" and fmin is not None and fmin >= 2:
+        return True
+    if codigo == "hba1c" and fmin is not None and fmin >= 5.6:
+        return True
+    if codigo in {"testosterona_livre", "shbg"} and fmin is not None and fmin >= 10 and fmax is not None and fmax <= 50:
+        # Pegou faixa etária 17–40 anos
+        return True
+    return False
 
 
 def _valor_na_janela(janela: str, alias: str) -> float | None:
@@ -174,9 +231,10 @@ def extrair_marcadores_do_texto(texto: str) -> list[dict]:
             valor = _valor_na_janela(janela, alias)
             if valor is None:
                 continue
-            faixa_min, faixa_max, origem_faixa = _extrair_faixa(janela)
-            # Se a "faixa" capturou o próprio valor (janela curta), descarta
+            faixa_min, faixa_max, origem_faixa = _extrair_faixa(janela, valor)
             if faixa_min is not None and faixa_max is not None and faixa_min == valor and faixa_max == valor:
+                faixa_min = faixa_max = origem_faixa = None
+            if _faixa_suspeita(codigo, valor, faixa_min, faixa_max):
                 faixa_min = faixa_max = origem_faixa = None
             encontrado = {
                 "codigo": codigo,
@@ -268,6 +326,9 @@ def montar_sugestao(marcadores: list[dict], patient, referencia: date | None = N
         faixa_min = bruto.get("faixa_min")
         faixa_max = bruto.get("faixa_max")
         origem = bruto.get("origem_faixa") or ("laudo" if faixa_min is not None or faixa_max is not None else None)
+        if codigo and _faixa_suspeita(codigo, float(valor), faixa_min, faixa_max):
+            faixa_min = faixa_max = None
+            origem = None
         if faixa_min is None and faixa_max is None and codigo:
             cat = resolver_faixa_catalogo(codigo, sexo=sexo, idade=idade)
             if cat:
@@ -276,6 +337,12 @@ def montar_sugestao(marcadores: list[dict], patient, referencia: date | None = N
                 unidade = unidade or cat["unidade"]
                 origem = "catalogo"
                 nome = cat["nome"]
+        # HDL/vitamina D: laudo só com mínimo ("superior a X") — completa com catálogo se faltar teto útil
+        if codigo and faixa_min is not None and faixa_max is None:
+            cat = resolver_faixa_catalogo(codigo, sexo=sexo, idade=idade)
+            if cat and cat.get("max") is not None:
+                faixa_max = cat["max"]
+                origem = origem or "catalogo"
         status = classificar_valor(
             float(valor),
             float(faixa_min) if faixa_min is not None else None,

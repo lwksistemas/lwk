@@ -1,0 +1,128 @@
+"""PDF de impressão da análise de resultado de exame (padrão prontuário/timbrado)."""
+from __future__ import annotations
+
+from io import BytesIO
+from xml.sax.saxutils import escape as xml_escape
+
+from reportlab.lib import colors
+from reportlab.lib.units import mm
+from reportlab.platypus import Paragraph, Spacer, Table, TableStyle
+
+from .prontuario_pdf.elements import (
+    _build_consulta_meta_elements,
+    _build_rodape_impressao,
+    _format_datetime_br,
+)
+from .prontuario_pdf.generators import _build_pdf
+from .prontuario_pdf.styles import _get_styles
+
+_AVISO_PADRAO = (
+    "A sugestão usa a faixa do laudo ou o catálogo interno conforme sexo e idade "
+    "do cadastro — não substitui a avaliação profissional."
+)
+
+_STATUS_ROTULO = {
+    "alto": "Acima",
+    "baixo": "Abaixo",
+    "dentro": "Dentro da faixa",
+    "sem_referencia": "Sem referência",
+}
+
+
+def _fmt_num(valor) -> str:
+    if valor is None:
+        return "—"
+    try:
+        n = float(valor)
+    except (TypeError, ValueError):
+        return str(valor)
+    if abs(n - round(n)) < 1e-9:
+        return str(int(round(n)))
+    texto = f"{n:.4f}".rstrip("0").rstrip(".")
+    return texto.replace(".", ",")
+
+
+def _fmt_faixa(marcador: dict) -> str:
+    fmin = marcador.get("faixa_min")
+    fmax = marcador.get("faixa_max")
+    if fmin is None and fmax is None:
+        return "—"
+    if fmin is None:
+        return f"até {_fmt_num(fmax)}"
+    if fmax is None:
+        return f"≥ {_fmt_num(fmin)}"
+    return f"{_fmt_num(fmin)} – {_fmt_num(fmax)}"
+
+
+def gerar_pdf_resultado_exame(consulta, resultado) -> BytesIO:
+    """Gera PDF A4 da análise (tabela + aviso), com logo/timbrado da clínica."""
+    styles = _get_styles()
+    loja_id = consulta.loja_id
+    elements = _build_consulta_meta_elements(consulta, "Análise de resultado de exame", styles)
+
+    nome_arquivo = xml_escape((getattr(resultado, "nome_arquivo", None) or "laudo.pdf")[:120])
+    quando = _format_datetime_br(getattr(resultado, "created_at", None))
+    elements.append(Paragraph(f"<b>Arquivo:</b> {nome_arquivo}", styles["DocBody"]))
+    if quando:
+        elements.append(Paragraph(f"<b>Importado em:</b> {quando}", styles["DocBody"]))
+    elements.append(Spacer(1, 3 * mm))
+
+    aviso = (getattr(resultado, "aviso_cadastro", None) or "").strip()
+    if aviso:
+        elements.append(Paragraph(xml_escape(aviso), styles["DocBody"]))
+        elements.append(Spacer(1, 2 * mm))
+
+    elements.append(Paragraph(xml_escape(_AVISO_PADRAO), styles["DocBody"]))
+    elements.append(Spacer(1, 4 * mm))
+
+    marcadores = list(getattr(resultado, "marcadores", None) or [])
+    if not marcadores:
+        elements.append(
+            Paragraph(
+                "Nenhum biomarcador reconhecido automaticamente. Avalie o laudo original.",
+                styles["DocBody"],
+            )
+        )
+    else:
+        rows = [["Exame", "Valor", "Referência", "Sugestão"]]
+        for item in marcadores:
+            nome = xml_escape(str(item.get("nome") or item.get("codigo") or "—"))
+            unidade = xml_escape(str(item.get("unidade") or "").strip())
+            valor = f"{_fmt_num(item.get('valor'))} {unidade}".strip()
+            status = _STATUS_ROTULO.get(str(item.get("status") or ""), str(item.get("status") or "—"))
+            rows.append([nome, valor, _fmt_faixa(item), status])
+
+        table = Table(rows, colWidths=[150, 95, 95, 90])
+        table.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#f3f4f6")),
+                    ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                    ("FONTSIZE", (0, 0), (-1, -1), 8),
+                    ("GRID", (0, 0), (-1, -1), 0.25, colors.grey),
+                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 3),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 3),
+                    ("TOPPADDING", (0, 0), (-1, -1), 3),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+                ]
+            )
+        )
+        elements.append(table)
+        elements.append(Spacer(1, 4 * mm))
+
+        fora = [m for m in marcadores if m.get("status") in ("alto", "baixo")]
+        if fora:
+            elements.append(Paragraph("<b>Fora da referência</b>", styles["DocTitle"]))
+            for item in fora:
+                rotulo = _STATUS_ROTULO.get(item.get("status") or "", item.get("status") or "")
+                linha = (
+                    f"{xml_escape(str(item.get('nome') or ''))}: "
+                    f"{_fmt_num(item.get('valor'))} {xml_escape(str(item.get('unidade') or ''))} "
+                    f"({rotulo}; ref. {_fmt_faixa(item)})"
+                )
+                elements.append(Paragraph(linha.strip(), styles["DocBody"]))
+            elements.append(Spacer(1, 3 * mm))
+
+    elements.extend(_build_rodape_impressao(styles))
+    return _build_pdf(loja_id, elements)

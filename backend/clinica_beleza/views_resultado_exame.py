@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 
+from django.http import HttpResponse
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -15,6 +16,7 @@ from .resultado_exame_service import (
     atualizar_marcadores,
     importar_pdf_resultado,
     listar_resultados_consulta,
+    reprocessar_resultado_salvo,
     serializar_resultado,
 )
 from .acesso_leitura import registrar_leitura_clinica
@@ -73,17 +75,56 @@ class ConsultaResultadoExameView(GetObjectMixin, APIView):
 
 
 class ConsultaResultadoExameDetailView(GetObjectMixin, APIView):
-    """PATCH atualiza marcadores e recalcula sugestão. DELETE remove o registro."""
+    """GET ?pdf=1 imprime análise. PATCH atualiza marcadores. DELETE remove."""
 
     permission_classes = CLINICA_CLINICAL
     bloquear_andamento_alheio = True
     model_class = Consulta
     not_found_message = "Consulta não encontrada"
+    select_related_fields = ("patient", "professional", "procedure", "protocol")
 
     def _resultado(self, consulta: Consulta, resultado_id: int):
-        return ResultadoExamePaciente.objects.filter(
-            id=resultado_id, patient_id=consulta.patient_id,
-        ).first()
+        return (
+            ResultadoExamePaciente.objects.filter(
+                id=resultado_id, patient_id=consulta.patient_id,
+            )
+            .select_related("patient")
+            .first()
+        )
+
+    def get(self, request, pk, resultado_id):
+        consulta, err = self.object_or_404(pk)
+        if err:
+            return err
+        if str(request.query_params.get("pdf") or "").strip() not in ("1", "true", "sim"):
+            return Response(
+                {"error": "Use ?pdf=1 para baixar a análise em PDF."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        resultado = self._resultado(consulta, resultado_id)
+        if not resultado:
+            return Response({"error": "Resultado não encontrado."}, status=status.HTTP_404_NOT_FOUND)
+        try:
+            resultado = reprocessar_resultado_salvo(resultado)
+            from .resultado_exame_pdf import gerar_pdf_resultado_exame
+
+            buffer = gerar_pdf_resultado_exame(consulta, resultado)
+        except Exception:
+            logger.exception("Erro ao gerar PDF da análise de exame %s", resultado_id)
+            return Response(
+                {"error": "Não foi possível gerar o PDF da análise."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        filename = f"analise_exame_consulta_{consulta.id}_{resultado.id}.pdf"
+        try:
+            from clinica_beleza.media_docs_service import arquivar_pdf_gerado
+
+            arquivar_pdf_gerado(consulta.loja_id, consulta.patient, buffer.getvalue(), filename)
+        except Exception:
+            logger.exception("Falha ao arquivar PDF de análise de exame")
+        response = HttpResponse(buffer.getvalue(), content_type="application/pdf")
+        response["Content-Disposition"] = f'inline; filename="{filename}"'
+        return response
 
     def patch(self, request, pk, resultado_id):
         consulta, err = self.object_or_404(pk)

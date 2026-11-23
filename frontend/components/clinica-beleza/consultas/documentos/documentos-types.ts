@@ -12,6 +12,7 @@ export const DOCUMENTO_TIPO_LABEL: Record<DocumentoTipo, string> = {
 };
 
 export function documentoTipoLabel(tipo: string): string {
+  if (tipo === "resultado_exame") return "Análise de resultado de exame";
   return DOCUMENTO_TIPO_LABEL[tipo as DocumentoTipo] ?? tipo;
 }
 

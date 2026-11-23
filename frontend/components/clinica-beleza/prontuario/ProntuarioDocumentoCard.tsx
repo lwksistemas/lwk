@@ -23,7 +23,8 @@ export function ProntuarioDocumentoCard({ doc }: ProntuarioDocumentoCardProps) {
     // Documentos Memed podem exigir buscar/gerar o PDF na API (await). Abrimos a
     // aba já no clique para o navegador não bloquear o pop-up; ela é redirecionada
     // quando a URL fica pronta (ou fechada em caso de erro).
-    const janela = doc.source === "memed" ? abrirJanelaPdf() : undefined;
+    const janela =
+      doc.source === "memed" || doc.source === "resultado_exame" ? abrirJanelaPdf() : undefined;
     try {
       await printProntuarioDocument(doc, janela);
     } catch (e) {
@@ -47,6 +48,11 @@ export function ProntuarioDocumentoCard({ doc }: ProntuarioDocumentoCardProps) {
             {doc.source === "memed" && (
               <span className="ml-2 px-1.5 py-0.5 rounded text-xs bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">
                 Memed
+              </span>
+            )}
+            {doc.source === "resultado_exame" && (
+              <span className="ml-2 px-1.5 py-0.5 rounded text-xs bg-violet-50 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300">
+                Análise
               </span>
             )}
           </p>

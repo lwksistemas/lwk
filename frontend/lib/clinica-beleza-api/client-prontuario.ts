@@ -21,7 +21,12 @@ async function apiGet<T>(path: string, params?: Record<string, string>): Promise
  */
 export function normalizarDocItem(raw: Record<string, unknown>): Record<string, unknown> {
   const tipoFonte = raw.tipo_fonte ?? raw.source;
-  const source = tipoFonte === "prescricao_memed" || tipoFonte === "memed" ? "memed" : "documento_clinico";
+  let source: "memed" | "resultado_exame" | "documento_clinico" = "documento_clinico";
+  if (tipoFonte === "prescricao_memed" || tipoFonte === "memed") {
+    source = "memed";
+  } else if (tipoFonte === "resultado_exame") {
+    source = "resultado_exame";
+  }
   return {
     ...raw,
     source,

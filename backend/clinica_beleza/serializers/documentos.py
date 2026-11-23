@@ -5,6 +5,7 @@ from ..models import (
     DocumentoClinico,
     DocumentTemplate,
     PrescricaoMemed,
+    ResultadoExamePaciente,
 )
 
 
@@ -131,6 +132,50 @@ class ProntuarioSectionSerializer(serializers.Serializer):
             "pdf_url": presc.pdf_url,
         }
 
+    def _conteudo_resultado_exame(self, resultado):
+        texto = (resultado.sugestao_texto or "").strip()
+        if texto:
+            return texto
+        linhas = []
+        for item in (resultado.marcadores or [])[:30]:
+            if not isinstance(item, dict):
+                continue
+            nome = (item.get("nome") or item.get("codigo") or "—").strip()
+            valor = item.get("valor")
+            unidade = (item.get("unidade") or "").strip()
+            status = (item.get("status") or "").strip()
+            partes = [nome]
+            if valor is not None:
+                partes.append(f"{valor} {unidade}".strip())
+            if status:
+                partes.append(f"({status})")
+            linhas.append(" · ".join(partes))
+        if linhas:
+            return "\n".join(linhas)
+        return (resultado.nome_arquivo or "Resultado de exame importado").strip()
+
+    def _serialize_resultado_exame(self, resultado):
+        profissional = None
+        consulta = getattr(resultado, "consulta", None)
+        if consulta is not None and getattr(consulta, "professional", None):
+            profissional = consulta.professional.nome
+        arquivo = (resultado.nome_arquivo or "").strip()
+        titulo = "Análise de resultado de exame"
+        if arquivo:
+            titulo = f"{titulo} — {arquivo}"
+        return {
+            "id": resultado.id,
+            "tipo": "resultado_exame",
+            "titulo": titulo,
+            "conteudo": self._conteudo_resultado_exame(resultado),
+            "profissional_nome": profissional,
+            "consulta_id": resultado.consulta_id,
+            "data": resultado.created_at.isoformat() if resultado.created_at else None,
+            "tipo_fonte": "resultado_exame",
+            "pdf_url": resultado.pdf_url or "",
+            "nome_arquivo": arquivo,
+        }
+
     def _serialize_evolucao(self, evo):
         return {
             "id": evo.id,
@@ -175,7 +220,13 @@ class ProntuarioSectionSerializer(serializers.Serializer):
         return result
 
     def get_pedido_exame(self, obj):
-        return [self._serialize_documento(doc) for doc in obj.get("pedido_exame", [])]
+        result = []
+        for item in obj.get("pedido_exame", []):
+            if isinstance(item, ResultadoExamePaciente):
+                result.append(self._serialize_resultado_exame(item))
+            elif isinstance(item, DocumentoClinico):
+                result.append(self._serialize_documento(item))
+        return result
 
     def get_atestado(self, obj):
         return [self._serialize_documento(doc) for doc in obj.get("atestado", [])]

@@ -9,6 +9,7 @@ from .models import (
     DocumentoClinico,
     PatientAnamnese,
     PrescricaoMemed,
+    ResultadoExamePaciente,
 )
 
 # ---------------------------------------------------------------------------
@@ -98,7 +99,7 @@ def listar_prontuario_paciente(patient_id: int, secao: str = None) -> dict:
 
     Retorna dict com keys:
         - receituario: DocumentoClinico (tipo=receituario) + PrescricaoMemed
-        - pedido_exame: DocumentoClinico (tipo=pedido_exame)
+        - pedido_exame: DocumentoClinico (tipo=pedido_exame) + ResultadoExamePaciente
         - atestado: DocumentoClinico (tipo=atestado)
         - documento_personalizado: DocumentoClinico (tipo=documento_personalizado)
         - evolucao: ConsultaEvolucao
@@ -136,15 +137,29 @@ def listar_prontuario_paciente(patient_id: int, secao: str = None) -> dict:
         )
         prontuario["receituario"] = docs_receituario + prescricoes_memed
 
-    # --- Pedido de Exame ---
+    # --- Pedido de Exame + análises de resultado importadas ---
     if secao is None or secao == "pedido_exame":
-        prontuario["pedido_exame"] = list(
+        docs_exame = list(
             DocumentoClinico.objects.filter(
                 patient_id=patient_id,
                 tipo="pedido_exame",
                 consulta__status__in=STATUS_PRONTUARIO,
             ).select_related("professional", "consulta").order_by("-created_at"),
         )
+        resultados_exame = list(
+            ResultadoExamePaciente.objects.filter(
+                patient_id=patient_id,
+                consulta__status__in=STATUS_PRONTUARIO,
+            )
+            .select_related("consulta", "consulta__professional")
+            .order_by("-created_at"),
+        )
+        misturados = docs_exame + resultados_exame
+        misturados.sort(
+            key=lambda item: getattr(item, "created_at", None) or now(),
+            reverse=True,
+        )
+        prontuario["pedido_exame"] = misturados
 
     # --- Atestado ---
     if secao is None or secao == "atestado":

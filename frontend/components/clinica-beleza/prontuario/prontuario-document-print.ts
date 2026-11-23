@@ -20,12 +20,34 @@ export async function printClinicoProntuarioDocument(doc: ProntuarioDocItem): Pr
  * @param janela aba pré-aberta no clique do usuário (evita bloqueio de pop-up
  * quando o PDF precisa ser buscado/gerado na API antes de abrir).
  */
+export async function printResultadoExameProntuarioDocument(
+  doc: ProntuarioDocItem,
+  janela?: Window | null,
+): Promise<void> {
+  if (!doc.consulta_id) {
+    throw new Error("Análise sem consulta vinculada.");
+  }
+  const { abrirPdfBlobFromResponse, fecharJanelaPdf } = await import("@/lib/consulta-print");
+  const response = await clinicaBelezaFetch(
+    `/consultas/${doc.consulta_id}/resultados-exame/${doc.id}/?pdf=1`,
+  );
+  if (!response.ok) {
+    fecharJanelaPdf(janela ?? null);
+    throw new Error("Não foi possível gerar o PDF da análise.");
+  }
+  await abrirPdfBlobFromResponse(response, "visualizar", janela);
+}
+
 export async function printProntuarioDocument(
   doc: ProntuarioDocItem,
   janela?: Window | null,
 ): Promise<void> {
   if (doc.source === "memed") {
     await printMemedProntuarioDocument(doc, janela);
+    return;
+  }
+  if (doc.source === "resultado_exame") {
+    await printResultadoExameProntuarioDocument(doc, janela);
     return;
   }
   if (doc.source === "documento_clinico") {

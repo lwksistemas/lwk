@@ -9,9 +9,11 @@ from ..documento_service import listar_prontuario_paciente
 from ..models import (
     ConsultaEvolucao,
     ConsultaProdutoUtilizado,
+    DocumentoClinico,
     Patient,
     PatientAnamnese,
     PrescricaoMemed,
+    ResultadoExamePaciente,
 )
 from ..pdf_common import finalize_pdf_com_timbrado
 from .constants import MARGIN
@@ -24,6 +26,7 @@ from .elements import (
     _build_identificacao_paciente,
     _build_prescricao_memed_elements,
     _build_produtos_consulta_elements,
+    _build_resultado_exame_elements,
     _build_rodape_impressao,
 )
 from .header import _build_header_elements, _resolver_cabecalho, get_top_margin
@@ -187,7 +190,7 @@ def gerar_pdf_secao(patient_id: int, secao: str) -> BytesIO:
     # Título da seção
     secao_titles = {
         "receituario": "Receituário",
-        "pedido_exame": "Pedidos de Exame",
+        "pedido_exame": "Exames e resultados",
         "atestado": "Atestados",
         "documento_personalizado": "Atendimento",
         "anamnese": "Anamnese",
@@ -231,7 +234,12 @@ def gerar_pdf_secao(patient_id: int, secao: str) -> BytesIO:
     # pedido_exame, atestado, atendimento
     elif dados:
         for doc_item in dados:
-            elements.extend(_build_documento_elements(doc_item, styles))
+            if isinstance(doc_item, ResultadoExamePaciente):
+                elements.extend(_build_resultado_exame_elements(doc_item, styles))
+            elif isinstance(doc_item, DocumentoClinico):
+                elements.extend(_build_documento_elements(doc_item, styles))
+            else:
+                elements.extend(_build_documento_elements(doc_item, styles))
             elements.append(Spacer(1, 4 * mm))
     else:
         elements.append(Paragraph("Nenhum documento registrado nesta seção.", styles["DocBody"]))
@@ -285,7 +293,7 @@ def gerar_pdf_prontuario_completo(patient_id: int) -> BytesIO:
     secoes_ordem = [
         ("anamnese", "Anamnese"),
         ("receituario", "Receituário"),
-        ("pedido_exame", "Pedidos de Exame"),
+        ("pedido_exame", "Exames e resultados"),
         ("atestado", "Atestados"),
         ("documento_personalizado", "Atendimento"),
         ("evolucao", "Evolução"),
@@ -321,7 +329,18 @@ def gerar_pdf_prontuario_completo(patient_id: int) -> BytesIO:
             else:
                 elements.append(Paragraph("Nenhum receituário registrado.", styles["DocBody"]))
 
-        # pedido_exame, atestado, atendimento
+        elif secao_key == "pedido_exame":
+            if dados:
+                for item in dados:
+                    if isinstance(item, ResultadoExamePaciente):
+                        elements.extend(_build_resultado_exame_elements(item, styles))
+                    else:
+                        elements.extend(_build_documento_elements(item, styles))
+                        elements.append(Spacer(1, 4 * mm))
+            else:
+                elements.append(Paragraph("Nenhum exame ou resultado registrado.", styles["DocBody"]))
+
+        # atestado, atendimento
         elif dados:
             for doc_item in dados:
                 elements.extend(_build_documento_elements(doc_item, styles))

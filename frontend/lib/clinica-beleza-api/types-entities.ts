@@ -152,7 +152,8 @@ export interface ProntuarioDocItem {
   consulta_id: number | null;
   created_at: string | null;
   pdf_url?: string;
-  source: 'documento_clinico' | 'memed';
+  nome_arquivo?: string;
+  source: 'documento_clinico' | 'memed' | 'resultado_exame';
 }
 
 export interface ProntuarioEvolucaoItem {

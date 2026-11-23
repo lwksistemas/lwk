@@ -66,6 +66,47 @@ def _formatar_conteudo_rich_text(conteudo: str) -> list:
     return fragmentos
 
 
+def _build_resultado_exame_elements(resultado, styles):
+    """Resumo da análise de exame no PDF do prontuário (seção Exames)."""
+    elements = []
+    arquivo = xml_escape((getattr(resultado, "nome_arquivo", None) or "").strip())
+    titulo = "Análise de resultado de exame"
+    if arquivo:
+        titulo = f"{titulo} — {arquivo}"
+    elements.append(Paragraph(titulo, styles["DocTitle"]))
+
+    quando = _format_datetime_br(getattr(resultado, "created_at", None))
+    if quando:
+        elements.append(Paragraph(f"<b>Importado em:</b> {quando}", styles["DocMeta"]))
+        elements.append(Spacer(1, 2 * mm))
+
+    sugestao = (getattr(resultado, "sugestao_texto", None) or "").strip()
+    if sugestao:
+        texto = xml_escape(sugestao).replace("\n", "<br/>")
+        elements.append(Paragraph(texto, styles["DocBody"]))
+    else:
+        marcadores = list(getattr(resultado, "marcadores", None) or [])
+        if marcadores:
+            for item in marcadores[:40]:
+                if not isinstance(item, dict):
+                    continue
+                nome = xml_escape(str(item.get("nome") or item.get("codigo") or "—"))
+                valor = item.get("valor")
+                unidade = xml_escape(str(item.get("unidade") or "").strip())
+                status = xml_escape(str(item.get("status") or "").strip())
+                linha = f"• {nome}: {valor} {unidade}".strip()
+                if status:
+                    linha = f"{linha} ({status})"
+                elements.append(Paragraph(linha, styles["DocBody"]))
+        else:
+            elements.append(Paragraph("Laudo importado — abra a análise completa na consulta.", styles["DocBody"]))
+
+    elements.append(Spacer(1, 6 * mm))
+    elements.append(_linha_separadora())
+    elements.append(Spacer(1, 2 * mm))
+    return elements
+
+
 def _build_documento_elements(documento, styles, include_header=True):
     """Constrói elementos de um documento individual."""
     elements = []

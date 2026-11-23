@@ -36,7 +36,7 @@ export const PRONTUARIO_TABS: ProntuarioTabDef[] = [
   { id: "resumo", label: "Resumo", icon: ClipboardList },
   { id: "fotos", label: "Fotos", icon: Camera },
   { id: "receituario", label: "Receitas", icon: Pill },
-  { id: "pedido_exame", label: "Exames", icon: FlaskConical },
+  { id: "pedido_exame", label: "Exames", icon: FlaskConical }, // pedidos + análises de resultado
   { id: "atestado", label: "Atestados", icon: FileCheck },
   { id: "documento_personalizado", label: "Atendimento", icon: FolderOpen },
   { id: "anamnese", label: "Anamnese", icon: FileText },

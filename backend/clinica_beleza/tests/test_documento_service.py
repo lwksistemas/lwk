@@ -216,11 +216,14 @@ class CriarDocumentoTest(TestCase):
 class ListarProntuarioPacienteTest(TestCase):
     """Testes para a função listar_prontuario_paciente."""
 
+    @patch("clinica_beleza.documento_service.ResultadoExamePaciente.objects")
     @patch("clinica_beleza.documento_service.PatientAnamnese.objects")
     @patch("clinica_beleza.documento_service.ConsultaEvolucao.objects")
     @patch("clinica_beleza.documento_service.PrescricaoMemed.objects")
     @patch("clinica_beleza.documento_service.DocumentoClinico.objects")
-    def test_retorna_todas_secoes_sem_filtro(self, mock_doc, mock_presc, mock_evol, mock_anam):
+    def test_retorna_todas_secoes_sem_filtro(
+        self, mock_doc, mock_presc, mock_evol, mock_anam, mock_resultado,
+    ):
         """Sem secao informada, retorna todas as seções."""
         # Setup mocks para DocumentoClinico (consulta__status__in filter)
         mock_doc.filter.return_value.select_related.return_value.order_by.return_value = []
@@ -230,6 +233,7 @@ class ListarProntuarioPacienteTest(TestCase):
         mock_evol.filter.return_value.select_related.return_value.order_by.return_value = []
         # Setup mocks para PatientAnamnese
         mock_anam.filter.return_value.first.return_value = None
+        mock_resultado.filter.return_value.select_related.return_value.order_by.return_value = []
 
         result = listar_prontuario_paciente(patient_id=1)
 

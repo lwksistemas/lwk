@@ -1,6 +1,7 @@
 """Relatório de folgas, bloqueios e dias trabalhados por profissional."""
 from __future__ import annotations
 
+import unicodedata
 from collections import defaultdict
 from datetime import date, timedelta
 
@@ -45,10 +46,134 @@ def _dias_sobrepostos(data_inicio: date, data_fim: date, periodo_ini: date, peri
     return (fim - ini).days + 1
 
 
+def _normalizar_texto(valor: str | None) -> str:
+    texto = unicodedata.normalize("NFD", valor or "")
+    texto = "".join(c for c in texto if unicodedata.category(c) != "Mn")
+    return texto.lower().strip()
+
+
+def inferir_tipo_bloqueio(*, tipo: str | None, titulo: str | None = None, motivo: str | None = None) -> str:
+    """Mapeia tipo do banco ou título/motivo da agenda (ex.: 'Férias do profissional')."""
+    bruto = (tipo or "").strip().lower()
+    if bruto and bruto != "outros":
+        return bruto
+
+    texto = _normalizar_texto(f"{titulo or ''} {motivo or ''}")
+    if "ferias" in texto:
+        return "ferias"
+    if "folga" in texto:
+        return "folga"
+    if "feriado" in texto:
+        return "feriado"
+    if "manutenc" in texto:
+        return "manutencao"
+    if "evento" in texto:
+        return "evento"
+    if "reuniao" in texto:
+        return "outros"
+    return bruto or "outros"
+
+
+def _parse_iso_date(valor: str | None) -> date | None:
+    if not valor:
+        return None
+    try:
+        return date.fromisoformat(valor[:10])
+    except ValueError:
+        return None
+
+
+def consolidar_eventos_dia_inteiro(eventos: list[dict]) -> list[dict]:
+    """Junta dias consecutivos de mesmo tipo/título (ex.: férias 01–15) numa linha só."""
+    if not eventos:
+        return []
+
+    dia_inteiro: list[dict] = []
+    demais: list[dict] = []
+    for ev in eventos:
+        if ev.get("dia_inteiro"):
+            dia_inteiro.append(ev)
+        else:
+            demais.append(ev)
+
+    dia_inteiro.sort(key=lambda e: (e.get("data_inicio") or "", e.get("id") or 0))
+    consolidados: list[dict] = []
+    atual: dict | None = None
+
+    for ev in dia_inteiro:
+        ini = _parse_iso_date(ev.get("data_inicio"))
+        fim = _parse_iso_date(ev.get("data_fim")) or ini
+        if not ini or not fim:
+            consolidados.append(ev)
+            continue
+
+        if atual is None:
+            atual = {
+                **ev,
+                "data_inicio": ini.isoformat(),
+                "data_fim": fim.isoformat(),
+                "ids": [ev.get("id")],
+                "dias_no_periodo": int(ev.get("dias_no_periodo") or 0),
+            }
+            continue
+
+        atual_fim = _parse_iso_date(atual.get("data_fim"))
+        mesma_chave = (
+            (atual.get("tipo") or "") == (ev.get("tipo") or "")
+            and (atual.get("titulo") or "") == (ev.get("titulo") or "")
+            and (atual.get("profissional_id") if "profissional_id" in atual else None)
+            == (ev.get("profissional_id") if "profissional_id" in ev else None)
+        )
+        continua = atual_fim is not None and ini == atual_fim + timedelta(days=1)
+
+        if mesma_chave and continua:
+            atual["data_fim"] = fim.isoformat()
+            atual["dias_no_periodo"] = int(atual.get("dias_no_periodo") or 0) + int(
+                ev.get("dias_no_periodo") or 0
+            )
+            ids = list(atual.get("ids") or [])
+            ids.append(ev.get("id"))
+            atual["ids"] = ids
+        else:
+            consolidados.append(atual)
+            atual = {
+                **ev,
+                "data_inicio": ini.isoformat(),
+                "data_fim": fim.isoformat(),
+                "ids": [ev.get("id")],
+                "dias_no_periodo": int(ev.get("dias_no_periodo") or 0),
+            }
+
+    if atual is not None:
+        consolidados.append(atual)
+
+    demais.sort(key=lambda e: (e.get("data_inicio") or "", e.get("horario_inicio") or "", e.get("id") or 0))
+    saida = consolidados + demais
+    saida.sort(key=lambda e: (e.get("data_inicio") or "", 0 if e.get("dia_inteiro") else 1, e.get("id") or 0))
+    return saida
+
+
+def _contar_dias_por_categoria(bloqueios: list[BloqueioHorario], periodo_ini: date, periodo_fim: date) -> tuple[int, int]:
+    dias_folga: set[date] = set()
+    dias_bloqueio: set[date] = set()
+    for b in bloqueios:
+        tipo = inferir_tipo_bloqueio(tipo=b.tipo, titulo=b.titulo, motivo=b.motivo)
+        destino = dias_folga if tipo in _TIPOS_FOLGA else dias_bloqueio
+        for dia in _iter_dias(b.data_inicio, b.data_fim):
+            if periodo_ini <= dia <= periodo_fim:
+                destino.add(dia)
+    return len(dias_folga), len(dias_bloqueio)
+
+
 def _serializar_evento(bloqueio: BloqueioHorario, periodo_ini: date, periodo_fim: date) -> dict:
-    tipo = (bloqueio.tipo or "outros").strip().lower()
+    tipo = inferir_tipo_bloqueio(
+        tipo=bloqueio.tipo,
+        titulo=bloqueio.titulo,
+        motivo=bloqueio.motivo,
+    )
     return {
         "id": bloqueio.id,
+        "ids": [bloqueio.id],
         "tipo": tipo,
         "tipo_label": _TIPO_LABEL.get(tipo, tipo or "Outros"),
         "titulo": (bloqueio.titulo or bloqueio.motivo or "").strip() or _TIPO_LABEL.get(tipo, "Bloqueio"),
@@ -132,13 +257,17 @@ def calcular_folgas_bloqueios(
     for b in bloqueios:
         bloqueios_por_prof[b.professional_id].append(b)
 
-    gerais = [_serializar_evento(b, data_inicio, data_fim) for b in bloqueios_por_prof.get(None, [])]
+    gerais_raw = list(bloqueios_por_prof.get(None, []))
+    gerais = consolidar_eventos_dia_inteiro(
+        [_serializar_evento(b, data_inicio, data_fim) for b in gerais_raw]
+    )
+    gerais_folga, gerais_bloqueio = _contar_dias_por_categoria(gerais_raw, data_inicio, data_fim)
 
     lista_profissionais = []
     total_trabalhados = 0
     total_escala = 0
-    total_folga = 0
-    total_bloqueio = 0
+    total_folga = gerais_folga
+    total_bloqueio = gerais_bloqueio
 
     for prof in profissionais:
         dias_semana = sorted({h.dia_semana for h in prof.horarios_trabalho.all()})
@@ -146,22 +275,11 @@ def calcular_folgas_bloqueios(
         dias_trabalhados = len(dias_trabalho_map.get(prof.id, set()))
 
         eventos_prof = list(bloqueios_por_prof.get(prof.id, []))
-        # Bloqueios gerais também afetam o profissional
-        eventos_relevantes = eventos_prof + list(bloqueios_por_prof.get(None, []))
+        dias_folga, dias_bloqueio = _contar_dias_por_categoria(eventos_prof, data_inicio, data_fim)
 
-        dias_folga = 0
-        dias_bloqueio = 0
-        for b in eventos_relevantes:
-            n = _dias_sobrepostos(b.data_inicio, b.data_fim, data_inicio, data_fim)
-            tipo = (b.tipo or "outros").strip().lower()
-            if tipo in _TIPOS_FOLGA:
-                dias_folga += n
-            else:
-                dias_bloqueio += n
-
-        eventos_serializados = [
-            _serializar_evento(b, data_inicio, data_fim) for b in eventos_prof
-        ]
+        eventos_serializados = consolidar_eventos_dia_inteiro(
+            [_serializar_evento(b, data_inicio, data_fim) for b in eventos_prof]
+        )
 
         lista_profissionais.append({
             "professional_id": prof.id,

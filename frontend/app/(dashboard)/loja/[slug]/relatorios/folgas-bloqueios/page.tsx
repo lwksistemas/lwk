@@ -14,6 +14,7 @@ import { abrirRelatorioPdf } from "@/components/clinica-beleza/relatorios-shared
 
 type Evento = {
   id: number;
+  ids?: number[];
   tipo: string;
   tipo_label: string;
   titulo: string;
@@ -27,6 +28,11 @@ type Evento = {
   profissional_id: number | null;
   profissional_nome: string;
 };
+
+function chaveEvento(ev: Evento): string {
+  if (ev.ids?.length) return ev.ids.join("-");
+  return String(ev.id);
+}
 
 type ProfissionalLinha = {
   professional_id: number;
@@ -296,7 +302,7 @@ export default function FolgasBloqueiosRelatorioPage() {
                       <tbody>
                         {p.eventos.map((ev) => (
                           <tr
-                            key={ev.id}
+                            key={chaveEvento(ev)}
                             className="border-b border-gray-50 dark:border-gray-800 last:border-0"
                           >
                             <td className="px-4 py-2">{ev.tipo_label}</td>
@@ -343,7 +349,7 @@ export default function FolgasBloqueiosRelatorioPage() {
                     <tbody>
                       {data.bloqueios_gerais.map((ev) => (
                         <tr
-                          key={`g-${ev.id}`}
+                          key={`g-${chaveEvento(ev)}`}
                           className="border-b border-gray-50 dark:border-gray-800 last:border-0"
                         >
                           <td className="px-4 py-2">{ev.tipo_label}</td>

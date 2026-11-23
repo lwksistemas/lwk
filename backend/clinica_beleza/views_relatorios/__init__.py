@@ -1,4 +1,5 @@
 """Views para Relatórios — Clínica da Beleza."""
+from .agenda import RelatorioFolgasBloqueiosPdfView, RelatorioFolgasBloqueiosView
 from .comissoes import RelatorioComissoesPdfView, RelatorioComissoesView
 from .financeiro import (
     RelatorioDescontosPdfView,
@@ -21,6 +22,8 @@ __all__ = [
     "RelatorioDescontosView",
     "RelatorioFaturamentoPdfView",
     "RelatorioFaturamentoView",
+    "RelatorioFolgasBloqueiosPdfView",
+    "RelatorioFolgasBloqueiosView",
     "RelatorioInadimplentesPdfView",
     "RelatorioInadimplentesView",
     "RelatorioLancamentosPdfView",

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import {
   AlertTriangle,
   BarChart3,
+  CalendarOff,
   ChevronRight,
   ClipboardList,
   Clock,
@@ -12,6 +13,7 @@ import {
   FileText,
   Percent,
   User,
+  Users,
 } from 'lucide-react';
 
 interface RelatorioItem {
@@ -85,6 +87,20 @@ const CATEGORIAS: CategoriaRelatorio[] = [
         descricao: 'Pagamentos a prazo vencidos e em aberto, com valor e dias de atraso',
         href: 'inadimplentes',
         icon: AlertTriangle,
+      },
+    ],
+  },
+  {
+    id: 'equipe',
+    titulo: 'Equipe e agenda',
+    descricao: 'Folgas, bloqueios e dias trabalhados dos profissionais',
+    icon: Users,
+    relatorios: [
+      {
+        titulo: 'Folgas, bloqueios e dias trabalhados',
+        descricao: 'Escala, dias com atendimento, folgas/férias e demais bloqueios no período',
+        href: 'folgas-bloqueios',
+        icon: CalendarOff,
       },
     ],
   },

@@ -217,6 +217,8 @@ from .views_relatorios import (
     RelatorioDescontosView,
     RelatorioFaturamentoPdfView,
     RelatorioFaturamentoView,
+    RelatorioFolgasBloqueiosPdfView,
+    RelatorioFolgasBloqueiosView,
     RelatorioInadimplentesPdfView,
     RelatorioInadimplentesView,
     RelatorioLancamentosPdfView,
@@ -544,6 +546,12 @@ urlpatterns = [
     path("relatorios/inadimplentes/pdf/", RelatorioInadimplentesPdfView.as_view(), name="relatorio-inadimplentes-pdf"),
     path("relatorios/repasse-consultas/", RelatorioRepasseConsultaView.as_view(), name="relatorio-repasse-consultas"),
     path("relatorios/repasse-consultas/pdf/", RelatorioRepasseConsultaPdfView.as_view(), name="relatorio-repasse-consultas-pdf"),
+    path("relatorios/folgas-bloqueios/", RelatorioFolgasBloqueiosView.as_view(), name="relatorio-folgas-bloqueios"),
+    path(
+        "relatorios/folgas-bloqueios/pdf/",
+        RelatorioFolgasBloqueiosPdfView.as_view(),
+        name="relatorio-folgas-bloqueios-pdf",
+    ),
 
     # Configuração NFS-e (individual por loja)
     path("nfse-config/", NFSeConfigView.as_view(), name="nfse-config"),

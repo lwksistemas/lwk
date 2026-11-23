@@ -671,3 +671,111 @@ def gerar_pdf_inadimplentes(*, resultado: dict, loja) -> BytesIO:
     doc.build(elements)
     buffer.seek(0)
     return finalize_pdf_com_timbrado(buffer, tipo_cab, dados_cab)
+
+
+def gerar_pdf_folgas_bloqueios(
+    *,
+    resultado: dict,
+    loja,
+    data_inicio: date | None,
+    data_fim: date | None,
+) -> BytesIO:
+    """PDF: folgas, bloqueios e dias trabalhados por profissional."""
+    buffer, doc, styles, titulo_style, subtitulo_style, secao_style, tipo_cab, dados_cab, largura = (
+        _iniciar_pdf(loja, usar_paisagem=True)
+    )
+    elements = []
+    elements.extend(_cabecalho_elements(tipo_cab, dados_cab, titulo_style))
+    elements.extend(_periodo_elements(
+        "Folgas, bloqueios e dias trabalhados",
+        titulo_style,
+        subtitulo_style,
+        data_inicio,
+        data_fim,
+    ))
+
+    totais = resultado.get("totais") or {}
+    elements.append(Paragraph(
+        f'{totais.get("profissionais", 0)} profissional(is) · '
+        f'Escala {totais.get("dias_escala", 0)} · '
+        f'Trabalhados {totais.get("dias_trabalhados", 0)} · '
+        f'Folga {totais.get("dias_folga", 0)} · '
+        f'Bloqueio {totais.get("dias_bloqueio", 0)}',
+        subtitulo_style,
+    ))
+    elements.append(Spacer(1, 2 * mm))
+
+    profissionais = resultado.get("profissionais") or []
+    if not profissionais and not (resultado.get("bloqueios_gerais") or []):
+        elements.append(Paragraph("Nenhum dado no período selecionado.", styles["Normal"]))
+    else:
+        headers = ["Profissional", "Escala", "Trabalhados", "Folga", "Bloqueio", "Dias da semana"]
+        rows = [
+            [
+                (p.get("nome") or "—")[:50],
+                str(p.get("dias_escala") or 0),
+                str(p.get("dias_trabalhados") or 0),
+                str(p.get("dias_folga") or 0),
+                str(p.get("dias_bloqueio") or 0),
+                ", ".join(p.get("dias_semana_trabalho") or []) or "—",
+            ]
+            for p in profissionais
+        ]
+        footer = [
+            "Total",
+            str(totais.get("dias_escala") or 0),
+            str(totais.get("dias_trabalhados") or 0),
+            str(totais.get("dias_folga") or 0),
+            str(totais.get("dias_bloqueio") or 0),
+            "",
+        ]
+        col_w = [
+            largura * 0.28,
+            largura * 0.10,
+            largura * 0.12,
+            largura * 0.10,
+            largura * 0.12,
+            largura * 0.28,
+        ]
+        elements.append(_make_data_table(headers, rows, footer, col_widths=col_w, font_size=8))
+        elements.append(Spacer(1, 4 * mm))
+
+        # Detalhe dos eventos
+        eventos = []
+        for p in profissionais:
+            for ev in p.get("eventos") or []:
+                eventos.append({**ev, "profissional_nome": p.get("nome") or "—"})
+        for ev in resultado.get("bloqueios_gerais") or []:
+            eventos.append({**ev, "profissional_nome": "Todos"})
+
+        if eventos:
+            elements.append(Paragraph("Detalhe de folgas e bloqueios", secao_style))
+            headers_e = ["Profissional", "Tipo", "Título", "Início", "Fim", "Horário", "Dias"]
+            rows_e = []
+            for ev in eventos:
+                horario = "Dia inteiro"
+                if ev.get("horario_inicio"):
+                    horario = f"{ev.get('horario_inicio')}–{ev.get('horario_fim') or ''}"
+                rows_e.append([
+                    (ev.get("profissional_nome") or "—")[:40],
+                    ev.get("tipo_label") or ev.get("tipo") or "—",
+                    (ev.get("titulo") or "—")[:40],
+                    _fmt_iso_br(ev.get("data_inicio")),
+                    _fmt_iso_br(ev.get("data_fim")),
+                    horario,
+                    str(ev.get("dias_no_periodo") or 0),
+                ])
+            col_e = [
+                largura * 0.20,
+                largura * 0.10,
+                largura * 0.22,
+                largura * 0.12,
+                largura * 0.12,
+                largura * 0.14,
+                largura * 0.10,
+            ]
+            elements.append(_make_data_table(headers_e, rows_e, None, col_widths=col_e, font_size=7))
+
+    doc.build(elements)
+    buffer.seek(0)
+    return finalize_pdf_com_timbrado(buffer, tipo_cab, dados_cab)

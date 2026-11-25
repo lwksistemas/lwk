@@ -101,170 +101,100 @@ export function EstoqueProdutoModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-neutral-700">
-          <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">
-            {produto ? "Editar Produto" : "Novo Produto"}
-          </h2>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-3 sm:p-4">
+      <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-xl w-full max-w-6xl max-h-[92vh] flex flex-col overflow-hidden">
+        <div className="flex items-center justify-between px-5 sm:px-6 py-3 border-b border-gray-200 dark:border-neutral-700 shrink-0">
+          <div>
+            <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">
+              {produto ? "Editar Produto" : "Novo Produto"}
+            </h2>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+              Mesmas informações da conferência do Importar XML: unidade de estoque, quantidade, lote,
+              validade, custo e fator da nota.
+            </p>
+          </div>
           <button type="button" onClick={onClose} className="p-1 hover:bg-gray-100 dark:hover:bg-neutral-700 rounded">
             <X size={20} className="text-gray-500 dark:text-gray-400" />
           </button>
         </div>
-        <form onSubmit={handleSubmit}>
-          <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-gray-200 dark:divide-neutral-700">
-            <div className="p-5 space-y-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                Identificação
-              </p>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nome</label>
-                <input
-                  type="text"
-                  required
-                  value={form.nome}
-                  onChange={(e) => setForm({ ...form, nome: toUpperCase(e.target.value) })}
-                  className={ESTOQUE_INPUT_CLASS}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Fornecedor</label>
-                <input
-                  type="text"
-                  value={form.marca}
-                  onChange={(e) => setForm({ ...form, marca: toUpperCase(e.target.value) })}
-                  className={ESTOQUE_INPUT_CLASS}
-                  placeholder="Nome do fornecedor"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Categoria</label>
-                <select
-                  value={form.categoria_id === "" ? "" : String(form.categoria_id)}
-                  onChange={(e) =>
-                    setForm({
-                      ...form,
-                      categoria_id: e.target.value ? Number(e.target.value) : "",
-                    })
-                  }
-                  className={ESTOQUE_INPUT_CLASS}
-                  required
-                >
-                  <option value="" disabled>
-                    Selecione
-                  </option>
-                  {options.map((c) => (
-                    <option key={c.value} value={c.value}>
-                      {c.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Unidade de medida (estoque)
-                </label>
-                <input
-                  type="text"
-                  list="estoque-unidades-medida"
-                  value={form.unidade_medida}
-                  onChange={(e) => setForm({ ...form, unidade_medida: e.target.value.toLowerCase() })}
-                  className={ESTOQUE_INPUT_CLASS}
-                  placeholder="unidade, ampola, frasco, dose, ml…"
-                  maxLength={30}
-                  required
-                />
-                <datalist id="estoque-unidades-medida">
-                  {ESTOQUE_UNIDADES_MEDIDA.map((u) => (
-                    <option key={u} value={u} />
-                  ))}
-                </datalist>
-                <p className="text-xs text-gray-500 mt-1">
-                  Saldo e saída no procedimento usam esta unidade. No Importar XML, o fator converte a
-                  unidade da nota para esta (ex.: ml na nota → unidade no estoque).
+        <form onSubmit={handleSubmit} className="flex flex-col min-h-0 flex-1">
+          <div className="overflow-y-auto flex-1">
+            <div className="grid grid-cols-1 lg:grid-cols-3 divide-y lg:divide-y-0 lg:divide-x divide-gray-200 dark:divide-neutral-700">
+              <div className="p-4 sm:p-5 space-y-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                  Identificação
                 </p>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Quantidade ({unidadeAtual})
-                  </label>
-                  <input
-                    type="number"
-                    min={0}
-                    value={form.quantidade_atual}
-                    onChange={(e) => setForm({ ...form, quantidade_atual: Number(e.target.value) })}
-                    className={ESTOQUE_INPUT_CLASS}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Mínimo ({unidadeAtual})
-                  </label>
-                  <input
-                    type="number"
-                    min={0}
-                    value={form.quantidade_minima}
-                    onChange={(e) => setForm({ ...form, quantidade_minima: Number(e.target.value) })}
-                    className={ESTOQUE_INPUT_CLASS}
-                  />
-                </div>
-              </div>
-            </div>
-            <div className="p-5 space-y-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                Rastreabilidade
-              </p>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Nº nota fiscal
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nome</label>
                   <input
                     type="text"
-                    value={form.numero_nota}
-                    onChange={(e) => setForm({ ...form, numero_nota: e.target.value })}
+                    required
+                    value={form.nome}
+                    onChange={(e) => setForm({ ...form, nome: toUpperCase(e.target.value) })}
                     className={ESTOQUE_INPUT_CLASS}
-                    placeholder="Ex: 12345"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nº do lote</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Fornecedor</label>
                   <input
                     type="text"
-                    value={form.lote}
-                    onChange={(e) => setForm({ ...form, lote: e.target.value })}
+                    value={form.marca}
+                    onChange={(e) => setForm({ ...form, marca: toUpperCase(e.target.value) })}
                     className={ESTOQUE_INPUT_CLASS}
-                    placeholder="Lote do produto"
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Preço Custo (R$)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min={0}
-                    value={form.preco_custo}
-                    onChange={(e) => setForm({ ...form, preco_custo: Number(e.target.value) })}
-                    className={ESTOQUE_INPUT_CLASS}
+                    placeholder="Nome do fornecedor"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Preço de venda (R$)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min={0}
-                    value={form.preco_venda}
-                    onChange={(e) => setForm({ ...form, preco_venda: Number(e.target.value) })}
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Categoria</label>
+                  <select
+                    value={form.categoria_id === "" ? "" : String(form.categoria_id)}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        categoria_id: e.target.value ? Number(e.target.value) : "",
+                      })
+                    }
                     className={ESTOQUE_INPUT_CLASS}
-                  />
+                    required
+                  >
+                    <option value="" disabled>
+                      Selecione
+                    </option>
+                    {options.map((c) => (
+                      <option key={c.value} value={c.value}>
+                        {c.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Preço custo (R$)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min={0}
+                      value={form.preco_custo}
+                      onChange={(e) => setForm({ ...form, preco_custo: Number(e.target.value) })}
+                      className={ESTOQUE_INPUT_CLASS}
+                    />
+                    <p className="text-[11px] text-gray-500 mt-1">Custo unitário no estoque (como no XML).</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Preço de venda (R$)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min={0}
+                      value={form.preco_venda}
+                      onChange={(e) => setForm({ ...form, preco_venda: Number(e.target.value) })}
+                      className={ESTOQUE_INPUT_CLASS}
+                    />
+                  </div>
                 </div>
                 <label className="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300">
                   <input
@@ -275,11 +205,15 @@ export function EstoqueProdutoModal({
                   />
                   <span>
                     Pode vender ao cliente
-                    <span className="block text-xs text-gray-500">A importação da nota atualiza o custo e não mexe neste preço.</span>
+                    <span className="block text-xs text-gray-500">
+                      A importação da nota atualiza o custo e não mexe neste preço.
+                    </span>
                   </span>
                 </label>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">NCM do cupom fiscal</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    NCM do cupom fiscal
+                  </label>
                   <input
                     inputMode="numeric"
                     maxLength={8}
@@ -289,68 +223,179 @@ export function EstoqueProdutoModal({
                     className={ESTOQUE_INPUT_CLASS}
                   />
                 </div>
+              </div>
+
+              <div className="p-4 sm:p-5 space-y-3 bg-violet-50/40 dark:bg-violet-950/10">
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                  Entrada no estoque (igual ao XML)
+                </p>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Validade</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Unidade de medida (estoque)
+                  </label>
                   <input
-                    type="date"
-                    value={form.validade}
-                    onChange={(e) => setForm({ ...form, validade: e.target.value })}
+                    type="text"
+                    list="estoque-unidades-medida"
+                    value={form.unidade_medida}
+                    onChange={(e) => setForm({ ...form, unidade_medida: e.target.value.toLowerCase() })}
                     className={ESTOQUE_INPUT_CLASS}
+                    placeholder="unidade, ampola, frasco, dose, ml…"
+                    maxLength={30}
+                    required
                   />
+                  <datalist id="estoque-unidades-medida">
+                    {ESTOQUE_UNIDADES_MEDIDA.map((u) => (
+                      <option key={u} value={u} />
+                    ))}
+                  </datalist>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Quantidade ({unidadeAtual})
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={form.quantidade_atual}
+                      onChange={(e) => setForm({ ...form, quantidade_atual: Number(e.target.value) })}
+                      className={ESTOQUE_INPUT_CLASS}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Mínimo ({unidadeAtual})
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={form.quantidade_minima}
+                      onChange={(e) => setForm({ ...form, quantidade_minima: Number(e.target.value) })}
+                      className={ESTOQUE_INPUT_CLASS}
+                    />
+                  </div>
+                </div>
+                <div className="rounded-lg border border-violet-200 dark:border-violet-900/50 bg-white/70 dark:bg-neutral-900/40 px-3 py-2 text-xs text-gray-600 dark:text-gray-300 space-y-1">
+                  <p>
+                    No <strong>Importar XML</strong>: quantidade da nota × <strong>fator</strong> = entrada em{" "}
+                    <strong>{unidadeAtual}</strong>.
+                  </p>
+                  <p>
+                    Ex.: nota em ml e uso em unidade → ajuste o fator na conferência do XML. Aqui você define a
+                    unidade do saldo e das baixas no procedimento.
+                  </p>
+                  <p className="text-gray-500">
+                    O fator por fornecedor aparece no histórico abaixo (lembrado da última NF-e).
+                  </p>
                 </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Dias para alerta de validade
+
+              <div className="p-4 sm:p-5 space-y-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                  Rastreabilidade
+                </p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Nº nota fiscal
+                    </label>
+                    <input
+                      type="text"
+                      value={form.numero_nota}
+                      onChange={(e) => setForm({ ...form, numero_nota: e.target.value })}
+                      className={ESTOQUE_INPUT_CLASS}
+                      placeholder="Ex: 12345"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Nº do lote
+                    </label>
+                    <input
+                      type="text"
+                      value={form.lote}
+                      onChange={(e) => setForm({ ...form, lote: e.target.value })}
+                      className={ESTOQUE_INPUT_CLASS}
+                      placeholder="Lote do produto"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Validade
+                    </label>
+                    <input
+                      type="date"
+                      value={form.validade}
+                      onChange={(e) => setForm({ ...form, validade: e.target.value })}
+                      className={ESTOQUE_INPUT_CLASS}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Dias alerta validade
+                    </label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={365}
+                      value={form.dias_alerta_validade}
+                      onChange={(e) => setForm({ ...form, dias_alerta_validade: Number(e.target.value) })}
+                      className={ESTOQUE_INPUT_CLASS}
+                      placeholder="90"
+                    />
+                  </div>
+                </div>
+                <label className="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300">
+                  <input
+                    type="checkbox"
+                    className="mt-1"
+                    checked={form.exige_lote}
+                    onChange={(e) => setForm({ ...form, exige_lote: e.target.checked })}
+                  />
+                  <span>
+                    Exigir lote e validade na entrada
+                    <span className="block text-xs text-gray-500">
+                      Na NF-e, igual à conferência do XML: sem lote/validade o item não confirma.
+                    </span>
+                  </span>
                 </label>
-                <input
-                  type="number"
-                  min={1}
-                  max={365}
-                  value={form.dias_alerta_validade}
-                  onChange={(e) => setForm({ ...form, dias_alerta_validade: Number(e.target.value) })}
-                  className={ESTOQUE_INPUT_CLASS}
-                  placeholder="90"
-                />
-                <p className="text-xs text-gray-500 mt-1">Alerta quando faltar esse nº de dias para vencer</p>
               </div>
-              <label className="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300">
-                <input
-                  type="checkbox"
-                  className="mt-1"
-                  checked={form.exige_lote}
-                  onChange={(e) => setForm({ ...form, exige_lote: e.target.checked })}
-                />
-                <span>
-                  Exigir lote e validade na entrada
-                  <span className="block text-xs text-gray-500">A NF-e não confirma este produto sem lote e validade. O saldo já lançado permanece.</span>
-                </span>
-              </label>
-              {saveError && (
-                <div className="px-3 py-2 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-sm text-red-700 dark:text-red-300">
-                  {saveError}
-                </div>
-              )}
-              <button
-                type="submit"
-                disabled={saving}
-                className="w-full py-2 text-white rounded-lg disabled:opacity-50 font-medium text-sm mt-2"
-                style={{ backgroundColor: "var(--cb-primary, #8B3D52)" }}
-              >
-                {saving ? "Salvando..." : produto ? "Salvar Alterações" : "Criar Produto"}
-              </button>
             </div>
+
+            {produto?.id ? (
+              <EstoqueProdutoCompras produtoId={produto.id} />
+            ) : (
+              <div className="px-5 py-3 border-t border-gray-200 dark:border-neutral-700">
+                <p className="text-xs text-gray-500">
+                  Ao importar XML, use o fator para converter a unidade da nota para{" "}
+                  <span className="font-medium text-gray-700 dark:text-gray-200">{unidadeAtual}</span>.
+                </p>
+              </div>
+            )}
           </div>
-          {produto?.id ? (
-            <EstoqueProdutoCompras produtoId={produto.id} />
-          ) : (
-            <div className="px-5 py-3 border-t border-gray-200 dark:border-neutral-700">
-              <p className="text-xs text-gray-500">
-                Ao importar XML, use o fator para converter a unidade da nota para{" "}
-                <span className="font-medium text-gray-700 dark:text-gray-200">{unidadeAtual}</span>.
-              </p>
-            </div>
-          )}
+
+          <div className="shrink-0 border-t border-gray-200 dark:border-neutral-700 px-5 py-3 flex flex-wrap items-center justify-end gap-3 bg-white dark:bg-neutral-800">
+            {saveError && (
+              <p className="flex-1 text-sm text-red-600 dark:text-red-300 min-w-[12rem]">{saveError}</p>
+            )}
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-sm rounded-lg border border-gray-300 dark:border-neutral-600 text-gray-700 dark:text-gray-200"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="px-5 py-2 text-white rounded-lg disabled:opacity-50 font-medium text-sm"
+              style={{ backgroundColor: "var(--cb-primary, #8B3D52)" }}
+            >
+              {saving ? "Salvando..." : produto ? "Salvar Alterações" : "Criar Produto"}
+            </button>
+          </div>
         </form>
       </div>
     </div>

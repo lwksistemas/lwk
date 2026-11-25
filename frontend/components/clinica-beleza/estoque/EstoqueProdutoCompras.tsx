@@ -25,6 +25,15 @@ interface CompraFornecedor {
   registrado_em?: string;
 }
 
+interface VinculoFornecedor {
+  documento: string;
+  codigo: string;
+  gtin?: string;
+  fator: string;
+  preco: string;
+  nome_no_fornecedor?: string;
+}
+
 interface LoteEstoque {
   codigo: string;
   validade: string;
@@ -39,10 +48,12 @@ interface LoteEstoque {
 }
 
 interface RespostaCompras {
+  unidade_medida?: string;
   quantidade_atual: string;
   quantidade_utilizavel?: string;
   quantidade_em_lotes: string;
   quantidade_sem_lote: string;
+  vinculos?: VinculoFornecedor[];
   compras: CompraFornecedor[];
   lotes: LoteEstoque[];
 }
@@ -91,6 +102,8 @@ export function EstoqueProdutoCompras({ produtoId }: { produtoId: number }) {
     };
   }, [produtoId]);
 
+  const unidadeEstoque = (dados?.unidade_medida || "unidade").trim() || "unidade";
+
   return (
     <div className="px-5 py-4 border-t border-gray-200 dark:border-neutral-700 space-y-4">
       <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
@@ -98,6 +111,38 @@ export function EstoqueProdutoCompras({ produtoId }: { produtoId: number }) {
       </p>
       {erro && <p className="text-sm text-red-600">{erro}</p>}
       {!dados && !erro && <p className="text-sm text-gray-500">Carregando…</p>}
+      {dados && (
+        <p className="text-xs text-gray-600 dark:text-gray-300">
+          Estoque em <span className="font-medium text-gray-900 dark:text-gray-100">{unidadeEstoque}</span>
+          {" · "}
+          na NF-e, quantidade da nota × fator = entrada neste produto
+        </p>
+      )}
+      {dados && (dados.vinculos?.length || 0) > 0 && (
+        <div className="rounded-lg border border-gray-200 dark:border-neutral-600 p-3 space-y-1.5">
+          <p className="text-xs font-medium text-gray-700 dark:text-gray-200">
+            Fator lembrado por fornecedor (mesma informação do Importar XML)
+          </p>
+          <ul className="space-y-1">
+            {dados.vinculos!.map((v) => (
+              <li key={`${v.documento}-${v.codigo}`} className="text-xs text-gray-600 dark:text-gray-300">
+                <span className="text-gray-900 dark:text-gray-100">
+                  {v.nome_no_fornecedor || "Item do fornecedor"}
+                </span>
+                {" · "}
+                {documentoCurto(v.documento)}
+                {v.codigo ? ` · cód. ${v.codigo}` : ""}
+                {" · fator "}
+                <span className="font-medium text-gray-900 dark:text-gray-100">{Number(v.fator).toString()}</span>
+                {" → entra em "}
+                {unidadeEstoque}
+                {" · último custo "}
+                {formatCurrency(v.preco)}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       {dados && dados.compras.length === 0 && (
         <p className="text-sm text-gray-500">Nenhuma compra por NF-e neste produto ainda.</p>
       )}
@@ -164,13 +209,13 @@ export function EstoqueProdutoCompras({ produtoId }: { produtoId: number }) {
       )}
       {dados && (
         <p className="text-xs font-medium text-gray-700 dark:text-gray-200">
-          Total {dados.quantidade_atual} · utilizável {dados.quantidade_utilizavel || dados.quantidade_atual} · saldo anterior sem lote {dados.quantidade_sem_lote}
+          Total {dados.quantidade_atual} {unidadeEstoque} · utilizável {dados.quantidade_utilizavel || dados.quantidade_atual} {unidadeEstoque} · saldo anterior sem lote {dados.quantidade_sem_lote} {unidadeEstoque}
         </p>
       )}
       {dados && dados.lotes.length > 0 && (
         <div>
           <p className="text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">
-            Lotes rastreados: {dados.quantidade_em_lotes}
+            Lotes rastreados: {dados.quantidade_em_lotes} {unidadeEstoque}
           </p>
           <ul className="space-y-1">
             {dados.lotes.map((lote) => (

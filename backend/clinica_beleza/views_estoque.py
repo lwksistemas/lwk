@@ -464,6 +464,7 @@ class EstoqueProdutoComprasView(GetObjectMixin, APIView):
         )
         return Response({
             "exige_lote": produto.exige_lote,
+            "unidade_medida": produto.unidade_medida or "unidade",
             "quantidade_atual": _decimal(resumo["total"]),
             "quantidade_utilizavel": _decimal(resumo["utilizavel"]),
             "quantidade_em_lotes": _decimal(resumo["em_lotes"]),

@@ -19,6 +19,8 @@ export interface EstoqueProduto {
   categoria_display?: string;
   categoria_cor?: string;
   marca?: string;
+  /** Unidade do saldo e das baixas no procedimento (ex.: unidade, ml, ampola). */
+  unidade_medida?: string;
   quantidade_atual: number;
   quantidade_minima: number;
   preco_custo: number | string;
@@ -32,6 +34,22 @@ export interface EstoqueProduto {
   exige_lote?: boolean;
   ncm?: string;
 }
+
+/** Unidades comuns no estoque clínico / NF-e. */
+export const ESTOQUE_UNIDADES_MEDIDA = [
+  "unidade",
+  "ampola",
+  "frasco",
+  "dose",
+  "seringa",
+  "ml",
+  "mg",
+  "comprimido",
+  "cápsula",
+  "sachê",
+  "cx",
+  "un",
+] as const;
 
 export interface EstoqueResumo {
   total_produtos: number;

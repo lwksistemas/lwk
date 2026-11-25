@@ -5,6 +5,7 @@ import { X } from "lucide-react";
 import {
   ESTOQUE_CATEGORIAS,
   ESTOQUE_INPUT_CLASS,
+  ESTOQUE_UNIDADES_MEDIDA,
   type EstoqueCategoria,
   type EstoqueProduto,
 } from "@/components/clinica-beleza/estoque/estoque-types";
@@ -55,6 +56,7 @@ export function EstoqueProdutoModal({
     nome: produto?.nome ?? "",
     marca: produto?.marca ?? "",
     categoria_id: resolveInitialCategoriaId(produto, categorias, defaultCategoriaSlug) as number | "",
+    unidade_medida: (produto?.unidade_medida || "unidade").trim() || "unidade",
     quantidade_atual: produto?.quantidade_atual ?? 0,
     quantidade_minima: produto?.quantidade_minima ?? 0,
     preco_custo: produto ? Number(produto.preco_custo) : 0,
@@ -67,6 +69,7 @@ export function EstoqueProdutoModal({
     dias_alerta_validade: produto?.dias_alerta_validade ?? 90,
     exige_lote: produto?.exige_lote ?? false,
   });
+  const unidadeAtual = form.unidade_medida.trim() || "unidade";
 
   const options =
     categorias && categorias.length > 0
@@ -78,6 +81,7 @@ export function EstoqueProdutoModal({
     const payload: Record<string, unknown> = {
       nome: form.nome,
       marca: form.marca,
+      unidade_medida: unidadeAtual.slice(0, 30),
       quantidade_atual: form.quantidade_atual,
       quantidade_minima: form.quantidade_minima,
       preco_custo: Number(form.preco_custo),
@@ -156,9 +160,35 @@ export function EstoqueProdutoModal({
                   ))}
                 </select>
               </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Unidade de medida (estoque)
+                </label>
+                <input
+                  type="text"
+                  list="estoque-unidades-medida"
+                  value={form.unidade_medida}
+                  onChange={(e) => setForm({ ...form, unidade_medida: e.target.value.toLowerCase() })}
+                  className={ESTOQUE_INPUT_CLASS}
+                  placeholder="unidade, ampola, frasco, dose, ml…"
+                  maxLength={30}
+                  required
+                />
+                <datalist id="estoque-unidades-medida">
+                  {ESTOQUE_UNIDADES_MEDIDA.map((u) => (
+                    <option key={u} value={u} />
+                  ))}
+                </datalist>
+                <p className="text-xs text-gray-500 mt-1">
+                  Saldo e saída no procedimento usam esta unidade. No Importar XML, o fator converte a
+                  unidade da nota para esta (ex.: ml na nota → unidade no estoque).
+                </p>
+              </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Quantidade</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Quantidade ({unidadeAtual})
+                  </label>
                   <input
                     type="number"
                     min={0}
@@ -168,7 +198,9 @@ export function EstoqueProdutoModal({
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Mínimo</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Mínimo ({unidadeAtual})
+                  </label>
                   <input
                     type="number"
                     min={0}
@@ -309,7 +341,16 @@ export function EstoqueProdutoModal({
               </button>
             </div>
           </div>
-          {produto?.id ? <EstoqueProdutoCompras produtoId={produto.id} /> : null}
+          {produto?.id ? (
+            <EstoqueProdutoCompras produtoId={produto.id} />
+          ) : (
+            <div className="px-5 py-3 border-t border-gray-200 dark:border-neutral-700">
+              <p className="text-xs text-gray-500">
+                Ao importar XML, use o fator para converter a unidade da nota para{" "}
+                <span className="font-medium text-gray-700 dark:text-gray-200">{unidadeAtual}</span>.
+              </p>
+            </div>
+          )}
         </form>
       </div>
     </div>

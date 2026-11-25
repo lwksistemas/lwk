@@ -29,7 +29,7 @@ def degustacao_acabou(financeiro, hoje: date | None = None) -> bool:
     return (hoje or date.today()) > ate
 
 
-def _avisar_fim(loja) -> None:
+def _avisar_fim(loja, *, boleto_gerado: bool = False, boleto_url: str = "") -> None:
     owner = getattr(loja, "owner", None)
     email = (getattr(owner, "email", "") or "").strip()
     if not email:
@@ -37,17 +37,63 @@ def _avisar_fim(loja) -> None:
     from core.email_delivery import send_system_mail
 
     assunto = f"A demonstração de {loja.nome} acabou"
-    texto = (
-        f"A demonstração de {loja.nome} acabou.\n\n"
-        "O sistema está bloqueado e nenhum boleto foi gerado.\n"
-        "Entre na página de assinatura e escolha pagar o boleto ou cancelar a loja.\n"
-        "Sem essa escolha, o acesso continua bloqueado."
-    )
+    if boleto_gerado:
+        texto = (
+            f"A demonstração de {loja.nome} acabou.\n\n"
+            "O boleto da assinatura foi gerado e o acesso fica bloqueado até o pagamento.\n"
+            "Entre na página de assinatura para pagar.\n"
+        )
+        if boleto_url:
+            texto += f"\nBoleto: {boleto_url}\n"
+    else:
+        texto = (
+            f"A demonstração de {loja.nome} acabou.\n\n"
+            "O sistema está bloqueado. Entre na página de assinatura e escolha pagar o boleto "
+            "ou cancelar a loja.\n"
+            "Sem essa escolha, o acesso continua bloqueado."
+        )
     send_system_mail(assunto, texto, [email], fail_silently=True)
 
 
+def gerar_boleto_apos_degustacao(loja, financeiro) -> dict:
+    """Sai de degustacao, gera a cobrança e envia o boleto. Acesso volta só após o pagamento."""
+    from superadmin.cobranca_service import CobrancaService, cobranca_ja_registrada
+    from superadmin.serializers.loja import _enviar_boleto_do_cadastro
+    from superadmin.services.financeiro_service import FinanceiroService
+
+    if not em_degustacao(financeiro):
+        return {"success": False, "error": "Esta loja não está em demonstração."}
+    if not degustacao_acabou(financeiro):
+        return {"success": False, "error": "A demonstração ainda está aberta."}
+
+    ate = financeiro.degustacao_ate
+    financeiro.status_pagamento = "pendente"
+    financeiro.data_proxima_cobranca = FinanceiroService.calcular_primeiro_vencimento(3)
+    financeiro.save(update_fields=["status_pagamento", "data_proxima_cobranca"])
+    if not cobranca_ja_registrada(financeiro):
+        resultado = CobrancaService().criar_cobranca(loja, financeiro)
+        if not resultado.get("success"):
+            financeiro.status_pagamento = "degustacao"
+            financeiro.data_proxima_cobranca = ate
+            financeiro.save(update_fields=["status_pagamento", "data_proxima_cobranca"])
+            return {
+                "success": False,
+                "error": resultado.get("error") or "Não foi possível gerar o boleto.",
+            }
+    financeiro.refresh_from_db()
+    try:
+        _enviar_boleto_do_cadastro(loja, financeiro)
+    except Exception:
+        logger.exception("Falha ao enviar boleto pós-demonstração da loja %s", getattr(loja, "slug", ""))
+    return {
+        "success": True,
+        "boleto_url": financeiro.boleto_url or "",
+        "message": "Boleto gerado. O acesso volta depois do pagamento.",
+    }
+
+
 def encerrar_degustacao_se_venceu(loja, financeiro, *, persistir: bool = True) -> dict | None:
-    """No dia seguinte ao fim, bloqueia e avisa. Não gera boleto."""
+    """No dia seguinte ao fim, bloqueia, gera o boleto da assinatura e avisa."""
     if not em_degustacao(financeiro):
         return None
     hoje = date.today()
@@ -72,19 +118,35 @@ def encerrar_degustacao_se_venceu(loja, financeiro, *, persistir: bool = True) -
         changed = True
     if persistir and changed:
         loja.save(update_fields=["is_blocked", "blocked_at", "blocked_reason", "days_overdue", "updated_at"])
+
+    boleto_out: dict = {"success": False}
+    if persistir:
+        boleto_out = gerar_boleto_apos_degustacao(loja, financeiro)
+        if boleto_out.get("success"):
+            changed = True
+            financeiro.refresh_from_db()
+
     if persistir and not getattr(financeiro, "degustacao_avisada", False):
-        _avisar_fim(loja)
+        _avisar_fim(
+            loja,
+            boleto_gerado=bool(boleto_out.get("success")),
+            boleto_url=str(boleto_out.get("boleto_url") or ""),
+        )
         financeiro.degustacao_avisada = True
         financeiro.save(update_fields=["degustacao_avisada"])
         changed = True
+
+    status_final = getattr(financeiro, "status_pagamento", "degustacao")
     return {
         "loja_id": loja.id,
         "slug": getattr(loja, "slug", ""),
         "blocked": True,
-        "status": "degustacao",
+        "status": status_final,
         "changed": changed,
         "skipped": False,
         "reason": "degustacao_encerrada",
+        "boleto_gerado": bool(boleto_out.get("success")),
+        "boleto_erro": None if boleto_out.get("success") else (boleto_out.get("error") or None),
     }
 
 
@@ -103,32 +165,8 @@ def preparar_financeiro_degustacao(financeiro, dias: int):
 
 
 def aceitar_boleto_degustacao(loja, financeiro) -> dict:
-    """Gera o primeiro boleto. O acesso volta só depois do pagamento."""
-    if not em_degustacao(financeiro) or not degustacao_acabou(financeiro):
-        return {"success": False, "error": "A demonstração ainda está aberta."}
-
-    from superadmin.cobranca_service import CobrancaService, cobranca_ja_registrada
-    from superadmin.serializers.loja import _enviar_boleto_do_cadastro
-    from superadmin.services.financeiro_service import FinanceiroService
-
-    ate = financeiro.degustacao_ate
-    financeiro.status_pagamento = "pendente"
-    financeiro.data_proxima_cobranca = FinanceiroService.calcular_primeiro_vencimento(3)
-    financeiro.save(update_fields=["status_pagamento", "data_proxima_cobranca"])
-    if not cobranca_ja_registrada(financeiro):
-        resultado = CobrancaService().criar_cobranca(loja, financeiro)
-        if not resultado.get("success"):
-            financeiro.status_pagamento = "degustacao"
-            financeiro.data_proxima_cobranca = ate
-            financeiro.save(update_fields=["status_pagamento", "data_proxima_cobranca"])
-            return {"success": False, "error": resultado.get("error") or "Não foi possível gerar o boleto."}
-    financeiro.refresh_from_db()
-    _enviar_boleto_do_cadastro(loja, financeiro)
-    return {
-        "success": True,
-        "boleto_url": financeiro.boleto_url or "",
-        "message": "Boleto gerado. O acesso volta depois do pagamento.",
-    }
+    """Gera o boleto sob demanda (botão Pagar). O acesso volta só depois do pagamento."""
+    return gerar_boleto_apos_degustacao(loja, financeiro)
 
 
 def iniciar_contagem_degustacao(loja, financeiro, dias: int):

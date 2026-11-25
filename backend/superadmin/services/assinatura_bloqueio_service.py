@@ -146,9 +146,21 @@ def situacao_geracao_boleto_assinatura(loja, financeiro) -> dict:
     from superadmin.models import PagamentoLoja
 
     if em_degustacao(financeiro):
+        from superadmin.degustacao_service import degustacao_acabou
+
+        if degustacao_acabou(financeiro):
+            return {
+                "pode_gerar": False,
+                "motivo": (
+                    "A demonstração acabou. O boleto é gerado automaticamente; "
+                    "se não aparecer, use Pagar boleto na página de assinatura."
+                ),
+                "data_liberacao": None,
+                "dias_ate_liberacao": None,
+            }
         return {
             "pode_gerar": False,
-            "motivo": "Na demonstração o boleto só é gerado se o cliente escolher pagar.",
+            "motivo": "Durante a demonstração o boleto não é gerado.",
             "data_liberacao": None,
             "dias_ate_liberacao": None,
         }

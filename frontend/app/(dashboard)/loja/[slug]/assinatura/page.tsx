@@ -328,6 +328,13 @@ export default function AssinaturaLojaPage() {
     const historico = data.historico_pagamentos ?? [];
     const emDegustacao = Boolean(fin.em_degustacao);
     const bloqueada = lojaBloqueada || Boolean(data.is_blocked);
+    const degustacaoVencida = (() => {
+      if (!emDegustacao || !fin.degustacao_ate) return false;
+      const ate = fin.degustacao_ate.slice(0, 10);
+      const hoje = new Date();
+      const ymd = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}-${String(hoje.getDate()).padStart(2, '0')}`;
+      return ate < ymd;
+    })();
     const avisoAssinatura = emDegustacao
       ? data.assinatura_aviso ?? null
       : data.assinatura_aviso ??
@@ -352,13 +359,13 @@ export default function AssinaturaLojaPage() {
 
     return (
       <>
-        {bloqueada && emDegustacao && (
+        {(bloqueada || degustacaoVencida) && emDegustacao && (
           <Alert variant="destructive" className="mb-4">
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription className="text-sm leading-relaxed space-y-3">
               <p>
-                A demonstração acabou. Escolha pagar o boleto ou cancelar a loja.
-                Sem essa escolha, o sistema continua bloqueado e nenhum boleto é gerado.
+                A demonstração acabou. O boleto da assinatura deve ser gerado automaticamente;
+                se ainda não aparecer abaixo, escolha pagar o boleto ou cancelar a loja.
               </p>
               <div className="flex flex-wrap gap-2">
                 <Button
@@ -390,7 +397,7 @@ export default function AssinaturaLojaPage() {
             </AlertDescription>
           </Alert>
         )}
-        {!bloqueada && emDegustacao && (
+        {!bloqueada && emDegustacao && !degustacaoVencida && (
           <Alert className="mb-4 border-amber-400 bg-amber-50 text-amber-950 dark:bg-amber-950/30 dark:border-amber-700 dark:text-amber-100">
             <Clock className="h-4 w-4" />
             <AlertDescription className="text-sm leading-relaxed">

@@ -199,12 +199,26 @@ class TestDegustacao(TestCase):
         self.assertEqual(financeiro.status_pagamento, "degustacao")
         self.assertFalse(loja.is_blocked)
 
-    def test_encerrada_bloqueia_sem_virar_cobranca(self):
+    def test_encerrada_bloqueia_sem_persistir(self):
         loja, financeiro = self._loja(date.today() - timedelta(days=1))
         out = aplicar_bloqueio_inadimplencia_loja(loja, persistir=False)
         self.assertTrue(loja.is_blocked)
         self.assertEqual(loja.blocked_reason, "Demonstração encerrada")
         self.assertEqual(financeiro.status_pagamento, "degustacao")
+        self.assertEqual(out["reason"], "degustacao_encerrada")
+        self.assertFalse(out.get("boleto_gerado"))
+
+    def test_encerrada_gera_boleto_ao_persistir(self):
+        from superadmin.degustacao_service import encerrar_degustacao_se_venceu
+
+        loja, financeiro = self._loja(date.today() - timedelta(days=1))
+        with patch(
+            "superadmin.degustacao_service.gerar_boleto_apos_degustacao",
+            return_value={"success": True, "boleto_url": "https://boleto.exemplo"},
+        ) as gerar, patch("superadmin.degustacao_service._avisar_fim"):
+            out = encerrar_degustacao_se_venceu(loja, financeiro, persistir=True)
+        gerar.assert_called_once_with(loja, financeiro)
+        self.assertTrue(out["boleto_gerado"])
         self.assertEqual(out["reason"], "degustacao_encerrada")
 
     def test_nao_gera_boleto_enquanto_aberta(self):

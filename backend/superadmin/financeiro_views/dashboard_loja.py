@@ -183,6 +183,16 @@ def _dashboard_financeiro_loja_impl(request, loja_slug):
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
+    # Demonstração vencida: bloqueia e gera boleto sem depender só do cron.
+    try:
+        from superadmin.degustacao_service import encerrar_degustacao_se_venceu
+
+        encerrar_degustacao_se_venceu(loja, financeiro, persistir=True)
+        financeiro.refresh_from_db()
+        loja.refresh_from_db()
+    except Exception:
+        logger.exception("Falha ao encerrar demonstração vencida na loja %s", loja_slug)
+
     pagamentos = PagamentoLoja.objects.filter(loja=loja).exclude(status="cancelado").order_by("-data_vencimento")
     proximo_pagamento = pagamentos.filter(status="pendente").first()
 

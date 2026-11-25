@@ -397,7 +397,7 @@ class CobrancaService:
         if em_degustacao(financeiro):
             return {
                 "success": False,
-                "error": "Loja em demonstração. O boleto só é gerado se o cliente escolher pagar.",
+                "error": "Loja em demonstração. O boleto é gerado ao encerrar o prazo ou ao escolher pagar.",
             }
 
         validation_error = self._validar_dados_loja(loja)

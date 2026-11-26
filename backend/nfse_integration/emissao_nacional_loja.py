@@ -7,25 +7,12 @@ from typing import Any
 
 from django.utils import timezone
 
+from nfse_integration.ambiente import ambiente_nacional_loja
 from nfse_integration.nfse_geo import buscar_codigo_ibge_por_cep, preparar_endereco_tomador_emissao
 from nfse_integration.persistencia_nfse_loja import gerar_proximo_numero_rps, salvar_nfse_emitida
 from nfse_integration.prestador_loja import DadosPrestadorNFSe
 
 logger = logging.getLogger(__name__)
-
-
-def ambiente_nacional_loja(config: Any) -> str:
-    """Produção, salvo homologação explícita.
-
-    A config do CRM não tem o campo da API Nacional. Sem isso a nota da loja
-    ia para o ambiente de teste mesmo com o ISSNet em produção.
-    """
-    explicito = (getattr(config, "nacional_ambiente", "") or "").strip()
-    if explicito in ("producao", "homologacao"):
-        return explicito
-    if getattr(config, "issnet_ambiente_homologacao", False):
-        return "homologacao"
-    return "producao"
 
 
 def _codigo_municipio_loja(loja: Any, config: Any) -> str:

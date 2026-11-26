@@ -90,13 +90,10 @@ def _build_pdf_cabecalho(loja, relatorio):
 
 
 def _pdf_texto(valor) -> str:
+    from xml.sax.saxutils import escape
+
     texto = valor.strip() if isinstance(valor, str) else ""
-    return (
-        (texto or "—")
-        .replace("&", "&amp;")
-        .replace("<", "&lt;")
-        .replace(">", "&gt;")
-    )
+    return escape(texto or "—")
 
 
 def _nome_contratante(ep) -> str:
@@ -277,7 +274,7 @@ def gerar_pdf_relatorio_comissao(relatorio, loja, incluir_assinaturas: bool = Fa
     if relatorio.observacoes:
         elements.append(Spacer(1, 0.3 * cm))
         elements.append(Paragraph("<b>Observações</b>", st["secao"]))
-        elements.append(Paragraph(relatorio.observacoes, st["info"]))
+        elements.append(Paragraph(_pdf_texto(relatorio.observacoes), st["info"]))
 
     elements.append(Spacer(1, 0.3 * cm))
     elements.append(HRFlowable(width="100%", thickness=0.5, color=_CINZA_ESCURO))

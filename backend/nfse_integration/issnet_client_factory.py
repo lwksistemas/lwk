@@ -74,18 +74,14 @@ def _senha_cert(config: Any) -> str:
 def issnet_client_loja(config: Any, *, prefix: str = "issnet_") -> Generator[Any]:
     """ISSNetClient a partir da config da loja. As senhas saem cifradas do banco."""
     from core.encryption import decrypt_value
+    from nfse_integration.ambiente import ambiente_nacional_loja
 
-    ambiente = (
-        "homologacao"
-        if getattr(config, "issnet_ambiente_homologacao", False)
-        else "producao"
-    )
     with issnet_client_from_pfx(
         cert_data=_cert_bytes(config),
         senha_certificado=decrypt_value(_senha_cert(config)),
         usuario=getattr(config, "issnet_usuario", "") or "",
         senha=decrypt_value(getattr(config, "issnet_senha", "") or ""),
-        ambiente=ambiente,
+        ambiente=ambiente_nacional_loja(config),
         prefix=prefix,
     ) as client:
         yield client
@@ -95,13 +91,14 @@ def issnet_client_loja(config: Any, *, prefix: str = "issnet_") -> Generator[Any
 def issnet_client_superadmin(config: Any, *, prefix: str = "issnet_") -> Generator[Any]:
     """ISSNetClient a partir da SuperadminNFSeConfig."""
     from core.encryption import decrypt_value
+    from nfse_integration.ambiente import ambiente_nacional_superadmin
 
     with issnet_client_from_pfx(
         cert_data=_cert_bytes(config),
         senha_certificado=decrypt_value(_senha_cert(config)),
         usuario=decrypt_value(getattr(config, "issnet_usuario", "") or ""),
         senha=decrypt_value(getattr(config, "issnet_senha", "") or ""),
-        ambiente=getattr(config, "nacional_ambiente", None) or "producao",
+        ambiente=ambiente_nacional_superadmin(config),
         prefix=prefix,
     ) as client:
         yield client

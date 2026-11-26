@@ -22,6 +22,14 @@ logger = logging.getLogger(__name__)
 # Timeout padrão para requisições ao ADN (segundos)
 DEFAULT_TIMEOUT = 30
 
+# Mensagens estáveis para a API/UI — detalhe técnico fica só no log.
+_ERR_MTLS = "Erro de certificado (mTLS) ao conectar à API Nacional"
+_ERR_CONEXAO_SEFIN = "Não foi possível conectar à Sefin Nacional"
+_ERR_CONEXAO_ADN = "Não foi possível conectar ao ADN"
+_ERR_INESPERADO = "Falha de comunicação com a API Nacional"
+_ERR_EVENTO = "Falha ao registrar evento na Sefin Nacional"
+_ERR_CONSULTA = "Falha ao consultar DFe na API Nacional"
+
 
 def comprimir_e_codificar(xml_str: str) -> str:
     """Comprime XML com GZip e codifica em Base64.
@@ -160,16 +168,16 @@ def enviar_dps_sefin(
         }
     except requests.exceptions.SSLError as e:
         logger.error("Erro SSL/mTLS ao conectar à Sefin: %s", e)
-        return {"success": False, "error": f"Erro de certificado (mTLS): {e}", "data": None}
+        return {"success": False, "error": _ERR_MTLS, "data": None}
     except requests.exceptions.ConnectionError as e:
         logger.error("Erro de conexão à Sefin: %s", e)
-        return {"success": False, "error": f"Não foi possível conectar à Sefin Nacional: {e}", "data": None}
+        return {"success": False, "error": _ERR_CONEXAO_SEFIN, "data": None}
     except requests.exceptions.Timeout:
         logger.error("Timeout ao conectar à Sefin (%ds)", timeout)
         return {"success": False, "error": f"Timeout ({timeout}s) ao conectar à Sefin Nacional", "data": None}
     except Exception as e:
         logger.exception("Erro inesperado ao enviar DPS: %s", e)
-        return {"success": False, "error": str(e), "data": None}
+        return {"success": False, "error": _ERR_INESPERADO, "data": None}
     finally:
         _limpar_temp(cert_path, key_path, pfx_path)
 
@@ -217,9 +225,18 @@ def enviar_evento_sefin(
             "error": "Evento rejeitado pela Sefin Nacional",
             "data": data,
         }
+    except requests.exceptions.SSLError as exc:
+        logger.error("Erro SSL/mTLS ao enviar evento à Sefin: %s", exc)
+        return {"success": False, "error": _ERR_MTLS, "data": None}
+    except requests.exceptions.ConnectionError as exc:
+        logger.error("Erro de conexão ao enviar evento à Sefin: %s", exc)
+        return {"success": False, "error": _ERR_CONEXAO_SEFIN, "data": None}
+    except requests.exceptions.Timeout:
+        logger.error("Timeout ao enviar evento à Sefin (%ds)", timeout)
+        return {"success": False, "error": f"Timeout ({timeout}s) ao conectar à Sefin Nacional", "data": None}
     except Exception as exc:
         logger.exception("Erro ao enviar evento à Sefin: %s", exc)
-        return {"success": False, "error": str(exc), "data": None}
+        return {"success": False, "error": _ERR_EVENTO, "data": None}
     finally:
         _limpar_temp(cert_path, key_path, pfx_path)
 
@@ -336,14 +353,14 @@ def enviar_lote_dfe(
         logger.error("Erro SSL/mTLS ao conectar ao ADN: %s", e)
         return {
             "success": False,
-            "error": f"Erro de certificado (mTLS): {e}",
+            "error": _ERR_MTLS,
             "data": None,
         }
     except requests.exceptions.ConnectionError as e:
         logger.error("Erro de conexão ao ADN: %s", e)
         return {
             "success": False,
-            "error": f"Não foi possível conectar ao ADN: {e}",
+            "error": _ERR_CONEXAO_ADN,
             "data": None,
         }
     except requests.exceptions.Timeout:
@@ -357,7 +374,7 @@ def enviar_lote_dfe(
         logger.exception("Erro inesperado ao enviar DFe: %s", e)
         return {
             "success": False,
-            "error": str(e),
+            "error": _ERR_INESPERADO,
             "data": None,
         }
     finally:
@@ -418,9 +435,18 @@ def consultar_dfe_nsu(
             "data": response.text[:2000],
         }
 
+    except requests.exceptions.SSLError as e:
+        logger.error("Erro SSL/mTLS ao consultar DFe NSU %d: %s", nsu, e)
+        return {"success": False, "error": _ERR_MTLS, "data": None}
+    except requests.exceptions.ConnectionError as e:
+        logger.error("Erro de conexão ao consultar DFe NSU %d: %s", nsu, e)
+        return {"success": False, "error": _ERR_CONEXAO_ADN, "data": None}
+    except requests.exceptions.Timeout:
+        logger.error("Timeout ao consultar DFe NSU %d (%ds)", nsu, timeout)
+        return {"success": False, "error": f"Timeout ({timeout}s) ao conectar ao ADN", "data": None}
     except Exception as e:
         logger.exception("Erro ao consultar DFe NSU %d: %s", nsu, e)
-        return {"success": False, "error": str(e), "data": None}
+        return {"success": False, "error": _ERR_CONSULTA, "data": None}
     finally:
         _limpar_temp(cert_path, key_path, pfx_path)
 

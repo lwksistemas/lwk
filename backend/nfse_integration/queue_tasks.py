@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+from decimal import Decimal
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +23,32 @@ def run_emitir_nfse_assinatura(pagamento_id: int, payment_id: str = "") -> None:
         nfse_sync_only.reset(token)
 
 
+def _marcar_pendente_como_erro(loja_id: int, validated_data: dict, erro_msg: str) -> None:
+    """Evita linha 'Emitindo' órfã quando o worker aborta após a reserva."""
+    numero_rps = int(validated_data.get("numero_rps_reservado") or 0)
+    if not numero_rps:
+        return
+    try:
+        from nfse_integration.persistencia_nfse_loja import registrar_falha_emissao_loja
+
+        registrar_falha_emissao_loja(
+            loja_id=loja_id,
+            erro_msg=erro_msg,
+            tomador_cpf_cnpj=str(validated_data.get("tomador_cpf_cnpj") or ""),
+            tomador_nome=str(validated_data.get("tomador_nome") or ""),
+            tomador_email=str(validated_data.get("tomador_email") or ""),
+            servico_descricao=str(validated_data.get("servico_descricao") or ""),
+            valor_servicos=Decimal(str(validated_data.get("valor_servicos") or 0)),
+            numero_rps=numero_rps,
+        )
+    except Exception:
+        logger.exception(
+            "NFS-e fila loja_id=%s: falha ao marcar DPS %s como erro",
+            loja_id,
+            numero_rps,
+        )
+
+
 def run_emissao_nfse_loja(loja_id: int, validated_data: dict) -> None:
     from django.db import close_old_connections
 
@@ -33,6 +60,8 @@ def run_emissao_nfse_loja(loja_id: int, validated_data: dict) -> None:
 
     close_old_connections()
     token = nfse_sync_only.set(True)
+    dados = deserialize_validated_data(validated_data)
+    tenant_ok = False
     try:
         loja = Loja.objects.using("default").filter(id=loja_id).first()
         if not loja:
@@ -41,6 +70,7 @@ def run_emissao_nfse_loja(loja_id: int, validated_data: dict) -> None:
         if not _configure_tenant_db_for_loja(loja):
             logger.warning("NFS-e fila loja: tenant indisponível loja_id=%s", loja_id)
             return
+        tenant_ok = True
 
         db_name = get_current_tenant_db()
         if db_name and db_name != "default":
@@ -51,9 +81,7 @@ def run_emissao_nfse_loja(loja_id: int, validated_data: dict) -> None:
             except Exception:
                 logger.exception("NFS-e fila: falha patch schema %s", db_name)
 
-        body, http_status = processar_emissao_nfse_loja_sync(
-            loja, loja_id, deserialize_validated_data(validated_data),
-        )
+        body, http_status = processar_emissao_nfse_loja_sync(loja, loja_id, dados)
         if http_status >= 400:
             logger.warning(
                 "NFS-e fila loja_id=%s falhou: %s",
@@ -62,6 +90,12 @@ def run_emissao_nfse_loja(loja_id: int, validated_data: dict) -> None:
             )
     except Exception:
         logger.exception("NFS-e fila loja_id=%s: exceção na emissão", loja_id)
+        if tenant_ok:
+            _marcar_pendente_como_erro(
+                loja_id,
+                dados,
+                "Falha interna na emissão da NFS-e. Tente novamente ou fale com o suporte.",
+            )
         raise
     finally:
         nfse_sync_only.reset(token)

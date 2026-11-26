@@ -43,7 +43,9 @@ def issnet_nacional_client_superadmin(config: Any):
 
     cert = ler_pfx(bytes(config.issnet_certificado or config.nacional_certificado or b""))
     senha = decrypt_value(config.issnet_senha_certificado or config.nacional_senha_certificado or "")
-    ambiente = (getattr(config, "nacional_ambiente", "") or "producao").strip()
+    from nfse_integration.ambiente import ambiente_nacional_superadmin
+
+    ambiente = ambiente_nacional_superadmin(config)
     return ISSNetNacionalClient(
         cert_bytes=cert,
         cert_password=senha,

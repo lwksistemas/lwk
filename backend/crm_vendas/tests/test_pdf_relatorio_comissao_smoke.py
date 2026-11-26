@@ -10,6 +10,7 @@ from crm_vendas.pdf_relatorio_comissao import (
     _build_pdf_cabecalho,
     _fmt_brl,
     _fmt_data,
+    _pdf_texto,
     gerar_pdf_relatorio_comissao,
 )
 
@@ -23,6 +24,9 @@ class FmtRelatorioComissaoTest(SimpleTestCase):
 
     def test_fmt_data_none(self):
         self.assertEqual(_fmt_data(None), "—")
+
+    def test_pdf_texto_escapa_markup(self):
+        self.assertEqual(_pdf_texto("a <b>& x"), "a &lt;b&gt;&amp; x")
 
 
 def _mock_relatorio(*, com_detalhe=False):
@@ -51,6 +55,7 @@ def _mock_relatorio(*, com_detalhe=False):
     relatorio.assinatura_empresa_nome = ""
     relatorio.assinatura_vendedor_em = None
     relatorio.assinatura_empresa_em = None
+    relatorio.observacoes = ""
     return relatorio
 
 
@@ -85,6 +90,12 @@ class PdfRelatorioComissaoSmokeTest(SimpleTestCase):
         rel.assinatura_vendedor_nome = "Vendedor Um"
         rel.assinatura_empresa_nome = "Admin Loja"
         buffer = gerar_pdf_relatorio_comissao(rel, _mock_loja(), incluir_assinaturas=True)
+        self.assertTrue(buffer.getvalue().startswith(b"%PDF"))
+
+    def test_gerar_pdf_com_observacoes_com_markup(self):
+        rel = _mock_relatorio()
+        rel.observacoes = 'Atenção <script> & "x"'
+        buffer = gerar_pdf_relatorio_comissao(rel, _mock_loja())
         self.assertTrue(buffer.getvalue().startswith(b"%PDF"))
 
     def test_cabecalho_usa_a_logo_da_prestadora_escolhida(self):

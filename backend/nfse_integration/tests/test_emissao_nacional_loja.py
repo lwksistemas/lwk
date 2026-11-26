@@ -20,6 +20,22 @@ class AmbienteNacionalLojaTests(SimpleTestCase):
         config = SimpleNamespace(nacional_ambiente="homologacao", issnet_ambiente_homologacao=False)
         self.assertEqual(ambiente_nacional_loja(config), "homologacao")
 
+    def test_flag_homologacao_issnet(self):
+        config = SimpleNamespace(nacional_ambiente="", issnet_ambiente_homologacao=True)
+        self.assertEqual(ambiente_nacional_loja(config), "homologacao")
+
+    def test_superadmin_vazio_cai_em_homologacao(self):
+        from nfse_integration.ambiente import ambiente_nacional_superadmin
+
+        self.assertEqual(
+            ambiente_nacional_superadmin(SimpleNamespace(nacional_ambiente="")),
+            "homologacao",
+        )
+        self.assertEqual(
+            ambiente_nacional_superadmin(SimpleNamespace(nacional_ambiente="producao")),
+            "producao",
+        )
+
     def test_codigo_municipal_1706_vai_para_a_lista_nacional(self):
         config = SimpleNamespace(
             codigo_servico_municipal="1706.01",

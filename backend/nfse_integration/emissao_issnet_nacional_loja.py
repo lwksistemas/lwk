@@ -213,13 +213,9 @@ def _criar_client_nacional(config, cnpj_prestador: str, im_prestador: str) -> IS
         with contextlib.suppress(Exception):
             senha = decrypt_value(senha)
 
-    # CRM/clínica usam issnet_ambiente_homologacao (bool); fallback string legado
-    if getattr(config, "issnet_ambiente_homologacao", False):
-        ambiente = "homologacao"
-    else:
-        ambiente = (getattr(config, "issnet_ambiente", None) or "producao").strip() or "producao"
-        if ambiente not in ("homologacao", "producao"):
-            ambiente = "producao"
+    from nfse_integration.ambiente import ambiente_nacional_loja
+
+    ambiente = ambiente_nacional_loja(config)
 
     return ISSNetNacionalClient(
         cert_bytes=bytes(cert_bytes) if cert_bytes else None,

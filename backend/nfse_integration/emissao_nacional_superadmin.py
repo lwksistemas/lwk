@@ -33,10 +33,12 @@ def emitir_manual_nacional_superadmin(config: Any, payload: Any) -> EmissaoManua
             nfse_id=ja_emitida.id,
         )
 
+    from nfse_integration.ambiente import ambiente_nacional_superadmin
+
     client = NacionalClient(
         pfx_bytes=bytes(config.nacional_certificado),
         senha_pfx=decrypt_value(config.nacional_senha_certificado),
-        ambiente=config.nacional_ambiente or "homologacao",
+        ambiente=ambiente_nacional_superadmin(config),
     )
 
     from nfse_integration.emissao_issnet_nacional_loja import (

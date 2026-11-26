@@ -5,8 +5,10 @@ from django.test import SimpleTestCase
 
 from clinica_beleza.consentimento_service import consulta_exige_termo_listagem
 from clinica_beleza.termos_consentimento_service import (
+    DUVIDAS_MAX_LEN,
     nome_sem_anadem,
     normalizar_secoes,
+    sanitizar_respostas_interativo,
     validar_respostas_interativo,
 )
 
@@ -64,6 +66,20 @@ class ValidarRespostasTest(SimpleTestCase):
         secoes = normalizar_secoes([{"titulo": "X", "tipo": "sim_nao", "texto": "oi"}])
         self.assertEqual(len(secoes), 1)
         self.assertTrue(secoes[0]["id"])
+
+    def test_sanitiza_corta_duvidas_e_descarta_chaves_extras(self):
+        secoes = [{"id": "a", "titulo": "Indicação", "tipo": "sim_nao", "codigo": "I", "texto": ""}]
+        bruto = {
+            "a": {"sim_nao": "sim", "duvidas": "x" * (DUVIDAS_MAX_LEN + 500), "lixo": "nope"},
+            "fantasma": {"sim_nao": "sim", "duvidas": "hack"},
+            "_texto_assinado": "ok",
+        }
+        limpo = sanitizar_respostas_interativo(secoes, bruto)
+        self.assertNotIn("fantasma", limpo)
+        self.assertNotIn("lixo", limpo["a"])
+        self.assertEqual(len(limpo["a"]["duvidas"]), DUVIDAS_MAX_LEN)
+        self.assertEqual(limpo["_texto_assinado"], "ok")
+        self.assertIsNone(validar_respostas_interativo(secoes, limpo))
 
 
 class RenderizarTextoTermoTest(SimpleTestCase):

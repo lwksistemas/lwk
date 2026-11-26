@@ -23,6 +23,10 @@ _TIPOS_SECAO = {
 }
 _ANDEM_RE = re.compile(r"anadem", re.IGNORECASE)
 
+# Limite do campo livre "dúvidas" (endpoint público + PDF + conteudo_termo).
+DUVIDAS_MAX_LEN = 2000
+DUM_MAX_LEN = 40
+
 
 def nome_sem_anadem(nome: str) -> str:
     limpo = _ANDEM_RE.sub("", nome or "")
@@ -153,6 +157,43 @@ def _desvincular_termo_procedimento(proc) -> None:
         proc.save(update_fields=["termo_template", "updated_at"])
 
 
+def sanitizar_respostas_interativo(secoes: list[dict], respostas) -> dict:
+    """Corta campos livres e descarta chaves que não são da seção (evita JSON enorme).
+
+    Preserva chaves internas com prefixo `_` (ex.: texto congelado na assinatura).
+    """
+    respostas = respostas if isinstance(respostas, dict) else {}
+    ids_ok = {s["id"] for s in (secoes or []) if isinstance(s, dict) and s.get("id")}
+    out: dict = {}
+    for sid, resp in respostas.items():
+        if not isinstance(sid, str):
+            continue
+        if sid.startswith("_"):
+            # Texto congelado / metadados internos — teto defensivo.
+            if isinstance(resp, str):
+                out[sid] = resp[:50_000]
+            elif isinstance(resp, dict):
+                out[sid] = resp
+            continue
+        if sid not in ids_ok or not isinstance(resp, dict):
+            continue
+        limpo = {
+            k: v
+            for k, v in resp.items()
+            if k in ("sim_nao", "duvidas", "dum", "nao_me_recordo", "consinto")
+        }
+        if "duvidas" in limpo:
+            limpo["duvidas"] = str(limpo.get("duvidas") or "")[:DUVIDAS_MAX_LEN]
+        if "dum" in limpo:
+            limpo["dum"] = str(limpo.get("dum") or "")[:DUM_MAX_LEN]
+        if "sim_nao" in limpo and limpo["sim_nao"] is not None:
+            limpo["sim_nao"] = str(limpo["sim_nao"])[:10]
+        if "consinto" in limpo and limpo["consinto"] is not None:
+            limpo["consinto"] = str(limpo["consinto"])[:20]
+        out[sid] = limpo
+    return out
+
+
 def validar_respostas_interativo(secoes: list[dict], respostas: dict) -> str | None:
     """Retorna erro ou None se o paciente pode assinar."""
     respostas = respostas if isinstance(respostas, dict) else {}
@@ -160,6 +201,8 @@ def validar_respostas_interativo(secoes: list[dict], respostas: dict) -> str | N
         sid = secao["id"]
         tipo = secao["tipo"]
         resp = respostas.get(sid) or {}
+        if not isinstance(resp, dict):
+            resp = {}
         if tipo in (SECAO_SIM_NAO, SECAO_FOTOS):
             valor = (resp.get("sim_nao") or "").strip().lower()
             if valor not in ("sim", "nao", "não"):

@@ -161,7 +161,12 @@ def _respostas_do_termo(termo_proc) -> dict:
 
 def texto_termo_com_respostas(termo_proc) -> str:
     """Texto que as duas partes leram, com as respostas do paciente."""
-    from .termos_consentimento_service import normalizar_secoes, template_do_procedimento
+    from .termos_consentimento_service import (
+        DUM_MAX_LEN,
+        DUVIDAS_MAX_LEN,
+        normalizar_secoes,
+        template_do_procedimento,
+    )
 
     consulta = termo_proc.consulta
     procedure = termo_proc.procedure
@@ -187,14 +192,15 @@ def texto_termo_com_respostas(termo_proc) -> str:
             sim = (resp.get("sim_nao") or "").strip()
             if sim:
                 linhas.append(f"Resposta: {sim.upper()}")
-            duvida = (resp.get("duvidas") or "").strip()
+            duvida = (resp.get("duvidas") or "").strip()[:DUVIDAS_MAX_LEN]
             if duvida:
                 linhas.append(f"Dúvidas: {duvida}")
             if secao["tipo"] == "gravidez":
                 if resp.get("nao_me_recordo"):
                     linhas.append("Data da última menstruação: não me recordo")
                 elif (resp.get("dum") or "").strip():
-                    linhas.append(f"Data da última menstruação: {resp.get('dum').strip()}")
+                    dum = str(resp.get("dum") or "").strip()[:DUM_MAX_LEN]
+                    linhas.append(f"Data da última menstruação: {dum}")
             cons = (resp.get("consinto") or "").strip()
             if cons:
                 linhas.append(f"Manifestação: {cons.upper()}")

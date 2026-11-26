@@ -164,6 +164,7 @@ class ConsultaAssinaturaPublicaView(View):
 
         from .termos_consentimento_service import (
             normalizar_secoes,
+            sanitizar_respostas_interativo,
             template_do_procedimento,
             validar_respostas_interativo,
         )
@@ -173,8 +174,11 @@ class ConsultaAssinaturaPublicaView(View):
                 body = json.loads(request.body or b"{}")
             except json.JSONDecodeError:
                 body = {}
-            respostas = body.get("respostas_interativo") or {}
-            erro_resp = validar_respostas_interativo(normalizar_secoes(tpl.secoes), respostas)
+            secoes = normalizar_secoes(tpl.secoes)
+            respostas = sanitizar_respostas_interativo(
+                secoes, body.get("respostas_interativo") or {},
+            )
+            erro_resp = validar_respostas_interativo(secoes, respostas)
             if erro_resp:
                 return JsonResponse({"error": erro_resp}, status=400)
             termo_proc.respostas_interativo = respostas

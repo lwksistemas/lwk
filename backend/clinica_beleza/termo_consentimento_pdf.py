@@ -289,6 +289,8 @@ def _build_conteudo_texto_termo(elements: list, termo_proc, consulta, procedure,
         texto_termo_assinado,
     )
     from .termos_consentimento_service import (
+        DUM_MAX_LEN,
+        DUVIDAS_MAX_LEN,
         normalizar_secoes,
         template_do_procedimento,
     )
@@ -326,13 +328,11 @@ def _build_conteudo_texto_termo(elements: list, termo_proc, consulta, procedure,
             sim = (resp.get("sim_nao") or "").upper()
             if sim:
                 elements.append(Paragraph(f"Resposta: <b>{_pdf_text(sim)}</b>", compact))
-            duvida = (resp.get("duvidas") or "").strip()
+            duvida = (resp.get("duvidas") or "").strip()[:DUVIDAS_MAX_LEN]
             if duvida:
-                # Limite defensivo: evita payload enorme no campo livre.
-                duvida = duvida[:2000]
                 elements.append(Paragraph(f"Dúvidas: {_pdf_text(duvida)}", compact))
             if secao["tipo"] == "gravidez":
-                dum = (resp.get("dum") or "").strip()
+                dum = (resp.get("dum") or "").strip()[:DUM_MAX_LEN]
                 if resp.get("nao_me_recordo"):
                     elements.append(Paragraph("Data da última menstruação: não me recordo", compact))
                 elif dum:

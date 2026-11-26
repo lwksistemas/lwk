@@ -9,6 +9,7 @@ para os dois canais. Placeholders: {nome}, {valor}, {vencimento}, {dias_atraso},
 """
 from __future__ import annotations
 
+import html
 import logging
 
 logger = logging.getLogger(__name__)
@@ -142,11 +143,13 @@ def _enviar_cobranca_email(payment, patient, config, ctx) -> tuple[bool, str]:
 
 def _montar_email_html_cobranca(mensagem: str, ctx: dict) -> str:
     """Envolve a mensagem (mesma dos dois canais) num HTML simples e profissional."""
-    corpo = mensagem.replace("*", "").replace("\n", "<br>")
+    # Ordem: tira * do WhatsApp → escape → quebras de linha em <br>
+    corpo = html.escape((mensagem or "").replace("*", "")).replace("\n", "<br>")
+    clinica = html.escape(str(ctx.get("clinica") or "Clínica"))
     return f"""
     <div style="font-family:Arial,sans-serif;max-width:500px;margin:0 auto;padding:20px;color:#333;">
       <div style="text-align:center;border-bottom:2px solid #8B3D52;padding-bottom:12px;margin-bottom:16px;">
-        <h2 style="margin:0;color:#8B3D52;">{ctx['clinica']}</h2>
+        <h2 style="margin:0;color:#8B3D52;">{clinica}</h2>
       </div>
       <p style="line-height:1.6;">{corpo}</p>
     </div>

@@ -1,6 +1,7 @@
 """Parsers de resposta XML/SOAP do ISSNet."""
 import contextlib
 import html
+import logging
 import re
 from datetime import datetime
 from typing import Any
@@ -9,6 +10,9 @@ from xml.sax.saxutils import escape as xml_escape
 from lxml import etree
 
 from nfse_integration.issnet_constants import NS_NFSE
+from nfse_integration.mensagens_erro import ERR_ISSNet_XML
+
+logger = logging.getLogger(__name__)
 
 
 def _extrair_fault_soap(first) -> str | None:
@@ -228,7 +232,8 @@ def parse_consultar_url_nfse_resposta(xml_str: str) -> dict[str, Any]:
     try:
         root = etree.fromstring(texto.encode("utf-8"))
     except etree.XMLSyntaxError as exc:
-        return {"success": False, "error": f"XML inválido na resposta do ConsultarUrlNfse: {exc}"}
+        logger.warning("XML inválido na resposta do ConsultarUrlNfse: %s", exc)
+        return {"success": False, "error": ERR_ISSNet_XML}
 
     for links in root.iter():
         if _nome_tag(links) != "Links":
@@ -256,7 +261,8 @@ def parse_resposta_xml_nfse_por_numero(xml_str: str, numero_nf: str) -> dict[str
     try:
         root = etree.fromstring(xml_str.encode("utf-8") if isinstance(xml_str, str) else xml_str)
     except etree.XMLSyntaxError as exc:
-        return {"success": False, "error": f"XML inválido na resposta do ISSNet: {exc}"}
+        logger.warning("XML inválido na resposta do ISSNet (consulta por número): %s", exc)
+        return {"success": False, "error": ERR_ISSNet_XML}
 
     ns = NS_NFSE
     for inf in root.iter(f"{{{ns}}}InfNfse"):

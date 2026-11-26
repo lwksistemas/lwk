@@ -101,8 +101,10 @@ def _enviar_recibo_whatsapp(payment, patient, appointment, *, somente_foto=False
         logger.info("Recibo enviado por WhatsApp para %s (payment_id=%s)", telefone, payment.id)
         return True, f"Recibo enviado para {telefone}"
     except Exception as e:
+        from nfse_integration.mensagens_erro import ERR_WHATSAPP_ENVIO
+
         logger.warning("Falha ao enviar recibo WhatsApp payment_id=%s: %s", payment.id, e)
-        return False, f"Erro ao enviar WhatsApp: {e}"
+        return False, ERR_WHATSAPP_ENVIO
 
 
 def _texto_saldo_whatsapp(ctx: dict) -> str:

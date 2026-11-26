@@ -33,16 +33,6 @@ SECAO_TIPO_CHOICES = (
 )
 
 
-def secao_vazia() -> dict:
-    return {
-        "id": "",
-        "codigo": "",
-        "titulo": "",
-        "texto": "",
-        "tipo": SECAO_SIM_NAO,
-    }
-
-
 class TermoConsentimentoTemplate(LojaIsolationMixin, models.Model):
     """Biblioteca de termos da clínica. Cada procedimento escolhe um template."""
 

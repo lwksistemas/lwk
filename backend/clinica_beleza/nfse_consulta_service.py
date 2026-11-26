@@ -149,8 +149,10 @@ def emitir_nfse_consulta_manual(consulta, payment, *, loja=None) -> dict[str, An
     try:
         return _emitir_nfse_consulta_com_config(consulta, payment, config, loja=loja)
     except Exception as exc:
+        from nfse_integration.mensagens_erro import ERR_NFSE_EMISSAO
+
         logger.exception("Falha ao emitir NFS-e manual da consulta %s", consulta.id)
-        return {"success": False, "error": str(exc) or "Falha ao emitir NFS-e."}
+        return {"success": False, "error": ERR_NFSE_EMISSAO}
 
 
 def tentar_emitir_nfse_consulta(consulta, payment, *, loja=None) -> None:

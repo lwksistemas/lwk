@@ -82,5 +82,7 @@ def test_issnet_connection(request, config: ClinicaBelezaNFSeConfig) -> dict:
         }
 
     except Exception as e:
+        from nfse_integration.mensagens_erro import ERR_ISSNet
+
         logger.warning("test_issnet_connection (clinica_beleza): %s", e)
-        return {"success": False, "detail": str(e)}
+        return {"success": False, "detail": ERR_ISSNet}

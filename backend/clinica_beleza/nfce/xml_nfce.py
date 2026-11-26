@@ -15,7 +15,6 @@ from .chave import (
     dinheiro,
     texto_fiscal,
     unidade_fiscal,
-    url_qrcode,
 )
 
 NS = f"{{{NS_NFE}}}"
@@ -303,12 +302,3 @@ def _pagamento(inf, dados: dict) -> None:
     if dados["tpag"] in {"03", "04"}:
         card = _el(det, "card")
         _el(card, "tpIntegra", "2")
-
-
-def qr_do_documento(dados: dict) -> str:
-    return url_qrcode(
-        chave=dados["chave"],
-        homologacao=dados["homologacao"],
-        id_csc=dados["id_csc"],
-        csc=dados["csc"],
-    )

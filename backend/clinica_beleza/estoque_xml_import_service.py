@@ -168,7 +168,10 @@ def parse_nfe_xml(xml_content: bytes) -> dict:
     try:
         root = ET.fromstring(xml_content)
     except (ET.ParseError, DefusedXmlException) as e:
-        raise ValueError(f"XML inválido: {e}") from e
+        from nfse_integration.mensagens_erro import ERR_ESTOQUE_XML
+
+        logger.warning("XML de estoque inválido: %s", e)
+        raise ValueError(ERR_ESTOQUE_XML) from e
 
     inf_nfe = _extrair_inf_nfe(root)
 

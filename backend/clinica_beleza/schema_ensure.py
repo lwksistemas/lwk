@@ -1,12 +1,11 @@
 """Utilitários compartilhados para comandos ensure_* (schemas multi-tenant).
 """
 import logging
-from collections.abc import Callable, Iterable
+from collections.abc import Iterable
 from contextlib import suppress
 
 from django.db import connections
 
-from core.db_config import ensure_loja_database_config
 from core.schema_checks import column_exists, is_sqlite, table_exists
 from superadmin.models import Loja
 
@@ -513,22 +512,6 @@ def ensure_retorno_gratuito_for_tenant() -> bool:
         return False
 
 
-def ensure_consulta_produto_utilizado_for_tenant() -> bool:
-    """Garante a tabela no schema tenant da requisição atual."""
-    from tenants.middleware import get_current_tenant_db
-
-    tenant_db = get_current_tenant_db()
-    if not tenant_db or tenant_db == "default":
-        return True
-    try:
-        conn = connections[tenant_db]
-        with conn.cursor() as cursor:
-            return ensure_consulta_produto_utilizado_table(cursor)
-    except Exception as exc:
-        logger.exception("ensure_consulta_produto_for_tenant falhou: %s", exc)
-        return False
-
-
 def ensure_protocolo_comercial(cursor) -> bool:
     """Colunas e tabelas do protocolo comercial (IF NOT EXISTS). Não apaga dados."""
     if not table_exists(cursor, "clinica_beleza_protocolos"):
@@ -727,35 +710,3 @@ def iter_lojas(slug_filter: str = "") -> Iterable[Loja]:
         ):
             continue
         yield loja
-
-
-def run_for_lojas(
-    slug_filter: str,
-    *,
-    prerequisite_table: str | None = None,
-    apply_fn: Callable,
-) -> tuple[int, int]:
-    """Executa apply_fn(cursor, loja) em cada loja ativa.
-    Retorna (ok_count, skip_count).
-    """
-    ok = skip = 0
-    for loja in iter_lojas(slug_filter):
-        db_name = loja.database_name
-        if not ensure_loja_database_config(db_name, conn_max_age=0):
-            skip += 1
-            continue
-        try:
-            conn = connections[db_name]
-            with conn.cursor() as cursor:
-                if prerequisite_table and not table_exists(cursor, prerequisite_table):
-                    skip += 1
-                    continue
-                apply_fn(cursor, loja)
-            ok += 1
-        except Exception:
-            skip += 1
-            raise
-        finally:
-            with suppress(Exception):
-                connections[db_name].close()
-    return ok, skip

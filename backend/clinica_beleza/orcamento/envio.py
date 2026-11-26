@@ -102,8 +102,10 @@ def _enviar_email(orcamento: OrcamentoConsulta, pdf_bytes: bytes) -> dict:
         logger.info("Orçamento %d enviado por email para %s", orcamento.id, email)
         return {"sucesso": True}
     except Exception as e:
+        from nfse_integration.mensagens_erro import ERR_EMAIL_ENVIO
+
         logger.warning("Erro ao enviar orçamento por email: %s", e)
-        return {"sucesso": False, "erro": str(e)}
+        return {"sucesso": False, "erro": ERR_EMAIL_ENVIO}
 
 
 def _enviar_whatsapp(orcamento: OrcamentoConsulta, pdf_bytes: bytes) -> dict:
@@ -175,8 +177,10 @@ def _enviar_whatsapp(orcamento: OrcamentoConsulta, pdf_bytes: bytes) -> dict:
 
         logger.info("Orçamento %d enviado por WhatsApp para %s", orcamento.id, telefone)
         return {"sucesso": True, "erro": ""}
-    except ImportError as e:
-        return {"sucesso": False, "erro": f"WhatsApp não configurado: {e}"}
+    except ImportError:
+        return {"sucesso": False, "erro": "WhatsApp não configurado."}
     except Exception as e:
+        from nfse_integration.mensagens_erro import ERR_WHATSAPP_ENVIO
+
         logger.warning("Erro ao enviar orçamento por WhatsApp: %s", e)
-        return {"sucesso": False, "erro": str(e)}
+        return {"sucesso": False, "erro": ERR_WHATSAPP_ENVIO}

@@ -153,8 +153,15 @@ class ConsultaTermoAssinaturaAdapter(AssinaturaAdapter):
     def atualizar_status_assinatura(self, termo_proc, novo_status: str):
         termo_proc.status_assinatura_termo = novo_status
         if novo_status == "concluido":
-            from .consentimento_service import congelar_termo_assinado
+            from .consentimento_service import CHAVE_TEXTO_ASSINADO, congelar_termo_assinado
 
+            # Nunca confiar em `_texto_assinado` vindo do JSON do paciente na 1ª conclusão.
+            # O congelamento regenera o texto no servidor; PDFs posteriores usam o valor gravado.
+            respostas = getattr(termo_proc, "respostas_interativo", None)
+            if isinstance(respostas, dict) and CHAVE_TEXTO_ASSINADO in respostas:
+                termo_proc.respostas_interativo = {
+                    k: v for k, v in respostas.items() if k != CHAVE_TEXTO_ASSINADO
+                }
             congelar_termo_assinado(termo_proc)
         else:
             termo_proc.save(update_fields=["status_assinatura_termo", "updated_at"])

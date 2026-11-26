@@ -72,14 +72,41 @@ class ValidarRespostasTest(SimpleTestCase):
         bruto = {
             "a": {"sim_nao": "sim", "duvidas": "x" * (DUVIDAS_MAX_LEN + 500), "lixo": "nope"},
             "fantasma": {"sim_nao": "sim", "duvidas": "hack"},
-            "_texto_assinado": "ok",
+            "_texto_assinado": "forjado",
+            "_big": {"x": "y" * 1000},
         }
         limpo = sanitizar_respostas_interativo(secoes, bruto)
         self.assertNotIn("fantasma", limpo)
         self.assertNotIn("lixo", limpo["a"])
         self.assertEqual(len(limpo["a"]["duvidas"]), DUVIDAS_MAX_LEN)
-        self.assertEqual(limpo["_texto_assinado"], "ok")
+        self.assertNotIn("_texto_assinado", limpo)
+        self.assertNotIn("_big", limpo)
         self.assertIsNone(validar_respostas_interativo(secoes, limpo))
+
+    def test_sanitiza_nao_aceita_underscore_do_cliente(self):
+        secoes = [{"id": "a", "titulo": "Indicação", "tipo": "sim_nao", "codigo": "I", "texto": ""}]
+        limpo = sanitizar_respostas_interativo(
+            secoes,
+            {
+                "a": {"sim_nao": "sim"},
+                "_texto_assinado": "qualquer texto forjado",
+                "_big": {"x": "y" * 50_000},
+            },
+            existentes={"_texto_assinado": "texto legítimo do servidor"},
+        )
+        self.assertEqual(limpo["a"]["sim_nao"], "sim")
+        self.assertEqual(limpo["_texto_assinado"], "texto legítimo do servidor")
+        self.assertNotIn("_big", limpo)
+
+    def test_sanitiza_nao_reaplica_dict_underscore_existente(self):
+        secoes = [{"id": "a", "titulo": "Indicação", "tipo": "sim_nao", "codigo": "I", "texto": ""}]
+        limpo = sanitizar_respostas_interativo(
+            secoes,
+            {"a": {"sim_nao": "sim"}},
+            existentes={"_big": {"x": "y" * 1000}, "_texto_assinado": "ok"},
+        )
+        self.assertEqual(limpo["_texto_assinado"], "ok")
+        self.assertNotIn("_big", limpo)
 
 
 class RenderizarTextoTermoTest(SimpleTestCase):

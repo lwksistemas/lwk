@@ -170,13 +170,23 @@ class ConsultaAssinaturaPublicaView(View):
         )
         tpl = template_do_procedimento(termo_proc.procedure)
         if tpl and tpl.is_interativo and assinatura.tipo == "paciente":
+            # Teto defensivo: respostas interativas cabem em poucos KB.
+            corpo = request.body or b"{}"
+            if len(corpo) > 65_536:
+                return JsonResponse(
+                    {"error": "Payload muito grande."},
+                    status=413,
+                )
             try:
-                body = json.loads(request.body or b"{}")
+                body = json.loads(corpo)
             except json.JSONDecodeError:
                 body = {}
             secoes = normalizar_secoes(tpl.secoes)
+            # Sem `existentes`: chaves `_` do body e de um JSON já envenenado
+            # não entram. O servidor grava `_texto_assinado` só em congelar_termo_assinado.
             respostas = sanitizar_respostas_interativo(
-                secoes, body.get("respostas_interativo") or {},
+                secoes,
+                body.get("respostas_interativo") or {},
             )
             erro_resp = validar_respostas_interativo(secoes, respostas)
             if erro_resp:

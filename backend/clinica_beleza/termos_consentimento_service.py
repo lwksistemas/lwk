@@ -157,23 +157,22 @@ def _desvincular_termo_procedimento(proc) -> None:
         proc.save(update_fields=["termo_template", "updated_at"])
 
 
-def sanitizar_respostas_interativo(secoes: list[dict], respostas) -> dict:
+def sanitizar_respostas_interativo(
+    secoes: list[dict],
+    respostas,
+    *,
+    existentes=None,
+) -> dict:
     """Corta campos livres e descarta chaves que não são da seção (evita JSON enorme).
 
-    Preserva chaves internas com prefixo `_` (ex.: texto congelado na assinatura).
+    Chaves com prefixo `_` nunca vêm do corpo do cliente (evita forjar `_texto_assinado`).
+    Se `existentes` tiver chaves `_` já gravadas pelo servidor, elas são reaplicadas.
     """
     respostas = respostas if isinstance(respostas, dict) else {}
     ids_ok = {s["id"] for s in (secoes or []) if isinstance(s, dict) and s.get("id")}
     out: dict = {}
     for sid, resp in respostas.items():
-        if not isinstance(sid, str):
-            continue
-        if sid.startswith("_"):
-            # Texto congelado / metadados internos — teto defensivo.
-            if isinstance(resp, str):
-                out[sid] = resp[:50_000]
-            elif isinstance(resp, dict):
-                out[sid] = resp
+        if not isinstance(sid, str) or sid.startswith("_"):
             continue
         if sid not in ids_ok or not isinstance(resp, dict):
             continue
@@ -191,6 +190,14 @@ def sanitizar_respostas_interativo(secoes: list[dict], respostas) -> dict:
         if "consinto" in limpo and limpo["consinto"] is not None:
             limpo["consinto"] = str(limpo["consinto"])[:20]
         out[sid] = limpo
+
+    existentes = existentes if isinstance(existentes, dict) else {}
+    for sid, resp in existentes.items():
+        if not isinstance(sid, str) or not sid.startswith("_"):
+            continue
+        # Só strings internas do servidor (ex.: texto congelado); dict/_big não voltam.
+        if isinstance(resp, str):
+            out[sid] = resp[:50_000]
     return out
 
 

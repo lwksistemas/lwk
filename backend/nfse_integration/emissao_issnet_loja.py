@@ -12,6 +12,7 @@ from nfse_integration.issnet_loja import (
     issnet_client_loja,
     senha_certificado_configurada_loja,
 )
+from nfse_integration.mensagens_erro import ERR_ISSNet
 from nfse_integration.persistencia_nfse_loja import gerar_proximo_numero_rps, salvar_nfse_emitida
 from nfse_integration.prestador_loja import DadosPrestadorNFSe
 
@@ -144,4 +145,4 @@ def emitir_via_issnet_loja(
         return {"success": False, "error": resultado.get("error", "Erro ISSNet"), "numero_rps": numero_rps}
     except Exception as exc:
         logger.exception("Erro ao emitir via ISSNet: %s", exc)
-        return {"success": False, "error": str(exc)}
+        return {"success": False, "error": ERR_ISSNet}

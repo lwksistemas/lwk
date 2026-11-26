@@ -52,7 +52,7 @@ from nfse_integration.nacional.xml_signer import (
 
 logger = logging.getLogger(__name__)
 
-ERR_ISSNet_NACIONAL = "Falha de comunicação com o ISSNet Nacional"
+from nfse_integration.mensagens_erro import ERR_ISSNet_NACIONAL
 
 
 def _nome_operacao_de_soap_action(soap_action: str) -> str:
@@ -993,9 +993,10 @@ class ISSNetNacionalClient:
                 "detail": f"Resposta inesperada: {(resposta or '')[:200]}",
             }
         except Exception as e:
+            logger.exception("ISSNet Nacional: teste conexão falhou: %s", e)
             return {
                 "success": False,
-                "detail": f"Erro ao conectar: {e}",
+                "detail": ERR_ISSNet_NACIONAL,
             }
 
     def consultar_url_nfse(

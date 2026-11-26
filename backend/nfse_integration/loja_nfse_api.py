@@ -6,6 +6,7 @@ from decimal import Decimal
 from typing import Any
 
 from rest_framework import status
+from nfse_integration.mensagens_erro import ERR_NFSE_CONSULTA
 
 logger = logging.getLogger(__name__)
 
@@ -487,7 +488,7 @@ def sincronizar_nfse_issnet_loja(nfse: Any, loja: Any, loja_id: int) -> tuple[di
                 inscricao_municipal=str(im_prestador),
             )
     except Exception as exc:
-        return ({"error": str(exc)}, http_status.HTTP_400_BAD_REQUEST)
+        return ({"error": ERR_NFSE_CONSULTA}, http_status.HTTP_400_BAD_REQUEST)
 
     if cancelada_portal:
         if nfse.status != "cancelada":

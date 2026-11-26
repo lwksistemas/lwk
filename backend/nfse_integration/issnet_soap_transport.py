@@ -189,7 +189,9 @@ def _post_soap_operacao_inner(
         raise  # Propagar para o wrapper de retry
     except Exception as e:
         logger.exception("Erro ao enviar SOAP: %s", e)
-        return {"success": False, "error": "Falha de comunicação com o ISSNet"}, ""
+        from nfse_integration.mensagens_erro import ERR_ISSNet
+
+    return {"success": False, "error": ERR_ISSNet}, ""
 
 
 def _montar_estrategias_soap(nome_operacao: str, dados_xml: str, soap_action_uri: str) -> tuple:

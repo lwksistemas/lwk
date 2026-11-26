@@ -11,7 +11,7 @@
 #   cd frontend && bash scripts/vercel-link-beta-staging.sh --deploy
 #     → força novo build na branch atual e aponta beta para esse deploy
 #
-# Deploy completo recomendado: bash scripts/deploy-beta.sh (na raiz do repo)
+# Deploy completo recomendado: bash scripts/deploy-beta-isolated.sh
 #
 # Configuração permanente (painel): Domains → beta → Preview → branch staging
 # Requer: vercel login (conta lwksistemas@gmail.com)

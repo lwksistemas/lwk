@@ -11,6 +11,7 @@ from nfse_integration.ambiente import ambiente_nacional_loja
 from nfse_integration.nfse_geo import buscar_codigo_ibge_por_cep, preparar_endereco_tomador_emissao
 from nfse_integration.persistencia_nfse_loja import gerar_proximo_numero_rps, salvar_nfse_emitida
 from nfse_integration.prestador_loja import DadosPrestadorNFSe
+from nfse_integration.mensagens_erro import ERR_NACIONAL
 
 logger = logging.getLogger(__name__)
 
@@ -216,4 +217,4 @@ def emitir_via_nacional_loja(
         return {"success": False, "error": error_msg, "numero_rps": numero_dps}
     except Exception as exc:
         logger.exception("Erro ao emitir via Nacional: %s", exc)
-        return {"success": False, "error": str(exc)}
+        return {"success": False, "error": ERR_NACIONAL}

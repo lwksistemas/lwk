@@ -15,6 +15,7 @@ from nfse_integration.loja_nfse_api import (
     enviar_email_pos_emissao_loja,
     validar_config_crm_loja,
 )
+from nfse_integration.mensagens_erro import ERR_NFSE_EMISSAO
 from nfse_integration.persistencia_nfse_loja import registrar_falha_emissao_loja
 
 logger = logging.getLogger(__name__)
@@ -163,7 +164,7 @@ class NFSeService:
 
         except Exception as exc:
             logger.exception("Erro ao emitir NFS-e: %s", exc)
-            return {"success": False, "error": str(exc)}
+            return {"success": False, "error": ERR_NFSE_EMISSAO}
 
     def cancelar_nfse(
         self,

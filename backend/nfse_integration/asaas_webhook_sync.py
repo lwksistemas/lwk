@@ -9,6 +9,7 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 from django.utils import timezone
+from nfse_integration.mensagens_erro import ERR_ASAAS
 
 if TYPE_CHECKING:
     from .models import NFSe
@@ -120,7 +121,7 @@ def sincronizar_nfse_via_api_asaas(nfse: "NFSe", api_key: str, sandbox: bool) ->
         inv = client.get_invoice(nfse.asaas_invoice_id.strip())
     except Exception as e:
         logger.warning("sincronizar_nfse_via_api_asaas: %s", e, exc_info=True)
-        return {"error": str(e)}
+        return {"error": ERR_ASAAS}
 
     aplicar_objeto_invoice_asaas_em_nfse(nfse, inv, "")
     nfse.refresh_from_db()

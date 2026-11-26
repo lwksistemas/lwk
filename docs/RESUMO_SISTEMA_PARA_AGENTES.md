@@ -91,7 +91,7 @@ lwksistemas/
 ├── Dockerfile.magalu           # Backend (Python 3.13)
 ├── Dockerfile.frontend         # Frontend (Node 22 standalone)
 ├── deploy.sh                   # Deploy produção
-├── deploy-beta.sh              # Deploy beta
+├── scripts/deploy-beta-isolated.sh  # Deploy beta isolado
 └── backup.sh                   # Backup Postgres
 ```
 

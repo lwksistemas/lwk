@@ -54,7 +54,7 @@ from nfse_integration.issnet_xml_signer import assinar_xml_issnet
 
 logger = logging.getLogger(__name__)
 
-ERR_ISSNet_INESPERADO = "Falha de comunicação com o ISSNet"
+from nfse_integration.mensagens_erro import ERR_ISSNet as ERR_ISSNet_INESPERADO
 
 _carregar_certificado = carregar_certificado
 

@@ -1,6 +1,7 @@
 """Consulta de status de cancelamento no ISSNet (RPS + fallback URL do portal)."""
 import logging
 from typing import Any
+from nfse_integration.mensagens_erro import ERR_NFSE_CONSULTA
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +34,7 @@ def consultar_nfse_cancelada_issnet(
             )
         except Exception as exc:
             logger.warning("Consulta RPS ISSNet falhou: %s", exc)
-            out = {"success": False, "error": str(exc)}
+            out = {"success": False, "error": ERR_NFSE_CONSULTA}
 
         if out.get("cancelada"):
             return True

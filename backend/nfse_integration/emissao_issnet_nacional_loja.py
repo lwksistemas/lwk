@@ -18,6 +18,7 @@ from nfse_integration.issnet_loja import (
 )
 from nfse_integration.issnet_nacional_client import ISSNetNacionalClient
 from nfse_integration.issnet_nacional_xml_builder import _somente_digitos
+from nfse_integration.mensagens_erro import ERR_ISSNet_NACIONAL
 from nfse_integration.persistencia_nfse_loja import gerar_proximo_numero_rps, salvar_nfse_emitida
 from nfse_integration.prestador_loja import DadosPrestadorNFSe
 
@@ -406,4 +407,4 @@ def emitir_via_issnet_nacional_loja(
 
     except Exception as exc:
         logger.exception("Erro ao emitir via ISSNet Nacional: %s", exc)
-        return {"success": False, "error": str(exc)}
+        return {"success": False, "error": ERR_ISSNet_NACIONAL}

@@ -12,6 +12,7 @@ from nfse_integration.issnet_nacional_client import ISSNetNacionalClient
 from nfse_integration.issnet_response import explicar_recusa_cancelamento
 from nfse_integration.issnet_shared import CODIGOS_CANCELAMENTO, normalizar_codigo_cancelamento
 from nfse_integration.issnet_status_sync import consultar_nfse_cancelada_issnet
+from nfse_integration.mensagens_erro import ERR_NFSE_CANCELAMENTO
 
 logger = logging.getLogger(__name__)
 
@@ -154,7 +155,7 @@ def _cancelar_nfse_loja_nacional(
         }
     except Exception as exc:
         logger.exception("Erro ao cancelar NFS-e via ISSNet Nacional: %s", exc)
-        return {"success": False, "error": str(exc)}
+        return {"success": False, "error": ERR_NFSE_CANCELAMENTO}
 
 
 def cancelar_nfse_loja(
@@ -316,4 +317,4 @@ def cancelar_nfse_loja(
         }
     except Exception as exc:
         logger.exception("Erro ao cancelar NFS-e via ISSNet: %s", exc)
-        return {"success": False, "error": str(exc)}
+        return {"success": False, "error": ERR_NFSE_CANCELAMENTO}

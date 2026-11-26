@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Funções compartilhadas pelos scripts deploy-beta.sh e deploy-prod.sh
+# Funções compartilhadas pelos scripts deploy-beta-isolated.sh e deploy-prod*.sh
 set -euo pipefail
 
 export PATH="${HOME}/.local/npm-global/bin:${PATH}"

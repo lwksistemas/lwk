@@ -53,7 +53,7 @@ lwksistemas/
 ├── Dockerfile.magalu           # Dockerfile backend (Python 3.13)
 ├── Dockerfile.frontend         # Dockerfile frontend (Node 22, standalone)
 ├── deploy.sh                   # Script de deploy produção
-├── deploy-beta.sh              # Script de deploy beta (staging)
+├── scripts/deploy-beta-isolated.sh  # Deploy beta isolado (staging)
 ├── backup.sh                   # Script de backup Postgres
 ├── requirements.txt            # Compat: -r backend/requirements.txt
 ├── backend/requirements.txt    # Dependências Python (fonte canônica Magalu)

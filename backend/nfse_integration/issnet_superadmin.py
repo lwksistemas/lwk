@@ -7,13 +7,12 @@ from django.utils import timezone
 
 from nfse_integration.issnet_client_factory import (
     certificado_configurado as certificado_tem_bytes,
-)
-from nfse_integration.issnet_client_factory import (
     issnet_client_superadmin,
 )
 from nfse_integration.issnet_response import explicar_recusa_cancelamento
 from nfse_integration.issnet_shared import CODIGOS_CANCELAMENTO, normalizar_codigo_cancelamento
 from nfse_integration.issnet_status_sync import consultar_nfse_cancelada_issnet
+from nfse_integration.mensagens_erro import ERR_NFSE_CANCELAMENTO
 
 logger = logging.getLogger(__name__)
 
@@ -107,7 +106,7 @@ def _cancelar_emitida_padrao_nacional(nf: Any, config: Any, codigo: str, motivo:
         }
     except Exception as exc:
         logger.exception("Erro ao cancelar NFS-e superadmin via ISSNet Nacional: %s", exc)
-        return {"success": False, "error": str(exc)}
+        return {"success": False, "error": ERR_NFSE_CANCELAMENTO}
 
 
 def _marcar_cancelada(nf: Any) -> None:
@@ -185,7 +184,7 @@ def cancelar_nfse_emitida_superadmin(
                 }
         except Exception as exc:
             logger.exception("Erro ao cancelar NFS-e superadmin via ISSNet: %s", exc)
-            return {"success": False, "error": str(exc)}
+            return {"success": False, "error": ERR_NFSE_CANCELAMENTO}
 
     if nf.provedor == "nacional":
         from nfse_integration.nacional.cancelamento import cancelar_nfse_sefin

@@ -18,7 +18,11 @@ ERR_NFSE_PDF = "Falha ao gerar PDF da NFS-e"
 ERR_ISSNet_XML = "XML inválido na resposta do ISSNet"
 ERR_ESTOQUE_XML = "XML de entrada inválido. Verifique o arquivo."
 ERR_WHATSAPP_ENVIO = "Não foi possível enviar pelo WhatsApp. Tente novamente."
+ERR_WHATSAPP_CONEXAO = "Erro de conexão com o WhatsApp. Tente novamente."
 ERR_EMAIL_ENVIO = "Não foi possível enviar o e-mail. Tente novamente."
+ERR_TERMO_PDF_WHATSAPP = (
+    "Mensagem enviada, mas o PDF não chegou. Tente novamente em instantes."
+)
 ERR_NFSE_OPERACAO = (
     "Não foi possível concluir a operação da nota. Tente de novo. Se repetir, avise o suporte."
 )

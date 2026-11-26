@@ -295,7 +295,9 @@ def _send_whatsapp_document_evolution(
             response={"error": str(exc), "response": exc.response},
             user=user,
         )
-        return False, str(exc)
+        from nfse_integration.mensagens_erro import ERR_WHATSAPP_ENVIO
+
+        return False, ERR_WHATSAPP_ENVIO
 
 
 def _send_whatsapp_image_evolution(
@@ -342,7 +344,9 @@ def _send_whatsapp_image_evolution(
             response={"error": str(exc), "response": exc.response},
             user=user,
         )
-        return False, str(exc)
+        from nfse_integration.mensagens_erro import ERR_WHATSAPP_ENVIO
+
+        return False, ERR_WHATSAPP_ENVIO
 
 def _loja_plano_permite_whatsapp(loja_or_id):
     """Bloqueia envio se o plano da loja não inclui integração WhatsApp."""
@@ -501,7 +505,9 @@ def send_whatsapp_document(telefone, document_url, filename, caption=None, user=
             response={"error": str(e)},
             user=user,
         )
-        return False, f"Erro de conexão: {e!s}"
+        from nfse_integration.mensagens_erro import ERR_WHATSAPP_CONEXAO
+
+        return False, ERR_WHATSAPP_CONEXAO
 
     ok = response.ok and bool(data.get("messages"))
     _write_whatsapp_log(
@@ -534,9 +540,11 @@ def _send_whatsapp_meta(telefone, mensagem, *, loja_id=None, user=None, config=N
         response = requests.post(url, json=payload, headers=headers, timeout=15)
         data = response.json() if response.headers.get("content-type", "").startswith("application/json") else {}
     except Exception as e:
+        from nfse_integration.mensagens_erro import ERR_WHATSAPP_CONEXAO
+
         logger.exception("WhatsApp: erro de requisição")
         _write_whatsapp_log(loja_id=loja_id, telefone=phone, mensagem=mensagem, status="falhou", response={"error": str(e)}, user=user)
-        return False, f"Erro de conexão: {e!s}"
+        return False, ERR_WHATSAPP_CONEXAO
     ok = response.ok and bool(data.get("messages"))
     if response.ok and not ok:
         logger.warning("WhatsApp: Meta respondeu %s mas sem 'messages' na resposta: %s", response.status_code, data)
@@ -765,13 +773,15 @@ def _send_confirmacao_evolution(telefone, mensagem, agendamento, user=None, conf
         )
         return True, None
     except EvolutionAPIError as exc2:
+        from nfse_integration.mensagens_erro import ERR_WHATSAPP_ENVIO
+
         logger.info("Evolution texto falhou agendamento %s: %s", ap_id, exc2)
         _write_whatsapp_log(
             loja_id=loja_id, telefone=phone,
             mensagem=mensagem, status="falhou",
             response={"error": str(exc2)}, user=user,
         )
-        return False, str(exc2)
+        return False, ERR_WHATSAPP_ENVIO
 
 
 def enviar_lembrete_agendamento(agendamento, user=None, config=None):

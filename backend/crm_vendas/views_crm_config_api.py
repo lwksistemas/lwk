@@ -253,12 +253,17 @@ def crm_config_asaas_test(request):
             status=status.HTTP_200_OK,
         )
     except Exception as e:
+        from nfse_integration.mensagens_erro import ERR_ASAAS_CONEXAO
+
         logger.warning("crm_config_asaas_test falhou: %s", e)
-        err = str(e)
-        if len(err) > 500:
-            err = err[:500] + "…"
+        detail = ERR_ASAAS_CONEXAO
+        if "401" in str(e):
+            detail = (
+                'Chave API rejeitada pelo Asaas (401). '
+                'Gere uma nova chave em Asaas → Integrações → API e cole o valor completo.'
+            )
         return Response(
-            {"success": False, "detail": err or "Falha ao contactar a API do Asaas."},
+            {"success": False, "detail": detail},
             status=status.HTTP_400_BAD_REQUEST,
         )
 

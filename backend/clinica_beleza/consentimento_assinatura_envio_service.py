@@ -253,27 +253,25 @@ def enviar_termo_assinado_whatsapp(
             user=user,
         )
         if not ok_doc:
+            from nfse_integration.mensagens_erro import ERR_TERMO_PDF_WHATSAPP
+
             logger.warning(
                 "PDF do termo via WhatsApp falhou consulta=%s proc=%s: %s",
                 consulta.id,
                 termo_proc.procedure_id,
                 err_doc,
             )
-            return False, (
-                f'Mensagem enviada, mas o PDF não chegou ({err_doc or "erro no envio do documento"}). '
-                f'Tente novamente em instantes.'
-            )
+            return False, ERR_TERMO_PDF_WHATSAPP
     except Exception as pdf_err:
+        from nfse_integration.mensagens_erro import ERR_TERMO_PDF_WHATSAPP
+
         logger.exception(
             "PDF do termo via WhatsApp falhou (texto já enviado) consulta=%s proc=%s: %s",
             consulta.id,
             termo_proc.procedure_id,
             pdf_err,
         )
-        return False, (
-            f"Mensagem enviada, mas o PDF não chegou ({pdf_err}). "
-            f"Tente novamente em instantes."
-        )
+        return False, ERR_TERMO_PDF_WHATSAPP
 
     return True, f"Termo assinado (PDF) enviado por WhatsApp para {telefone}"
 

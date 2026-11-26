@@ -4,6 +4,7 @@ from unittest.mock import Mock, patch
 
 from django.test import TestCase
 
+from nfse_integration.mensagens_erro import ERR_ASAAS_MANUTENCAO
 from superadmin.payment_deletion_service import (
     AsaasPaymentStrategy,
     MercadoPagoPaymentStrategy,
@@ -257,9 +258,9 @@ class TestUnifiedPaymentDeletionService(TestCase):
         # Executar
         result = service.delete_all_payments_for_loja("loja-teste")
 
-        # Verificar que o erro foi registrado
+        # Verificar que o erro foi registrado com mensagem estável (sem vazar str(e))
         self.assertGreater(len(result["errors"]), 0)
-        self.assertIn("Erro de teste", result["errors"][0])
+        self.assertIn(ERR_ASAAS_MANUTENCAO, result["errors"][0])
 
         # Verificar que delete_local_data ainda foi chamado
         mock_asaas_instance.delete_local_data.assert_called_once()

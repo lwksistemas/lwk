@@ -50,6 +50,39 @@ export function formatApiErrorBody(data: unknown): string {
 }
 
 /**
+ * Extrai mensagem de erro de respostas DRF/axios (429, timeout, corpo).
+ * Preferir este helper em páginas de loja (clínica, CRM, salão).
+ */
+export function getApiErrorDetail(err: unknown, fallback: string): string {
+  const e = err as {
+    response?: { status?: number; data?: unknown; headers?: Record<string, string> };
+    code?: string;
+    message?: string;
+  };
+  if (e.response?.status === 429) {
+    const fromBody = formatApiErrorBody(e.response?.data);
+    const waitMatch = fromBody.match(/(\d+)\s*second/i);
+    if (waitMatch) {
+      return `Muitas requisições em sequência. Aguarde ${waitMatch[1]} segundos e atualize a página.`;
+    }
+    const retryAfter = e.response?.headers?.['retry-after'];
+    if (retryAfter) {
+      return `Muitas requisições em sequência. Aguarde ${retryAfter} segundos e tente novamente.`;
+    }
+    return 'Muitas requisições em sequência. Aguarde alguns segundos e atualize a página.';
+  }
+  const fromBody = formatApiErrorBody(e.response?.data);
+  if (fromBody) return fromBody;
+  if (e.code === 'ECONNABORTED') {
+    return 'Tempo esgotado. Verifique sua conexão e tente novamente.';
+  }
+  if (e.message && !e.response) {
+    return e.message;
+  }
+  return fallback;
+}
+
+/**
  * Helper para formatar erros de resposta da API (4xx/5xx).
  * DRF costuma retornar { detail: "..." } ou { campo: ["msg1", "msg2"] } em 400.
  */

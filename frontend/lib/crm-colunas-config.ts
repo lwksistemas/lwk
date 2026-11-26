@@ -1,6 +1,11 @@
 /** Definições de colunas configuráveis nas listagens do CRM. */
 
-export type CrmColunaDef = { key: string; label: string };
+export {
+  colunasVisiveisFromConfig,
+  type ColunaDef,
+  type CrmColunaDef,
+} from '@/lib/shared/colunas-config';
+import type { CrmColunaDef } from '@/lib/shared/colunas-config';
 
 export const COLUNAS_LEADS_DISPONIVEIS: CrmColunaDef[] = [
   { key: 'nome', label: 'Nome' },
@@ -66,14 +71,4 @@ export function colunasDocumentoNaLista(
 ): CrmColunaDef[] {
   if (exibirAssinatura) return colunas;
   return colunas.filter((col) => col.key !== 'assinatura');
-}
-
-export function colunasVisiveisFromConfig(
-  keys: string[] | undefined | null,
-  disponiveis: CrmColunaDef[],
-  defaults: string[],
-): CrmColunaDef[] {
-  const labelMap = Object.fromEntries(disponiveis.map((c) => [c.key, c.label]));
-  const resolved = keys && keys.length > 0 ? keys : defaults;
-  return resolved.map((key) => ({ key, label: labelMap[key] || key }));
 }

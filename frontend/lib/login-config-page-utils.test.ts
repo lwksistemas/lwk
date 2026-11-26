@@ -5,7 +5,7 @@ import {
   isColorPresetSelected,
   loginConfigDataToForm,
   normalizeHexColor,
-} from "@/components/clinica-beleza/login-config-page/login-config-page-utils";
+} from "@/components/shared/login-config/login-config-page-utils";
 
 describe("normalizeHexColor", () => {
   it("adiciona # quando ausente", () => {

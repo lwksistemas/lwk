@@ -42,7 +42,7 @@ const TIRAR_DO_SALAO = [
   "app/(dashboard)/loja/[slug]/crm-vendas",
   "app/(dashboard)/loja/[slug]/cabeleireiro",
   "app/(dashboard)/loja/[slug]/hotel",
-  // agenda fica: o salão reusa useAgendaColunaLargura
+  "app/(dashboard)/loja/[slug]/agenda",
   "app/(dashboard)/loja/[slug]/relatorios",
   "app/(dashboard)/loja/[slug]/dashboard",
   "app/(dashboard)/superadmin",

@@ -2,10 +2,10 @@
 
 import {
   colunasVisiveisFromConfig,
-  type CrmColunaDef,
-} from "@/lib/crm-colunas-config";
+  type ColunaDef,
+} from "@/lib/shared/colunas-config";
 
-export type PacientesColunaDef = CrmColunaDef;
+export type PacientesColunaDef = ColunaDef;
 
 export const COLUNAS_PACIENTES_DISPONIVEIS: PacientesColunaDef[] = [
   { key: "nome", label: "Nome" },

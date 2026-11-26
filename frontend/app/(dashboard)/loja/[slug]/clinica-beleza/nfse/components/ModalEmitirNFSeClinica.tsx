@@ -14,7 +14,7 @@ import {
   somenteDigitosDocumento,
 } from '@/lib/nfse-emissao-clinica';
 import { parseNfseEmissaoResult, type NfseEmissaoResult, type NfseEmitirResponse } from '@/lib/nfse-helpers';
-import { getCrmApiErrorDetail } from '@/lib/crm-utils';
+import { getApiErrorDetail } from '@/lib/api-errors';
 import { useClinicaNFSeConfig } from '@/contexts/ClinicaBelezaNFSeConfigContext';
 import { ModalFormButtons } from './ModalFormButtons';
 import { ModalEmitirNFSeTomadorFields } from './ModalEmitirNFSeTomadorFields';
@@ -161,7 +161,7 @@ export function ModalEmitirNFSeClinica({ onClose, onSuccess, onRefreshList }: Mo
       onSuccess(parseNfseEmissaoResult(res.status, res.data));
     } catch (err: unknown) {
       logger.warn('Erro ao emitir NFS-e clínica:', err);
-      setError(getCrmApiErrorDetail(err, 'Erro ao emitir NFS-e'));
+      setError(getApiErrorDetail(err, 'Erro ao emitir NFS-e'));
       onRefreshList?.();
     } finally {
       setLoading(false);

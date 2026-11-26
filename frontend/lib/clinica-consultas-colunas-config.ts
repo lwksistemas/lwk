@@ -2,10 +2,10 @@
 
 import {
   colunasVisiveisFromConfig,
-  type CrmColunaDef,
-} from '@/lib/crm-colunas-config';
+  type ColunaDef,
+} from '@/lib/shared/colunas-config';
 
-export type ConsultasColunaDef = CrmColunaDef;
+export type ConsultasColunaDef = ColunaDef;
 
 export const COLUNAS_CONSULTAS_DISPONIVEIS: ConsultasColunaDef[] = [
   { key: 'numero', label: 'Nº' },

@@ -13,7 +13,7 @@ import { ModalBloqueioHorario } from "@/components/shared/agenda/modal-bloqueio-
 import { diaTemAtendimento } from "@/components/salao/PaineisSalao";
 import { SalaoAgendaCalendario } from "@/components/salao/SalaoAgendaCalendario";
 import { SalaoAgendaLateral, useSalaoLateral } from "@/components/salao/SalaoAgendaLateral";
-import { AlcaLarguraColuna, useAgendaColunaLargura } from "@/app/(dashboard)/loja/[slug]/agenda/components/useAgendaColunaLargura";
+import { AlcaLarguraColuna, useAgendaColunaLargura } from "@/components/shared/agenda/useAgendaColunaLargura";
 import { formatCpf, formatTelefone } from "@/lib/format-br";
 import { SalaoAPI, type AgendamentoSalao, type BloqueioSalao, type ClienteSalao, type FormaPagamentoSalao, type JornadaDia, type LocalRecebimentoSalao, type ProfissionalSalao, type ServicoSalao } from "@/lib/salao-api";
 
@@ -1035,6 +1035,7 @@ export default function AgendaSalaoPage() {
           linhas={linhas}
           quitar={quitar}
           erro={erro}
+          formasPagamento={formasPagamento}
           aoDesconto={mudarDesconto}
           aoLinhas={setLinhas}
           aoQuitar={setQuitar}
@@ -1266,7 +1267,7 @@ function Formulario({
 
 function ModalReceber({
   cliente, servico, profissional, preco, desconto, linhas, quitar, erro,
-  aoDesconto, aoLinhas, aoQuitar, aoConfirmar, aoFechar,
+  formasPagamento, aoDesconto, aoLinhas, aoQuitar, aoConfirmar, aoFechar,
 }: {
   cliente: string;
   servico: string;
@@ -1276,6 +1277,7 @@ function ModalReceber({
   linhas: LinhaPagamento[];
   quitar: boolean;
   erro: string;
+  formasPagamento: FormaPagamentoSalao[];
   aoDesconto: (valor: string) => void;
   aoLinhas: (linhas: LinhaPagamento[]) => void;
   aoQuitar: (valor: boolean) => void;

@@ -12,8 +12,8 @@ import {
   useClinicaBelezaTheme,
   useClinicaBelezaThemeActions,
 } from '@/components/clinica-beleza/ClinicaBelezaThemeContext';
-import { LoginConfigColorSection } from '@/components/clinica-beleza/login-config-page/LoginConfigColorSection';
-import type { LoginColorPreset } from '@/components/clinica-beleza/login-config-page/login-config-page-types';
+import { LoginConfigColorSection } from '@/components/shared/login-config/LoginConfigColorSection';
+import type { LoginColorPreset } from '@/components/shared/login-config/login-config-page-types';
 import {
   CLINICA_AGENDA_STATUS_COLORS,
   CLINICA_AGENDA_STATUS_COLOR_EDITABLE,

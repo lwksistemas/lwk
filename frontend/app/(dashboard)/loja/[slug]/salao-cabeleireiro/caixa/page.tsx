@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Banknote, Check, CreditCard, Download, Layers, Mail, MessageCircle, Minus, Plus, Printer, QrCode, Scissors, ShoppingBag, Trash2, UserRound, X } from "lucide-react";
 import { SalaoAPI, type AgendamentoSalao, type CabecalhoRecibo, type ClienteSalao, type ComprovanteSalao, type FormaPagamentoSalao, type LocalRecebimentoSalao, type PapelSalao, type ProdutoSalao, type ResumoSessaoSalao, type SessaoCaixaSalao, type VendaSalao } from "@/lib/salao-api";
-import { AlcaLarguraColuna, useAgendaColunaLargura } from "@/app/(dashboard)/loja/[slug]/agenda/components/useAgendaColunaLargura";
+import { AlcaLarguraColuna, useAgendaColunaLargura } from "@/components/shared/agenda/useAgendaColunaLargura";
 
 type ItemCarrinho = { produto: number; nome: string; preco: string; saldo: number; quantidade: number };
 type Linha = { id: string; forma: string; valor: string };

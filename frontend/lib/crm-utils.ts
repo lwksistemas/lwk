@@ -3,7 +3,7 @@
  * Centraliza helpers de tratamento de respostas da API.
  */
 import apiClient from '@/lib/api-client';
-import { formatApiErrorBody } from '@/lib/api-errors';
+import { getApiErrorDetail } from '@/lib/api-errors';
 import { downloadBlobAsFile } from '@/lib/download-blob';
 import { formatCurrency } from '@/lib/financeiro-helpers';
 import { applyTelefoneInternacionalPayload } from '@/lib/format-br';
@@ -140,34 +140,9 @@ export async function fetchAllPaginatedResults<T>(
   return items;
 }
 
-/** Extrai mensagem de erro de respostas DRF/axios (uso comum em páginas CRM). */
+/** @deprecated Prefer getApiErrorDetail de @/lib/api-errors. */
 export function getCrmApiErrorDetail(err: unknown, fallback: string): string {
-  const e = err as {
-    response?: { status?: number; data?: unknown; headers?: Record<string, string> };
-    code?: string;
-    message?: string;
-  };
-  if (e.response?.status === 429) {
-    const fromBody = formatApiErrorBody(e.response?.data);
-    const waitMatch = fromBody.match(/(\d+)\s*second/i);
-    if (waitMatch) {
-      return `Muitas requisições em sequência. Aguarde ${waitMatch[1]} segundos e atualize a página.`;
-    }
-    const retryAfter = e.response?.headers?.['retry-after'];
-    if (retryAfter) {
-      return `Muitas requisições em sequência. Aguarde ${retryAfter} segundos e tente novamente.`;
-    }
-    return 'Muitas requisições em sequência. Aguarde alguns segundos e atualize a página.';
-  }
-  const fromBody = formatApiErrorBody(e.response?.data);
-  if (fromBody) return fromBody;
-  if (e.code === 'ECONNABORTED') {
-    return 'Tempo esgotado. Verifique sua conexão e tente novamente.';
-  }
-  if (e.message && !e.response) {
-    return e.message;
-  }
-  return fallback;
+  return getApiErrorDetail(err, fallback);
 }
 
 /** Mensagem de sucesso após enviar documento ao cliente por canal. */

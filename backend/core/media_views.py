@@ -78,19 +78,34 @@ def _resolve_media_tenant(request):
     return None, Response({"error": "Loja não identificada"}, status=status.HTTP_400_BAD_REQUEST)
 
 
+# Apps de domínio registram buscadores (ex.: clínica → Patient) em AppConfig.ready.
+_BUSCADORES_PACIENTE_POR_ID: list = []
+_BUSCADORES_PACIENTE_POR_CPF: list = []
+
+
+def registrar_buscador_paciente_midia(*, por_id=None, por_cpf=None) -> None:
+    """Registra lookup de paciente para pastas de mídia sem core importar apps de domínio."""
+    if por_id and por_id not in _BUSCADORES_PACIENTE_POR_ID:
+        _BUSCADORES_PACIENTE_POR_ID.append(por_id)
+    if por_cpf and por_cpf not in _BUSCADORES_PACIENTE_POR_CPF:
+        _BUSCADORES_PACIENTE_POR_CPF.append(por_cpf)
+
+
 def _buscar_paciente_midia(patient_id):
-    """Localiza paciente da estética ou do consultório. Não quebra se a tabela não existir no tenant."""
+    """Localiza paciente via buscadores registrados. Não quebra se a tabela não existir no tenant."""
     try:
         pk = int(patient_id)
     except (TypeError, ValueError):
         return None
 
-    try:
-        from clinica_beleza.models import Patient
-
-        return Patient.objects.filter(pk=pk).first()
-    except Exception:
-        return None
+    for buscador in _BUSCADORES_PACIENTE_POR_ID:
+        try:
+            achado = buscador(pk)
+            if achado is not None:
+                return achado
+        except Exception:
+            continue
+    return None
 
 
 def _cpf_variantes(digits: str) -> list[str]:
@@ -110,12 +125,14 @@ def _buscar_paciente_por_cpf(cpf: str):
         return None
     candidatos = _cpf_variantes(digits)
 
-    try:
-        from clinica_beleza.models import Patient
-
-        return Patient.objects.filter(cpf__in=candidatos).first()
-    except Exception:
-        return None
+    for buscador in _BUSCADORES_PACIENTE_POR_CPF:
+        try:
+            achado = buscador(candidatos)
+            if achado is not None:
+                return achado
+        except Exception:
+            continue
+    return None
 
 
 def _tipo_pasta_upload(folder_raw: str) -> str:

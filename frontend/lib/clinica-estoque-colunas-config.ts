@@ -2,10 +2,10 @@
 
 import {
   colunasVisiveisFromConfig,
-  type CrmColunaDef,
-} from '@/lib/crm-colunas-config';
+  type ColunaDef,
+} from '@/lib/shared/colunas-config';
 
-export type EstoqueColunaDef = CrmColunaDef;
+export type EstoqueColunaDef = ColunaDef;
 
 export const COLUNAS_ESTOQUE_DISPONIVEIS: EstoqueColunaDef[] = [
   { key: 'nome', label: 'Nome' },

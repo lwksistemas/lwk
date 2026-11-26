@@ -18,8 +18,10 @@ class ResolverFolderUploadTest(SimpleTestCase):
         self.assertIn("mariela", pasta)
 
     def test_buscar_paciente_sobrevive_tabela_ausente(self):
-        with patch("clinica_beleza.models.Patient") as mock_patient:
-            mock_patient.objects.filter.side_effect = ProgrammingError("clinica_beleza_patient")
+        def buscador_quebrado(_pk):
+            raise ProgrammingError("clinica_beleza_patient")
+
+        with patch("core.media_views._BUSCADORES_PACIENTE_POR_ID", [buscador_quebrado]):
             achado = _buscar_paciente_midia("1")
         self.assertIsNone(achado)
 

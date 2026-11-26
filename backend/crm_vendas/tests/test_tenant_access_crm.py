@@ -25,10 +25,12 @@ class CrmTenantApiAccessTest(TestCase):
 
     def setUp(self):
         uid = uuid.uuid4().hex[:10]
-        self.tipo = TipoLoja.objects.create(
-            nome="E-commerce",
-            slug=f"tipo-tenant-{uid}",
-            codigo=f"T{uid[:3]}",
+        self.tipo, _ = TipoLoja.objects.get_or_create(
+            slug="crm-vendas",
+            defaults={
+                "nome": "CRM Vendas",
+                "codigo": f"T{uid[:3]}",
+            },
         )
         self.plano = PlanoAssinatura.objects.create(
             nome="Tenant CRM",

@@ -64,6 +64,11 @@ _CLINICA_BELEZA_PUBLIC_PREFIXES = (
     "/api/clinica-beleza/termo-consentimento-pdf/",
 )
 
+# Recibo PDF temporário do salão (token na URL; Evolution/WhatsApp baixa sem JWT)
+_SALAO_CABELEIREIRO_PUBLIC_PREFIXES = (
+    "/api/salao-cabeleireiro/recibos/",
+)
+
 _NFSE_PUBLIC_PREFIXES = (
     "/api/nfse/documento-pdf/",
 )
@@ -219,6 +224,8 @@ class SecurityIsolationMiddleware:
             return None
         if self._is_clinica_beleza_public_path(path):
             return None
+        if self._is_salao_cabeleireiro_public_path(path):
+            return None
         if self._is_nfse_public_path(path):
             return None
         if self._is_whatsapp_public_path(path):
@@ -362,6 +369,10 @@ class SecurityIsolationMiddleware:
         return bool(path.startswith("/api/clinica-beleza/estoque/pedidos/") and "/pdf-public/" in path)
 
     @staticmethod
+    def _is_salao_cabeleireiro_public_path(path):
+        return any(path.startswith(prefix) for prefix in _SALAO_CABELEIREIRO_PUBLIC_PREFIXES)
+
+    @staticmethod
     def _is_nfse_public_path(path):
         return any(path.startswith(prefix) for prefix in _NFSE_PUBLIC_PREFIXES)
 
@@ -412,17 +423,25 @@ class SecurityIsolationMiddleware:
         store_routes = (
             "/api/clinica-beleza/",
             "/api/crm-vendas/",
+            "/api/salao-cabeleireiro/",
             "/api/stores/",
             "/api/products/",
         )
         if not any(path.startswith(route) for route in store_routes):
             return False
         rota_publica = (
-            path.startswith("/api/crm-vendas/")
-            and SecurityIsolationMiddleware._is_crm_vendas_public_path(path)
-        ) or (
-            path.startswith("/api/clinica-beleza/")
-            and SecurityIsolationMiddleware._is_clinica_beleza_public_path(path)
+            (
+                path.startswith("/api/crm-vendas/")
+                and SecurityIsolationMiddleware._is_crm_vendas_public_path(path)
+            )
+            or (
+                path.startswith("/api/clinica-beleza/")
+                and SecurityIsolationMiddleware._is_clinica_beleza_public_path(path)
+            )
+            or (
+                path.startswith("/api/salao-cabeleireiro/")
+                and SecurityIsolationMiddleware._is_salao_cabeleireiro_public_path(path)
+            )
         )
         return not rota_publica
 

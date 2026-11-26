@@ -115,6 +115,11 @@ class SecurityIdorTestCase(TestCase):
         self.assertFalse(mw._is_store_route("/api/crm-vendas/assinar/abc-token/"))
         self.assertTrue(mw._is_store_route("/api/crm-vendas/contas/"))
 
+    def test_salao_api_e_rota_de_loja_exceto_recibo_publico(self):
+        mw = SecurityIsolationMiddleware(lambda r: None)
+        self.assertTrue(mw._is_store_route("/api/salao-cabeleireiro/agenda/"))
+        self.assertFalse(mw._is_store_route("/api/salao-cabeleireiro/recibos/token-xyz/"))
+
     def test_crm_vendas_public_assinar_no_store_owner_middleware_block(self):
         from django.contrib.auth.models import AnonymousUser
         from django.test import RequestFactory

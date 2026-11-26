@@ -87,12 +87,14 @@ class ClinicaCrmRouteBlockTest(SimpleTestCase):
         self.assertEqual(response.status_code, 403)
 
     @patch("superadmin.models.Loja.objects")
-    def test_permite_config_nfse_para_clinica(self, mock_loja_objects):
+    def test_bloqueia_config_crm_para_clinica(self, mock_loja_objects):
+        """NFS-e/login da clínica ficam em /clinica-beleza/* — CRM config não é mais allowlist."""
         mock_loja_objects.filter.return_value = self._mock_loja_tipo("minha-clinica", "clinica-beleza")
         response = self.mw._check_clinica_crm_route_restriction(
             self._request("/api/crm-vendas/config/", "minha-clinica"),
         )
-        self.assertIsNone(response)
+        self.assertIsNotNone(response)
+        self.assertEqual(response.status_code, 403)
 
     @patch("superadmin.models.Loja.objects")
     def test_permite_leads_para_crm_puro(self, mock_loja_objects):
@@ -101,3 +103,7 @@ class ClinicaCrmRouteBlockTest(SimpleTestCase):
             self._request("/api/crm-vendas/leads/", "minha-crm"),
         )
         self.assertIsNone(response)
+
+    def test_salao_entra_no_isolamento_de_loja(self):
+        self.assertTrue(self.mw._is_store_route("/api/salao-cabeleireiro/caixa/"))
+        self.assertFalse(self.mw._is_store_route("/api/salao-cabeleireiro/recibos/abc/"))

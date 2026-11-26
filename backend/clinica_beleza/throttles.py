@@ -4,10 +4,10 @@ Views públicas (sem autenticação) são protegidas contra abuso via throttle
 baseado em IP usando o cache do Django.
 
 Uso em views DRF (APIView):
-    throttle_classes = [PublicConfirmacaoThrottle]
+    throttle_classes = [PublicPdfThrottle]
 
 Uso em views Django puras (View):
-    Usar o decorator @throttle_public ou o mixin PublicViewThrottleMixin.
+    check_rate_limit(request, "public_assinatura", "30/min")
 """
 from rest_framework.throttling import AnonRateThrottle
 
@@ -37,20 +37,6 @@ class PublicConfirmacaoThrottle(_IpDoProxyMixin, AnonRateThrottle):
     rate = "30/min"
 
 
-class PublicAssinaturaThrottle(_IpDoProxyMixin, AnonRateThrottle):
-    """30 req/min por IP — assinatura de termo de consentimento."""
-
-    scope = "public_assinatura"
-    rate = "30/min"
-
-
-class PublicFotoThrottle(_IpDoProxyMixin, AnonRateThrottle):
-    """10 req/min por IP — envio de foto pelo paciente via QR."""
-
-    scope = "public_foto"
-    rate = "10/min"
-
-
 class PublicPdfThrottle(_IpDoProxyMixin, AnonRateThrottle):
     """30 req/min por IP — PDF público (recibo, orçamento, pedido, termo)."""
 
@@ -60,6 +46,8 @@ class PublicPdfThrottle(_IpDoProxyMixin, AnonRateThrottle):
 
 def check_rate_limit(request, scope: str, rate: str) -> bool:
     """Verifica rate limit baseado em cache para views Django puras (não DRF).
+
+    Contagem atômica (add + incr) para não furar o teto sob workers concorrentes.
 
     Args:
         request: HttpRequest
@@ -82,14 +70,10 @@ def check_rate_limit(request, scope: str, rate: str) -> bool:
     ip = _get_client_ip(request)
     cache_key = f"throttle_{scope}_{ip}"
 
-    count = cache.get(cache_key, 0)
-    if count >= num:
-        return False
-
-    # Incrementa contador; set com timeout só na primeira vez para preservar janela
-    if count == 0:
+    cache.add(cache_key, 0, seconds)
+    try:
+        count = cache.incr(cache_key)
+    except ValueError:
         cache.set(cache_key, 1, seconds)
-    else:
-        cache.set(cache_key, count + 1, cache.ttl(cache_key) if hasattr(cache, "ttl") else seconds)
-
-    return True
+        count = 1
+    return count <= num

@@ -52,6 +52,8 @@ from nfse_integration.nacional.xml_signer import (
 
 logger = logging.getLogger(__name__)
 
+ERR_ISSNet_NACIONAL = "Falha de comunicação com o ISSNet Nacional"
+
 
 def _nome_operacao_de_soap_action(soap_action: str) -> str:
     action = (soap_action or "").strip().strip('"')
@@ -876,7 +878,7 @@ class ISSNetNacionalClient:
 
         except Exception as e:
             logger.exception("ISSNet Nacional: erro inesperado na emissão DPS %d: %s", numero_dps, e)
-            result["erro"] = str(e)
+            result["erro"] = ERR_ISSNet_NACIONAL
 
         return result
 
@@ -925,7 +927,7 @@ class ISSNetNacionalClient:
 
         except Exception as e:
             logger.exception("ISSNet Nacional: erro ao cancelar NFS-e %s: %s", numero_nfse, e)
-            result["erro"] = str(e)
+            result["erro"] = ERR_ISSNet_NACIONAL
 
         return result
 
@@ -964,7 +966,7 @@ class ISSNetNacionalClient:
 
         except Exception as e:
             logger.exception("ISSNet Nacional: erro na consulta DPS %d: %s", numero_dps, e)
-            result["erro"] = str(e)
+            result["erro"] = ERR_ISSNet_NACIONAL
 
         return result
 
@@ -1086,7 +1088,7 @@ class ISSNetNacionalClient:
 
         except Exception as e:
             logger.warning("ISSNet Nacional ConsultarUrlNfse erro: %s", e)
-            result["erro"] = str(e)
+            result["erro"] = ERR_ISSNet_NACIONAL
 
         return result
 

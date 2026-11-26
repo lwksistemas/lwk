@@ -39,14 +39,10 @@ def estourou_limite_publico(request, scope: str = "public_assinatura_crm", rate:
     except (ValueError, KeyError):
         return False
     chave = f"throttle:{scope}:{ip_do_proxy(request)}"
-    atual = cache.get(chave, 0)
-    if atual >= num:
-        return True
-    if atual == 0:
+    cache.add(chave, 0, seconds)
+    try:
+        atual = cache.incr(chave)
+    except ValueError:
         cache.set(chave, 1, seconds)
-    else:
-        try:
-            cache.incr(chave)
-        except ValueError:
-            cache.set(chave, atual + 1, seconds)
-    return False
+        atual = 1
+    return atual > num

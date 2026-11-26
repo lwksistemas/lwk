@@ -54,6 +54,8 @@ from nfse_integration.issnet_xml_signer import assinar_xml_issnet
 
 logger = logging.getLogger(__name__)
 
+ERR_ISSNet_INESPERADO = "Falha de comunicação com o ISSNet"
+
 _carregar_certificado = carregar_certificado
 
 
@@ -107,7 +109,7 @@ def _verificar_wsdl_issnet(base_url: str, amb: str, out: dict[str, Any]) -> None
             out["detail"] = f"WSDL retornou HTTP {r.status_code}."
     except Exception as e:
         logger.warning("testar_conexao_issnet: request WSDL: %s", e)
-        out["detail"] = f"Nao foi possivel contatar o ISSNet: {e}"
+        out["detail"] = "Nao foi possivel contatar o ISSNet"
 
 
 def testar_conexao_issnet(
@@ -299,7 +301,7 @@ class ISSNetClient:
 
         except Exception as e:
             logger.exception("Erro ao emitir NFS-e: %s", e)
-            return {"success": False, "error": str(e), "numero_rps": numero_rps}
+            return {"success": False, "error": ERR_ISSNet_INESPERADO, "numero_rps": numero_rps}
 
     # ------------------------------------------------------------------
     # Protocolo / consulta de lote (fluxo assincrono ABRASF)
@@ -418,7 +420,7 @@ class ISSNetClient:
             return self._parse_resposta_xml(xml_body)
         except Exception as e:
             logger.exception("Erro ao enviar GerarNfse: %s", e)
-            return {"success": False, "error": str(e)}
+            return {"success": False, "error": ERR_ISSNet_INESPERADO}
 
     def _extrair_body_soap(self, soap_xml: str) -> str:
         return extrair_body_soap(soap_xml)
@@ -516,7 +518,7 @@ class ISSNetClient:
             return self._processar_resposta_consultar_url(xml_body or "", parsed)
         except Exception as e:
             logger.warning("Erro ao consultar URL NFS-e ISSNet: %s", e)
-            return {"success": False, "error": str(e)}
+            return {"success": False, "error": ERR_ISSNet_INESPERADO}
 
     def inferir_cancelada_por_url(self, *, url: str) -> dict[str, Any]:
         """Busca a página do portal/visualização oficial retornada pelo ISSNet e tenta inferir se a nota
@@ -538,7 +540,7 @@ class ISSNetClient:
             return {"success": True, "cancelada": bool(cancelada)}
         except Exception as e:
             logger.warning("Erro ao verificar cancelamento via URL ISSNet: %s", e)
-            return {"success": False, "error": str(e)}
+            return {"success": False, "error": ERR_ISSNet_INESPERADO}
 
     def _variantes_xml_consulta(self, xml_consulta: str, *, assinar: bool = True) -> list[str]:
         variantes: list[str] = []
@@ -613,7 +615,7 @@ class ISSNetClient:
             return {"success": False, "error": last_err}
         except Exception as e:
             logger.exception("Erro ao consultar NFS-e por número: %s", e)
-            return {"success": False, "error": str(e)}
+            return {"success": False, "error": ERR_ISSNet_INESPERADO}
 
     def consultar_nfse_por_faixa(
         self,
@@ -641,7 +643,7 @@ class ISSNetClient:
             return {"success": False, "error": last_err}
         except Exception as e:
             logger.exception("Erro ao consultar NFS-e por faixa: %s", e)
-            return {"success": False, "error": str(e)}
+            return {"success": False, "error": ERR_ISSNet_INESPERADO}
 
     def consultar_nfse(self, numero_nf: str) -> dict[str, Any]:
         """Consulta NFS-e emitida por RPS (compat: método legado)."""
@@ -657,7 +659,7 @@ class ISSNetClient:
             return {"success": True, "data": str(response)}
         except Exception as e:
             logger.exception("Erro ao consultar NFS-e: %s", e)
-            return {"success": False, "error": str(e)}
+            return {"success": False, "error": ERR_ISSNet_INESPERADO}
 
     def _tentar_variante_consulta_rps(self, dados: str) -> dict[str, Any] | None:
         """Tenta consultar NFS-e por RPS usando um XML (sem e com assinatura). Retorna resultado ou None."""
@@ -736,7 +738,7 @@ class ISSNetClient:
             return {"success": False, "error": last_err}
         except Exception as e:
             logger.exception("Erro ao consultar NFS-e por RPS: %s", e)
-            return {"success": False, "error": str(e)}
+            return {"success": False, "error": ERR_ISSNet_INESPERADO}
 
     # ------------------------------------------------------------------
     # Cancelar NFS-e
@@ -763,4 +765,4 @@ class ISSNetClient:
             return self._interpretar_cancelamento(parsed, xml_body or "")
         except Exception as e:
             logger.exception("Erro ao cancelar NFS-e: %s", e)
-            return {"success": False, "error": str(e)}
+            return {"success": False, "error": ERR_ISSNet_INESPERADO}

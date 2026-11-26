@@ -82,38 +82,6 @@ def _nome_procedimento_payment(payment) -> str:
     return getattr(procedure, "nome", "") or ""
 
 
-def listar_a_receber_periodo(first_day: date, last_day: date) -> tuple[float, list[dict]]:
-    """Saldos em aberto de atendimentos do mês, do maior para o menor."""
-    base = payments_visiveis_financeiro(
-        Payment.objects.select_related(
-            "appointment",
-            "appointment__patient",
-            "appointment__procedure",
-        ).prefetch_related("appointment__appointment_procedures__procedure"),
-    ).filter(
-        status__in=("PENDING", "PARTIAL"),
-        appointment__date__date__gte=first_day,
-        appointment__date__date__lte=last_day,
-    )
-    anotados = (
-        _anotar_saldo_em_aberto(base)
-        .filter(_saldo__gt=Decimal("0.01"))
-        .order_by("-_saldo", "appointment__date")
-    )
-    itens: list[dict] = []
-    total = Decimal(0)
-    for payment in anotados:
-        saldo = Decimal(str(getattr(payment, "_saldo", 0) or 0))
-        total += saldo
-        patient = getattr(payment.appointment, "patient", None)
-        itens.append({
-            "paciente": getattr(patient, "nome", "") or "—",
-            "procedimento": _nome_procedimento_payment(payment) or "—",
-            "saldo": float(saldo),
-        })
-    return float(total), itens
-
-
 def somar_a_receber_periodo(
     first_day: date,
     last_day: date,
@@ -210,11 +178,6 @@ def pagamento_vencido_do_paciente(patient_id: int, *, hoje: date | None = None):
         .order_by("data_vencimento")
         .first()
     )
-
-
-def paciente_em_atraso(patient_id: int, *, hoje: date | None = None) -> bool:
-    """True se o paciente tem algum pagamento a prazo vencido em aberto."""
-    return pagamento_vencido_do_paciente(patient_id, hoje=hoje) is not None
 
 
 def mensagem_bloqueio_inadimplencia(patient_id: int, *, hoje: date | None = None) -> str | None:

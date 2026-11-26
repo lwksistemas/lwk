@@ -20,11 +20,7 @@ from .recibo.context import (  # noqa: F401
     _formatar_data_recibo,
     _linha_tel_cep,
 )
-from .recibo.email_channel import (  # noqa: F401
-    _enviar_recibo_email,
-    _montar_email_html,
-    _montar_email_texto,
-)
+from .recibo.email_channel import _enviar_recibo_email  # noqa: F401
 from .recibo.whatsapp_channel import _enviar_recibo_whatsapp  # noqa: F401
 
 __all__ = [
@@ -42,8 +38,6 @@ __all__ = [
     "_linha_documento_loja",
     "_linha_tel_cep",
     "_listar_formas_pagamento",
-    "_montar_email_html",
-    "_montar_email_texto",
     "_montar_mensagem_whatsapp",
     "_obter_dados_contexto",
 ]

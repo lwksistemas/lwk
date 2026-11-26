@@ -16,10 +16,12 @@ class _CrmApiTestBase(TestCase):
 
     def setUp(self):
         uid = uuid.uuid4().hex[:10]
-        self.tipo = TipoLoja.objects.create(
-            nome="Tipo Teste API",
-            slug=f"crm-api-{uid}",
-            codigo=f"K{uid[:3]}",
+        self.tipo, _ = TipoLoja.objects.get_or_create(
+            slug="crm-vendas",
+            defaults={
+                "nome": "CRM Vendas",
+                "codigo": f"K{uid[:3]}",
+            },
         )
         self.plano = PlanoAssinatura.objects.create(
             nome="API CRM",

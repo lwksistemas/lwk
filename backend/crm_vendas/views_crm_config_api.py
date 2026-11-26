@@ -5,6 +5,7 @@ import logging
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
+from .permissions import IsCrmTipoLoja
 from rest_framework.response import Response
 
 from tenants.middleware import get_current_loja_id
@@ -108,6 +109,7 @@ def _recusar_config_da_loja(request):
 
 
 @api_view(["GET", "PATCH"])
+@permission_classes([IsAuthenticated, IsCrmTipoLoja])
 def crm_config(request):
     """GET: configurações da loja.
     PATCH: vendedor personaliza pipeline. Chave, certificado e NFS-e ficam com o dono.
@@ -182,7 +184,7 @@ def crm_config(request):
 
 
 @api_view(["POST"])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, IsCrmTipoLoja])
 def crm_config_asaas_test(request):
     """Testa a comunicação com a API Asaas usando a chave da loja (NFS-e).
 
@@ -271,7 +273,7 @@ def crm_config_asaas_test(request):
 
 
 @api_view(["POST"])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, IsCrmTipoLoja])
 def crm_config_issnet_test(request):
     """Testa conexão com o WebService ISSNet usando certificado da loja.
     Valida PFX/senha e tenta acessar o WSDL.

@@ -4,6 +4,7 @@ import logging
 from django.http import HttpResponse
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
+from .permissions import IsCrmTipoLoja
 from rest_framework.response import Response
 
 from .views_relatorio_comissao_common import loja_id_ou_erro
@@ -24,7 +25,7 @@ def _so_administrador(request):
 
 
 @api_view(["POST"])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, IsCrmTipoLoja])
 def criar_relatorio_comissao_view(request):
     """POST /crm-vendas/relatorios-comissao/criar/"""
     recusa = _so_administrador(request)
@@ -82,7 +83,7 @@ def criar_relatorio_comissao_view(request):
 
 
 @api_view(["POST"])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, IsCrmTipoLoja])
 def preview_relatorio_comissao_view(request):
     """POST /crm-vendas/relatorios-comissao/preview/"""
     recusa = _so_administrador(request)
@@ -116,7 +117,7 @@ def preview_relatorio_comissao_view(request):
 
 
 @api_view(["GET"])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, IsCrmTipoLoja])
 def listar_relatorios_comissao_view(request):
     recusa = _so_administrador(request)
     if recusa:
@@ -145,7 +146,7 @@ def listar_relatorios_comissao_view(request):
 
 
 @api_view(["GET"])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, IsCrmTipoLoja])
 def download_pdf_relatorio_comissao_view(request, relatorio_id):
     recusa = _so_administrador(request)
     if recusa:
@@ -181,7 +182,7 @@ def download_pdf_relatorio_comissao_view(request, relatorio_id):
 
 
 @api_view(["DELETE"])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, IsCrmTipoLoja])
 def excluir_relatorio_comissao_view(request, relatorio_id):
     recusa = _so_administrador(request)
     if recusa:
@@ -228,7 +229,7 @@ def excluir_relatorio_comissao_view(request, relatorio_id):
 
 
 @api_view(["POST"])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, IsCrmTipoLoja])
 def confirmar_pagamento_manual_view(request, relatorio_id):
     """POST /crm-vendas/relatorios-comissao/<id>/confirmar-pagamento/"""
     recusa = _so_administrador(request)
@@ -271,7 +272,7 @@ def confirmar_pagamento_manual_view(request, relatorio_id):
 
 
 @api_view(["POST"])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, IsCrmTipoLoja])
 def reemitir_nfse_view(request, relatorio_id):
     recusa = _so_administrador(request)
     if recusa:

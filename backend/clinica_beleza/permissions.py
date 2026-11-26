@@ -7,6 +7,17 @@ from rest_framework.permissions import BasePermission, IsAuthenticated
 
 from superadmin.models import Loja, ProfissionalUsuario
 
+def loja_e_clinica(loja) -> bool:
+    """True só para lojas cujo tipo usa o app clinica_beleza."""
+    from superadmin.services.database_schema_service import tipo_usa_app
+
+    tipo = getattr(loja, "tipo_loja", None)
+    slug = ((getattr(tipo, "slug", None) or "")).strip().lower()
+    if tipo_usa_app(slug, "clinica_beleza"):
+        return True
+    nome = (getattr(tipo, "nome", None) or "").strip()
+    return nome == "Clínica da Beleza"
+
 
 def _loja_and_profissional(request):
     """Retorna (loja, ProfissionalUsuario|None) ou (None, None).
@@ -35,9 +46,8 @@ def _loja_and_profissional(request):
         setattr(request, cache_attr, result)
         return result
 
-    try:
-        loja = Loja.objects.get(pk=loja_id)
-    except Loja.DoesNotExist:
+    loja = Loja.objects.select_related("tipo_loja").filter(pk=loja_id).first()
+    if loja is None or not loja_e_clinica(loja):
         result = (None, None)
         setattr(request, cache_attr, result)
         return result

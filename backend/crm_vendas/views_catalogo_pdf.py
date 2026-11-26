@@ -1,6 +1,7 @@
 """Importa PDF de produtos e serviços da prestadora para uma categoria do CRM."""
 from rest_framework.parsers import MultiPartParser
 from rest_framework.permissions import IsAuthenticated
+from .permissions import IsCrmTipoLoja
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -21,7 +22,7 @@ def _loja_id():
 class CatalogoPdfPreviewView(APIView):
     """POST /crm-vendas/produtos-servicos/importar-pdf/ — lê o PDF e devolve a prévia."""
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsCrmTipoLoja]
     parser_classes = [MultiPartParser]
 
     def post(self, request):
@@ -45,7 +46,7 @@ class CatalogoPdfPreviewView(APIView):
 class CatalogoPdfImportarView(APIView):
     """POST /crm-vendas/produtos-servicos/importar-pdf/confirmar/ — grava no catálogo da prestadora."""
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsCrmTipoLoja]
 
     def post(self, request):
         negado = verificar_permissao_crm_action(request, "produtoservico", "create")

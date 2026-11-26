@@ -16,6 +16,11 @@ logger = logging.getLogger(__name__)
 class CRMSchemaRecoveryMixin:
     """Reaplica migrations do schema CRM quando tabelas/colunas ainda não existem no tenant."""
 
+    def get_permissions(self):
+        from .permissions import IsCrmTipoLoja
+
+        return list(super().get_permissions()) + [IsCrmTipoLoja()]
+
     def _recuperar_schema_crm(self) -> bool:
         from superadmin.models import Loja
         from tenants.middleware import get_current_loja_id

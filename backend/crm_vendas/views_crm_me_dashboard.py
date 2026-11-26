@@ -5,6 +5,7 @@ import logging
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.permissions import IsAuthenticated
+from .permissions import IsCrmTipoLoja
 from rest_framework.response import Response
 
 from core.throttling import DashboardRateThrottle
@@ -26,7 +27,7 @@ def _empty_dashboard_response():
 
 
 @api_view(["GET"])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, IsCrmTipoLoja])
 def crm_me(request):
     """Retorna o contexto do usuário logado no CRM.
     Usado pelo frontend para obter vendedor_id quando o login não o retornou
@@ -176,7 +177,7 @@ def _dashboard_error_response(exc):
 
 
 @api_view(["GET"])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, IsCrmTipoLoja])
 @throttle_classes([DashboardRateThrottle])
 def dashboard_data(request):
     """Dados do dashboard CRM. Lógica de negócio delegada para services_dashboard.

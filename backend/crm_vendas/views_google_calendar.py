@@ -8,6 +8,7 @@ from django.db.models import Q
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
+from .permissions import IsCrmTipoLoja
 from rest_framework.response import Response
 
 from core.oauth_state import encode_oauth_state, parse_oauth_state
@@ -42,7 +43,7 @@ logger = logging.getLogger(__name__)
 
 
 @api_view(["GET"])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, IsCrmTipoLoja])
 def google_calendar_auth(request):
     """Retorna a URL de autorização OAuth do Google para o frontend redirecionar o usuário.
     Requer contexto de loja (X-Tenant-Slug ou path).
@@ -155,7 +156,7 @@ def google_calendar_callback(request):
 
 
 @api_view(["GET"])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, IsCrmTipoLoja])
 def google_calendar_status(request):
     """Retorna se a loja (ou vendedor) tem conexão com Google Calendar e email (se houver)."""
     loja_id = get_current_loja_id()
@@ -180,7 +181,7 @@ def google_calendar_status(request):
 
 
 @api_view(["POST"])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, IsCrmTipoLoja])
 def google_calendar_sync(request):
     """Sincroniza atividades do CRM com o Google Calendar.
     - Push: envia atividades para o Google (cria ou atualiza por google_event_id).
@@ -272,7 +273,7 @@ def google_calendar_sync(request):
 
 
 @api_view(["DELETE", "POST"])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, IsCrmTipoLoja])
 def google_calendar_disconnect(request):
     """Remove a conexão com o Google Calendar da loja (ou do vendedor). Não remove eventos já criados no Google."""
     loja_id = get_current_loja_id()

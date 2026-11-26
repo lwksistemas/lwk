@@ -2,6 +2,7 @@
 """
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
+from .permissions import IsCrmTipoLoja
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -61,7 +62,7 @@ class LoginConfigView(CRMPermissionMixin, APIView):
     PATCH /crm-vendas/login-config/ → atualiza personalização
     """
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsCrmTipoLoja]
 
     @require_admin_access()
     def get(self, request):

@@ -3,6 +3,7 @@
 from django.db.models import Q
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
+from .permissions import IsCrmTipoLoja
 from rest_framework.response import Response
 
 from tenants.middleware import get_current_loja_id
@@ -133,7 +134,7 @@ def _serializar_proposta(r):
 
 
 @api_view(["GET"])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, IsCrmTipoLoja])
 def crm_busca(request):
     """Busca global no CRM: Leads, Oportunidades e Contas.
     GET /crm-vendas/busca/?q=termo&limit=5

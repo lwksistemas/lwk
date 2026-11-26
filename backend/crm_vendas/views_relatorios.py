@@ -7,6 +7,7 @@ from django.http import HttpResponse
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
+from .permissions import IsCrmTipoLoja
 from rest_framework.response import Response
 
 from core.email_delivery import create_email_message, send_prepared
@@ -17,7 +18,7 @@ from .utils import get_current_vendedor_id, usuario_administra_crm, vendedor_tem
 logger = logging.getLogger(__name__)
 
 @api_view(["POST"])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, IsCrmTipoLoja])
 def gerar_relatorio(request):
     """Gera relatório de vendas em PDF.
 

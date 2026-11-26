@@ -5,13 +5,13 @@ import {
   agendaVisualStyleVars,
   loadAgendaVisualTheme,
   type AgendaVisualId,
-} from "@/lib/clinica-agenda-visual";
-import type { AgendaEventData } from "@/lib/clinica-beleza-agenda-types";
+} from "@/lib/shared/agenda/visual";
+import type { AgendaEventData } from "@/lib/shared/agenda/agenda-types";
 import {
   businessHoursFromHorarios,
   intervalosEventsFromHorarios,
   type HorarioTrabalho,
-} from "@/lib/clinica-beleza-work-hours";
+} from "@/lib/shared/agenda/work-hours";
 import { duracaoSlotAgenda, intervaloAgendaMinutos } from "@/lib/intervalo-agenda";
 import type { AgendamentoSalao, BloqueioSalao, JornadaDia, ProfissionalSalao } from "@/lib/salao-api";
 

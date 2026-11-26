@@ -1,12 +1,12 @@
 'use client';
 
 import { FileText, Loader2 } from 'lucide-react';
-import { NFSeAsaasSection } from '@/components/clinica-beleza/nfse/NFSeAsaasSection';
-import { NFSeFormBanner } from '@/components/clinica-beleza/nfse/NFSeFormBanner';
-import { NFSeGeralSection } from '@/components/clinica-beleza/nfse/NFSeGeralSection';
-import { NFSeIssnetSection } from '@/components/clinica-beleza/nfse/NFSeIssnetSection';
-import { NFSeNacionalAdnSection } from '@/components/clinica-beleza/nfse/NFSeNacionalAdnSection';
-import { NFSeProvedorSection } from '@/components/clinica-beleza/nfse/NFSeProvedorSection';
+import { NFSeAsaasSection } from '@/components/shared/nfse/NFSeAsaasSection';
+import { NFSeFormBanner } from '@/components/shared/nfse/NFSeFormBanner';
+import { NFSeGeralSection } from '@/components/shared/nfse/NFSeGeralSection';
+import { NFSeIssnetSection } from '@/components/shared/nfse/NFSeIssnetSection';
+import { NFSeNacionalAdnSection } from '@/components/shared/nfse/NFSeNacionalAdnSection';
+import { NFSeProvedorSection } from '@/components/shared/nfse/NFSeProvedorSection';
 import { useSalaoNFSeForm } from '@/hooks/salao/useSalaoNFSeForm';
 
 type Props = { configBackHref: string };

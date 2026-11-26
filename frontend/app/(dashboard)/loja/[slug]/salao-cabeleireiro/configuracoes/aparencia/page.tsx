@@ -5,9 +5,9 @@ import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import apiClient from "@/lib/api-client";
-import { AgendaV7Preview } from "@/components/clinica-beleza/AgendaV7Preview";
+import { AgendaV7Preview } from "@/components/shared/agenda/AgendaV7Preview";
 import { hexCor, STATUS_PADRAO } from "@/components/salao/cores-salao";
-import { normalizeAgendaVisual, type AgendaVisualId } from "@/lib/clinica-agenda-visual";
+import { normalizeAgendaVisual, type AgendaVisualId } from "@/lib/shared/agenda/visual";
 
 const STATUS = [
   ["SCHEDULED", "Aguardando"],

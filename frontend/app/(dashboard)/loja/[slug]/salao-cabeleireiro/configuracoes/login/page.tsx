@@ -1,8 +1,8 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { LoginConfigPageContent } from "@/components/clinica-beleza/login-config-page/LoginConfigPageContent";
-import type { LoginColorPreset } from "@/components/clinica-beleza/login-config-page/login-config-page-types";
+import { LoginConfigPageContent } from "@/components/shared/login-config/LoginConfigPageContent";
+import type { LoginColorPreset } from "@/components/shared/login-config/login-config-page-types";
 
 const CORES: LoginColorPreset[] = [
   { nome: "Rosa", primaria: "#7A3044", secundaria: "#5c2434" },

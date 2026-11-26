@@ -8,7 +8,7 @@ import {
   getApiBaseUrl,
   getClinicaBelezaHeadersWithLoja,
   handle401SessionResponse,
-} from "@/lib/clinica-beleza-api/fetch";
+} from "@/lib/shared/api/loja-fetch";
 
 export type PainelSalao = "operacao" | "gestao" | "semana";
 export type ModeloSalao = "recepcionista" | "autonomo";

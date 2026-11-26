@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { celulasCalendarioMes, tituloMesCalendario } from "@/hooks/clinica-beleza/agenda-data/agenda-dia-colunas-utils";
+import { celulasCalendarioMes, tituloMesCalendario } from "@/lib/shared/agenda/agenda-dia-colunas-utils";
 
 const DIAS = ["D", "S", "T", "Q", "Q", "S", "S"];
 const CHAVE = "salao-agenda-ocultar-lateral";

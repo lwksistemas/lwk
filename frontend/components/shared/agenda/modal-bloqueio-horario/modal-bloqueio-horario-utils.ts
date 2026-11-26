@@ -1,0 +1,329 @@
+export const TIPOS_BLOQUEIO = [
+  { value: "Férias do profissional", label: "🏖 Férias do profissional" },
+  { value: "Reunião", label: "💼 Reunião" },
+  { value: "Manutenção", label: "🛠 Manutenção" },
+  { value: "Evento interno", label: "📅 Evento interno" },
+  { value: "", label: "✏️ Outro (digite abaixo)" },
+] as const;
+
+/** Modo do intervalo no modal Bloquear Horário. */
+export type ModoBloqueioIntervalo = "dias" | "horario";
+
+export const MODOS_BLOQUEIO_INTERVALO = [
+  { value: "dias" as const, label: "Dia(s) inteiro(s)" },
+  { value: "horario" as const, label: "Horário no dia" },
+];
+
+/** Tipos de motivo que sugerem bloqueio de dia(s) inteiro(s). */
+export const TIPOS_SUGEREM_DIAS = ["Férias do profissional"] as const;
+
+export interface BloqueioProfessional {
+  id: number;
+  name?: string;
+  nome?: string;
+  specialty?: string;
+}
+
+export function profissionalBloqueioLabel(p: BloqueioProfessional): string {
+  return p.nome ?? p.name ?? `Profissional #${p.id}`;
+}
+
+export function resolveMotivoBloqueio(tipoSelecionado: string, motivoOutro: string): string {
+  return tipoSelecionado || motivoOutro.trim() || "Bloqueio";
+}
+
+export function modoSugeridoParaTipo(tipoSelecionado: string): ModoBloqueioIntervalo {
+  return (TIPOS_SUGEREM_DIAS as readonly string[]).includes(tipoSelecionado) ? "dias" : "horario";
+}
+
+export function ymdLocal(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+/** Dias inclusivos entre duas datas YYYY-MM-DD. Vazio se o intervalo for inválido. */
+export function enumerarDiasInclusivo(inicio: string, fim: string, limite = 62): string[] {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(inicio) || !/^\d{4}-\d{2}-\d{2}$/.test(fim)) return [];
+  if (fim < inicio) return [];
+  const [y, m, d] = inicio.split("-").map(Number);
+  const cur = new Date(y, (m || 1) - 1, d || 1);
+  const [y2, m2, d2] = fim.split("-").map(Number);
+  const end = new Date(y2, (m2 || 1) - 1, d2 || 1);
+  const out: string[] = [];
+  while (cur <= end && out.length < limite) {
+    out.push(ymdLocal(cur));
+    cur.setDate(cur.getDate() + 1);
+  }
+  return out;
+}
+
+/** 0 = segunda … 6 = domingo (igual ao calendário do modal). */
+export function weekdaySegundaZero(iso: string): number {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return 0;
+  const [y, m, d] = iso.split("-").map(Number);
+  const js = new Date(y, (m || 1) - 1, d || 1).getDay();
+  return js === 0 ? 6 : js - 1;
+}
+
+export const DIAS_SEMANA_BLOQUEIO = [
+  { value: 0, label: "Segunda" },
+  { value: 1, label: "Terça" },
+  { value: 2, label: "Quarta" },
+  { value: 3, label: "Quinta" },
+  { value: 4, label: "Sexta" },
+  { value: 5, label: "Sábado" },
+  { value: 6, label: "Domingo" },
+] as const;
+
+/** Todas as ocorrências do dia da semana entre início e fim (inclusive). */
+export function enumerarDiasDaSemana(
+  inicio: string,
+  fim: string,
+  weekday: number,
+  limite = 53,
+): string[] {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(inicio) || !/^\d{4}-\d{2}-\d{2}$/.test(fim)) return [];
+  if (fim < inicio) return [];
+  if (weekday < 0 || weekday > 6) return [];
+  const [y, m, d] = inicio.split("-").map(Number);
+  const cur = new Date(y, (m || 1) - 1, d || 1);
+  while (weekdaySegundaZero(ymdLocal(cur)) !== weekday) {
+    cur.setDate(cur.getDate() + 1);
+    if (ymdLocal(cur) > fim) return [];
+  }
+  const out: string[] = [];
+  while (ymdLocal(cur) <= fim && out.length < limite) {
+    out.push(ymdLocal(cur));
+    cur.setDate(cur.getDate() + 7);
+  }
+  return out;
+}
+
+export function rotuloDiaSemana(weekday: number): string {
+  return DIAS_SEMANA_BLOQUEIO.find((dia) => dia.value === weekday)?.label || "dia";
+}
+
+/** Um bloqueio de horário por dia (mesma hora início/fim). */
+export function buildBloqueiosHorarioPorDia(params: {
+  dias: string[];
+  motivo: string;
+  observacoes: string;
+  professionalId: string;
+  horaInicio: string;
+  horaFim: string;
+}): Record<string, unknown>[] {
+  return [...params.dias].sort().map((dia) =>
+    buildBloqueioRequestBody({
+      modo: "horario",
+      motivo: params.motivo,
+      observacoes: params.observacoes,
+      professionalId: params.professionalId,
+      dataHorario: dia,
+      horaInicio: params.horaInicio,
+      horaFim: params.horaFim,
+    }),
+  );
+}
+
+export function toggleDiaIso(dias: string[], dia: string): string[] {
+  if (dias.includes(dia)) return dias.filter((d) => d !== dia);
+  return [...dias, dia].sort();
+}
+
+/** Grade do mês começando na segunda-feira. */
+export function gradeMesSegunda(iso: string): { iso: string; inMonth: boolean }[] {
+  const [y, mo] = iso.split("-").map(Number);
+  const first = new Date(y, (mo || 1) - 1, 1);
+  const weekday = first.getDay();
+  const delta = weekday === 0 ? -6 : 1 - weekday;
+  const start = new Date(first);
+  start.setDate(1 + delta);
+  const cells: { iso: string; inMonth: boolean }[] = [];
+  for (let i = 0; i < 42; i++) {
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
+    cells.push({
+      iso: ymdLocal(d),
+      inMonth: d.getMonth() === first.getMonth(),
+    });
+  }
+  return cells;
+}
+
+export function diasDoMes(iso: string): string[] {
+  return gradeMesSegunda(iso)
+    .filter((cell) => cell.inMonth)
+    .map((cell) => cell.iso);
+}
+
+export function selecionarSomenteMes(iso: string): string[] {
+  return diasDoMes(iso);
+}
+
+export function rotuloDiasSelecionados(dias: string[]): string {
+  const meses = new Map<string, number>();
+  for (const dia of [...dias].sort()) {
+    const chave = dia.slice(0, 7);
+    if (!/^\d{4}-\d{2}$/.test(chave)) continue;
+    meses.set(chave, (meses.get(chave) || 0) + 1);
+  }
+  return [...meses.entries()]
+    .map(([chave, qtd]) => `${rotuloMesBloqueio(`${chave}-01`)} (${qtd} dias)`)
+    .join(" e ");
+}
+
+export function removerDiasDoMes(dias: string[], iso: string): string[] {
+  const doMes = new Set(diasDoMes(iso));
+  return dias.filter((dia) => !doMes.has(dia));
+}
+
+export function deslocarMes(iso: string, delta: number): string {
+  const [y, mo] = iso.split("-").map(Number);
+  return ymdLocal(new Date(y, (mo || 1) - 1 + delta, 1));
+}
+
+export function rotuloMesBloqueio(iso: string): string {
+  const [y, mo] = iso.split("-").map(Number);
+  const label = new Date(y, (mo || 1) - 1, 1).toLocaleDateString("pt-BR", {
+    month: "long",
+    year: "numeric",
+  });
+  return label.charAt(0).toUpperCase() + label.slice(1);
+}
+
+export function validateBloqueioForm(params: {
+  modo: ModoBloqueioIntervalo;
+  motivoFinal: string;
+  /** YYYY-MM-DD — modo dias */
+  dataInicioDia?: string;
+  dataFimDia?: string;
+  /** Dias marcados no calendário. Se vier a lista, ela manda no modo dias. */
+  diasSelecionados?: string[];
+  /** YYYY-MM-DD — modo horario */
+  dataHorario?: string;
+  horaInicio?: string;
+  horaFim?: string;
+  /** Repetir o mesmo dia da semana até a data final. */
+  repetir?: boolean;
+  dataFimRepeticao?: string;
+  weekdayRepeticao?: number;
+}): string | null {
+  const { modo, motivoFinal } = params;
+  if (!motivoFinal.trim()) return "Informe o motivo (tipo ou outro).";
+
+  if (params.repetir) {
+    const inicio = modo === "dias" ? (params.dataInicioDia || params.diasSelecionados?.[0] || "") : (params.dataHorario || "");
+    if (!inicio) return "Informe a data de início da repetição.";
+    if (!params.dataFimRepeticao) return "Informe até quando a repetição vale.";
+    if (params.dataFimRepeticao < inicio) return "A data final da repetição deve ser igual ou depois do início.";
+    if (params.weekdayRepeticao == null || params.weekdayRepeticao < 0 || params.weekdayRepeticao > 6) {
+      return "Escolha o dia da semana para repetir.";
+    }
+    const dias = enumerarDiasDaSemana(inicio, params.dataFimRepeticao, params.weekdayRepeticao);
+    if (dias.length === 0) return "Nenhuma data encontrada nesse intervalo para o dia escolhido.";
+    if (modo === "horario") {
+      if (!params.horaInicio || !params.horaFim) return "Preencha o horário de início e fim.";
+      if (params.horaFim <= params.horaInicio) return "O horário de fim deve ser depois do início.";
+    }
+    return null;
+  }
+
+  if (modo === "dias") {
+    if (params.diasSelecionados) {
+      if (params.diasSelecionados.length === 0) return "Marque pelo menos um dia no calendário.";
+      return null;
+    }
+    const { dataInicioDia, dataFimDia } = params;
+    if (!dataInicioDia || !dataFimDia) return "Preencha a data de início e a data de fim.";
+    if (dataFimDia < dataInicioDia) return "A data de fim deve ser igual ou depois da data de início.";
+    return null;
+  }
+
+  const { dataHorario, horaInicio, horaFim } = params;
+  if (!dataHorario) return "Preencha a data do bloqueio.";
+  if (!horaInicio || !horaFim) return "Preencha o horário de início e fim.";
+  if (horaFim <= horaInicio) return "O horário de fim deve ser depois do início.";
+  return null;
+}
+
+function localDateStartIso(dateYmd: string): string {
+  return new Date(`${dateYmd}T00:00:00`).toISOString();
+}
+
+function localDateEndIso(dateYmd: string): string {
+  return new Date(`${dateYmd}T23:59:59`).toISOString();
+}
+
+export function buildBloqueioRequestBody(params: {
+  modo: ModoBloqueioIntervalo;
+  motivo: string;
+  observacoes: string;
+  professionalId: string;
+  dataInicioDia?: string;
+  dataFimDia?: string;
+  dataHorario?: string;
+  horaInicio?: string;
+  horaFim?: string;
+}): Record<string, unknown> {
+  const body: Record<string, unknown> = {
+    motivo: params.motivo.trim(),
+  };
+  if (params.observacoes.trim()) body.observacoes = params.observacoes.trim();
+  if (params.professionalId) body.professional = parseInt(params.professionalId, 10);
+
+  if (params.modo === "dias") {
+    const ini = params.dataInicioDia!;
+    const fim = params.dataFimDia!;
+    body.data_inicio = localDateStartIso(ini);
+    body.data_fim = localDateEndIso(fim);
+    body.dia_inteiro = true;
+    return body;
+  }
+
+  const data = params.dataHorario!;
+  const inicioDate = new Date(`${data}T${params.horaInicio}:00`);
+  const fimDate = new Date(`${data}T${params.horaFim}:00`);
+  body.data_inicio = inicioDate.toISOString();
+  body.data_fim = fimDate.toISOString();
+  return body;
+}
+
+/** Um bloqueio de dia inteiro para cada data marcada. */
+export function buildBloqueiosPorDia(params: {
+  dias: string[];
+  motivo: string;
+  observacoes: string;
+  professionalId: string;
+}): Record<string, unknown>[] {
+  return [...params.dias].sort().map((dia) =>
+    buildBloqueioRequestBody({
+      modo: "dias",
+      motivo: params.motivo,
+      observacoes: params.observacoes,
+      professionalId: params.professionalId,
+      dataInicioDia: dia,
+      dataFimDia: dia,
+    }),
+  );
+}
+
+export function extractBloqueioApiError(data: Record<string, unknown>, status: number): string {
+  const msg =
+    data.error ||
+    data.detail ||
+    data.motivo ||
+    (Array.isArray(data.data_inicio) ? data.data_inicio[0] : null) ||
+    (Array.isArray(data.data_fim) ? data.data_fim[0] : null) ||
+    `Erro ${status}`;
+  return typeof msg === "string" ? msg : "Erro ao criar bloqueio.";
+}
+
+export { formatDateInputValue as formatDateInput } from "@/lib/shared/agenda/datetime";
+
+export function formatTimeInput(d: Date): string {
+  const h = String(d.getHours()).padStart(2, "0");
+  const min = String(d.getMinutes()).padStart(2, "0");
+  return `${h}:${min}`;
+}

@@ -8,7 +8,7 @@ import {
   type NFSeBannerMessage,
   type NFSeFormData,
   type NFSeTestMessage,
-} from "@/components/clinica-beleza/nfse/nfse-form-types";
+} from "@/components/shared/nfse/nfse-form-types";
 import apiClient from "@/lib/api-client";
 import { logger } from "@/lib/logger";
 

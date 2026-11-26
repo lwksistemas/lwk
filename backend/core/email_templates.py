@@ -1,5 +1,6 @@
 """Templates HTML profissionais para emails do sistema.
 """
+import html
 from datetime import datetime
 
 
@@ -29,20 +30,30 @@ def email_senha_provisoria_html(
         tuple: (html_content, texto_plano)
 
     """
+    nome_destinatario_html = html.escape(nome_destinatario or "")
+    usuario_html = html.escape(usuario or "")
+    senha_html = html.escape(senha or "")
+    url_login_html = html.escape(url_login or "", quote=True)
+    titulo_principal_html = html.escape(titulo_principal or "")
+    subtitulo_html = html.escape(subtitulo or "")
+    nome_sistema_html = html.escape(nome_sistema or "LWK Sistemas")
+
     # Construir linhas de informações adicionais
     info_lines_html = ""
     info_lines_text = ""
 
     for chave, valor in info_adicional.items():
+        chave_html = html.escape(str(chave))
+        valor_html = html.escape(str(valor))
         info_lines_html += f"""
                                                 <tr>
                                                     <td style="color: #666666; font-size: 13px; padding-bottom: 5px;">
-                                                        <strong>{chave}:</strong>
+                                                        <strong>{chave_html}:</strong>
                                                     </td>
                                                 </tr>
                                                 <tr>
                                                     <td style="color: #333333; font-size: 15px; padding-bottom: 12px;">
-                                                        {valor}
+                                                        {valor_html}
                                                     </td>
                                                 </tr>
         """
@@ -54,7 +65,7 @@ def email_senha_provisoria_html(
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>{titulo_principal}</title>
+        <title>{titulo_principal_html}</title>
     </head>
     <body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f4;">
         <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f4f4f4; padding: 20px 0;">
@@ -65,10 +76,10 @@ def email_senha_provisoria_html(
                         <tr>
                             <td bgcolor="#667eea" style="background-color: #667eea; background-image: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 30px; border-radius: 8px 8px 0 0; text-align: center;">
                                 <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: 600;">
-                                    🔐 {titulo_principal}
+                                    🔐 {titulo_principal_html}
                                 </h1>
                                 <p style="color: #ffffff; margin: 10px 0 0 0; font-size: 16px; opacity: 0.9;">
-                                    {subtitulo}
+                                    {subtitulo_html}
                                 </p>
                             </td>
                         </tr>
@@ -77,7 +88,7 @@ def email_senha_provisoria_html(
                         <tr>
                             <td style="padding: 40px 30px;">
                                 <p style="color: #333333; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;">
-                                    Olá <strong>{nome_destinatario}</strong>,
+                                    Olá <strong>{nome_destinatario_html}</strong>,
                                 </p>
 
                                 <p style="color: #555555; font-size: 15px; line-height: 1.6; margin: 0 0 30px 0;">
@@ -96,7 +107,7 @@ def email_senha_provisoria_html(
                                                 </tr>
                                                 <tr>
                                                     <td style="color: #333333; font-size: 16px; font-weight: 600; padding-bottom: 15px;">
-                                                        {usuario}
+                                                        {usuario_html}
                                                     </td>
                                                 </tr>
                                                 <tr>
@@ -106,7 +117,7 @@ def email_senha_provisoria_html(
                                                 </tr>
                                                 <tr>
                                                     <td style="color: #333333; font-size: 18px; font-weight: 700; font-family: 'Courier New', monospace; background-color: #ffffff; padding: 12px; border-radius: 4px; margin-bottom: 15px; display: inline-block;">
-                                                        {senha}
+                                                        {senha_html}
                                                     </td>
                                                 </tr>
                                             </table>
@@ -119,13 +130,13 @@ def email_senha_provisoria_html(
                                     <tr>
                                         <td align="center">
                                             <!--[if mso]>
-                                            <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="{url_login}" style="height:52px;v-text-anchor:middle;width:280px;" arcsize="12%" strokecolor="#667eea" fillcolor="#667eea">
+                                            <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="{url_login_html}" style="height:52px;v-text-anchor:middle;width:280px;" arcsize="12%" strokecolor="#667eea" fillcolor="#667eea">
                                                 <w:anchorlock/>
                                                 <center style="color:#ffffff;font-family:Arial,sans-serif;font-size:16px;font-weight:bold;">&#128640; Acessar Sistema</center>
                                             </v:roundrect>
                                             <![endif]-->
                                             <!--[if !mso]><!-- -->
-                                            <a href="{url_login}" style="display: inline-block; background-color: #667eea; background-image: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #ffffff !important; text-decoration: none; padding: 16px 40px; border-radius: 6px; font-size: 16px; font-weight: 600; mso-hide: all;">
+                                            <a href="{url_login_html}" style="display: inline-block; background-color: #667eea; background-image: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #ffffff !important; text-decoration: none; padding: 16px 40px; border-radius: 6px; font-size: 16px; font-weight: 600; mso-hide: all;">
                                                 🚀 Acessar Sistema
                                             </a>
                                             <!--<![endif]-->
@@ -176,7 +187,7 @@ def email_senha_provisoria_html(
                         <tr>
                             <td style="background-color: #f8f9fa; padding: 30px; border-radius: 0 0 8px 8px; text-align: center; border-top: 1px solid #e9ecef;">
                                 <p style="color: #333333; font-size: 15px; font-weight: 600; margin: 0 0 10px 0;">
-                                    {nome_sistema}
+                                    {nome_sistema_html}
                                 </p>
                                 <p style="color: #666666; font-size: 13px; margin: 0 0 10px 0;">
                                     📧 suporte@lwksistemas.com.br | 📱 WhatsApp: (11) 99999-9999
@@ -193,7 +204,7 @@ def email_senha_provisoria_html(
                         <tr>
                             <td align="center">
                                 <p style="color: #999999; font-size: 12px; margin: 0;">
-                                    © {datetime.now().year} {nome_sistema}. Todos os direitos reservados.
+                                    © {datetime.now().year} {nome_sistema_html}. Todos os direitos reservados.
                                 </p>
                             </td>
                         </tr>
@@ -274,8 +285,6 @@ def email_boleto_assinatura_html(
     nome_sistema: str = "LWK Sistemas",
 ) -> tuple[str, str]:
     """E-mail do boleto da assinatura. O PDF vai anexo; o link fica só de reserva."""
-    import html
-
     loja = html.escape(nome_loja or "sua loja")
     valor_html = html.escape(valor or "—")
     vencimento_html = html.escape(vencimento or "—")

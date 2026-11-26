@@ -18,6 +18,15 @@ logger = logging.getLogger(__name__)
 COR_PRIMARIA = colors.HexColor("#8B3D52")
 
 
+def _pdf_text(texto: str) -> str:
+    """Escapa texto dinâmico para Paragraph do ReportLab (& < > ")."""
+    return escape(texto or "")
+
+
+def _pdf_multiline(texto: str) -> str:
+    return _pdf_text(texto).replace("\n", "<br/>")
+
+
 def _ts_local(dt):
     if not dt:
         return "—"
@@ -81,15 +90,17 @@ def _build_secao_assinaturas(elements, termo_proc, compact_style, incluir_assina
     paciente_nome = capitalizar_exibicao((getattr(paciente, "nome", "") or "").strip()) or "—"
     prof_nome = capitalizar_exibicao((getattr(prof, "nome", "") or "").strip()) or "—"
 
-    paciente_info = [f"Paciente: {paciente_nome}"]
+    paciente_info = [f"Paciente: {_pdf_text(paciente_nome)}"]
     if paciente_email:
-        paciente_info.append(f"<font size='8'>Email: {paciente_email}</font>")
+        paciente_info.append(f"<font size='8'>Email: {_pdf_text(paciente_email)}</font>")
     if ass_paciente:
-        paciente_info.append(f"<font size='8'>Assinado em: {_ts_local(ass_paciente.assinado_em)}</font>")
-        paciente_info.append(f"<font size='8'>IP: {ass_paciente.ip_address}</font>")
+        paciente_info.append(
+            f"<font size='8'>Assinado em: {_pdf_text(_ts_local(ass_paciente.assinado_em))}</font>"
+        )
+        paciente_info.append(f"<font size='8'>IP: {_pdf_text(str(ass_paciente.ip_address or ''))}</font>")
         paciente_info.append("<font size='8'>Assinado digitalmente</font>")
 
-    prof_info = [f"Profissional: {prof_nome}"]
+    prof_info = [f"Profissional: {_pdf_text(prof_nome)}"]
     conselho = ""
     if prof is not None:
         conselho = " ".join(
@@ -98,12 +109,16 @@ def _build_secao_assinaturas(elements, termo_proc, compact_style, incluir_assina
             if rotulo in ("Conselho", "Registro") and valor and valor != "—"
         )
     if conselho:
-        prof_info.append(f"<font size='8'>{escape(conselho)}</font>")
+        prof_info.append(f"<font size='8'>{_pdf_text(conselho)}</font>")
     if prof_email:
-        prof_info.append(f"<font size='8'>Email: {prof_email}</font>")
+        prof_info.append(f"<font size='8'>Email: {_pdf_text(prof_email)}</font>")
     if ass_profissional:
-        prof_info.append(f"<font size='8'>Assinado em: {_ts_local(ass_profissional.assinado_em)}</font>")
-        prof_info.append(f"<font size='8'>IP: {ass_profissional.ip_address}</font>")
+        prof_info.append(
+            f"<font size='8'>Assinado em: {_pdf_text(_ts_local(ass_profissional.assinado_em))}</font>"
+        )
+        prof_info.append(
+            f"<font size='8'>IP: {_pdf_text(str(ass_profissional.ip_address or ''))}</font>"
+        )
         prof_info.append("<font size='8'>Assinado digitalmente</font>")
 
     assinatura_data = []
@@ -257,7 +272,7 @@ def _build_cabecalho_logo_termo(elements: list, loja, styles, nome_clinica: str)
                 elements.append(Spacer(1, 0.3 * cm))
         except Exception as e:
             logger.warning("Logo termo consentimento: %s", e)
-    elements.append(Paragraph(nome_clinica, ParagraphStyle(
+    elements.append(Paragraph(_pdf_text(nome_clinica), ParagraphStyle(
         "Clinica", parent=styles["Normal"], fontSize=11,
         textColor=colors.grey, alignment=TA_CENTER,
     )))
@@ -285,14 +300,14 @@ def _build_conteudo_texto_termo(elements: list, termo_proc, consulta, procedure,
             if not stripped:
                 elements.append(Spacer(1, 0.12 * cm))
             else:
-                elements.append(Paragraph(stripped.replace("&", "&amp;"), body_style))
+                elements.append(Paragraph(_pdf_text(stripped), body_style))
         return
 
     tpl = template_do_procedimento(procedure)
     if tpl and tpl.is_interativo:
         intro = renderizar_texto_termo((tpl.introducao or "").strip(), consulta, procedure)
         if intro:
-            elements.append(Paragraph(intro.replace("&", "&amp;").replace("\n", "<br/>"), body_style))
+            elements.append(Paragraph(_pdf_multiline(intro), body_style))
         respostas = termo_proc.respostas_interativo if isinstance(
             getattr(termo_proc, "respostas_interativo", None), dict,
         ) else {}
@@ -303,28 +318,30 @@ def _build_conteudo_texto_termo(elements: list, termo_proc, consulta, procedure,
             cab = renderizar_texto_termo(secao["titulo"], consulta, procedure)
             if secao["codigo"]:
                 cab = f"{secao['codigo']}. {cab}"
-            elements.append(Paragraph(f"<b>{cab.replace('&', '&amp;')}</b>", body_style))
+            elements.append(Paragraph(f"<b>{_pdf_text(cab)}</b>", body_style))
             texto_secao = renderizar_texto_termo(secao["texto"], consulta, procedure)
             if texto_secao:
-                elements.append(Paragraph(
-                    texto_secao.replace("&", "&amp;").replace("\n", "<br/>"), body_style,
-                ))
+                elements.append(Paragraph(_pdf_multiline(texto_secao), body_style))
             resp = respostas.get(secao["id"]) or {}
             sim = (resp.get("sim_nao") or "").upper()
             if sim:
-                elements.append(Paragraph(f"Resposta: <b>{sim}</b>", compact))
+                elements.append(Paragraph(f"Resposta: <b>{_pdf_text(sim)}</b>", compact))
             duvida = (resp.get("duvidas") or "").strip()
             if duvida:
-                elements.append(Paragraph(f"Dúvidas: {duvida.replace('&', '&amp;')}", compact))
+                # Limite defensivo: evita payload enorme no campo livre.
+                duvida = duvida[:2000]
+                elements.append(Paragraph(f"Dúvidas: {_pdf_text(duvida)}", compact))
             if secao["tipo"] == "gravidez":
                 dum = (resp.get("dum") or "").strip()
                 if resp.get("nao_me_recordo"):
                     elements.append(Paragraph("Data da última menstruação: não me recordo", compact))
                 elif dum:
-                    elements.append(Paragraph(f"Data da última menstruação: {dum}", compact))
+                    elements.append(
+                        Paragraph(f"Data da última menstruação: {_pdf_text(dum)}", compact),
+                    )
             cons = (resp.get("consinto") or "").upper()
             if cons:
-                elements.append(Paragraph(f"Manifestação: <b>{cons}</b>", compact))
+                elements.append(Paragraph(f"Manifestação: <b>{_pdf_text(cons)}</b>", compact))
             elements.append(Spacer(1, 0.12 * cm))
         return
 
@@ -338,7 +355,7 @@ def _build_conteudo_texto_termo(elements: list, termo_proc, consulta, procedure,
         if not stripped:
             elements.append(Spacer(1, 0.12 * cm))
         else:
-            elements.append(Paragraph(stripped.replace("&", "&amp;"), body_style))
+            elements.append(Paragraph(_pdf_text(stripped), body_style))
 
 
 def gerar_pdf_termo_consentimento(termo_proc, incluir_assinaturas: bool = False) -> BytesIO:

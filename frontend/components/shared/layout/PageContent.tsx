@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 
-/** Área principal em tela cheia — padrão Consultas / Clientes */
-export function ClinicaBelezaPageContent({
+/** Área principal em tela cheia — padrão de listagens/cadastro. */
+export function AppPageContent({
   children,
   className = '',
 }: {
@@ -17,8 +17,11 @@ export function ClinicaBelezaPageContent({
   );
 }
 
+/** @deprecated Prefer AppPageContent. Mantido para a clínica. */
+export const ClinicaBelezaPageContent = AppPageContent;
+
 /** Painel branco em largura total */
-export function ClinicaBelezaPanel({
+export function AppPanel({
   children,
   className = '',
 }: {
@@ -33,3 +36,7 @@ export function ClinicaBelezaPanel({
     </div>
   );
 }
+
+/** @deprecated Prefer AppPanel. Mantido para a clínica. */
+export const ClinicaBelezaPanel = AppPanel;
+

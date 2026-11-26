@@ -2,8 +2,6 @@
 """
 from django.urls import path
 
-from crm_vendas.views_crm_whatsapp_login import LoginConfigView
-
 from .nfce.views import NfceConfigView, VendaNfceView
 from .views_venda_produto import (
     CaixaFechamentoHtmlView,
@@ -169,6 +167,7 @@ from .views_memed import (
     MemedTokenView,
     MemedVerificarCpfPacienteView,
 )
+from .views_login_config import LoginConfigView
 from .views_nfse_config import NFSeConfigTestISSNetView, NFSeConfigView
 from .views_nomes_agenda import (
     NomeAgendaDetailView,

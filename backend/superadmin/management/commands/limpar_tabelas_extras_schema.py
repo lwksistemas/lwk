@@ -60,9 +60,25 @@ class Command(BaseCommand):
         else:
             lojas = list(qs.order_by("id"))
         if tipo:
+            # Aliases de clínica compartilham o mesmo mapa de apps.
+            tipos_ok = {tipo}
+            if tipo in {
+                "clinica-beleza",
+                "clinica-da-beleza",
+                "clinica-estetica",
+                "clinica-de-estetica",
+            }:
+                tipos_ok.update(
+                    {
+                        "clinica-beleza",
+                        "clinica-da-beleza",
+                        "clinica-estetica",
+                        "clinica-de-estetica",
+                    }
+                )
             lojas = [
                 loja for loja in lojas
-                if (loja.tipo_loja.slug if loja.tipo_loja else "").strip().lower() == tipo
+                if (loja.tipo_loja.slug if loja.tipo_loja else "").strip().lower() in tipos_ok
             ]
 
         if not lojas:

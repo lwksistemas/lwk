@@ -113,7 +113,8 @@ def _reset_tenant_connection(alias: str) -> None:
     with contextlib.suppress(Exception):
         conn.close()
 
-# Apps extras por slug de TipoLoja (única fonte para migrate / auditoria)
+# Apps extras por slug de TipoLoja (única fonte para migrate / auditoria).
+# Cada tipo só carrega tabelas do próprio segmento (+ base compartilhada).
 TIPO_LOJA_EXTRA_APPS = {
     "clinica-de-estetica": ["clinica_beleza", "whatsapp", "nfse_integration"],
     "clinica-estetica": ["clinica_beleza", "whatsapp", "nfse_integration"],

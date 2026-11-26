@@ -5,6 +5,7 @@ import {
   homePathForTipo,
   isTipoClinicaBeleza,
   isTipoCRMVendas,
+  isTipoSalaoCabeleireiro,
 } from '@/lib/loja-tipo';
 
 describe('tipos em produção', () => {
@@ -21,6 +22,13 @@ describe('tipos em produção', () => {
     expect(isTipoCRMVendas('CRM Vendas')).toBe(true);
     expect(homePathForTipo('felix', 'CRM Vendas')).toBe('/loja/felix/crm-vendas');
     expect(homePathForTipo('bella', 'Salão de Cabeleireiro')).toBe('/loja/bella/salao-cabeleireiro');
+  });
+
+  it('abre o salão no segmento isolado', () => {
+    expect(isTipoSalaoCabeleireiro('Salão Cabeleireiro')).toBe(true);
+    expect(homePathForTipo('beleza', 'Salão Cabeleireiro')).toBe(
+      '/loja/beleza/salao-cabeleireiro',
+    );
   });
 
   it('manda as configurações para o app dono', () => {

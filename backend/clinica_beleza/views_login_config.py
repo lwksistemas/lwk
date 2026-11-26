@@ -1,0 +1,137 @@
+"""Personalização de login/aparência da Clínica da Beleza (campos na Loja).
+
+Espelha o contrato de /crm-vendas/login-config/ sem depender do app CRM.
+GET/PATCH /api/clinica-beleza/login-config/
+"""
+from rest_framework import status
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from tenants.middleware import get_current_loja_id
+
+from .permissions import CLINICA_ADMIN
+
+
+def _get_loja():
+    loja_id = get_current_loja_id()
+    if not loja_id:
+        return None
+    from superadmin.models import Loja
+
+    return Loja.objects.filter(pk=loja_id).select_related("tipo_loja").first()
+
+
+def _patch_imagem_loja(loja, field, data):
+    if field not in data:
+        return False
+    val = (data.get(field) or "").strip()
+    old_val = (getattr(loja, field) or "").strip()
+    if old_val and old_val != val:
+        from core.media_storage import is_media_url, media_delete_by_url
+
+        if is_media_url(old_val):
+            media_delete_by_url(old_val)
+    setattr(loja, field, val[:200] if val else "")
+    return True
+
+
+def _patch_cor_loja(loja, field, data):
+    if field not in data:
+        return False
+    val = (data.get(field) or "").strip()
+    if val and val.startswith("#") and len(val) <= 7:
+        setattr(loja, field, val[:7])
+        return True
+    return False
+
+
+def serialize_login_config(loja) -> dict:
+    tipo = getattr(loja, "tipo_loja", None)
+    cor_default = getattr(tipo, "cor_primaria", None) if tipo else None
+    cor_primaria = (loja.cor_primaria or "").strip() or cor_default or "#10B981"
+    cor_secundaria = (loja.cor_secundaria or "").strip() or "#059669"
+    return {
+        "logo": (loja.logo or "").strip(),
+        "login_background": (loja.login_background or "").strip(),
+        "login_logo": (loja.login_logo or "").strip(),
+        "cor_primaria": cor_primaria,
+        "cor_secundaria": cor_secundaria,
+        "cor_fundo_pagina": (getattr(loja, "cor_fundo_pagina", None) or "").strip(),
+        "agenda_status_colors": getattr(loja, "agenda_status_colors", None) or {},
+        "colunas_consultas": getattr(loja, "colunas_consultas", None) or [],
+        "colunas_estoque": getattr(loja, "colunas_estoque", None) or [],
+        "colunas_pacientes": getattr(loja, "colunas_pacientes", None) or [],
+    }
+
+
+class LoginConfigView(APIView):
+    """GET/PATCH personalização de login, cores e colunas da clínica."""
+
+    permission_classes = CLINICA_ADMIN
+
+    def get(self, request):
+        loja = _get_loja()
+        if loja is None:
+            return Response(
+                {"error": "Contexto de loja não encontrado"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        return Response(serialize_login_config(loja))
+
+    def patch(self, request):
+        loja = _get_loja()
+        if loja is None:
+            return Response(
+                {"error": "Contexto de loja não encontrado"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        from superadmin.loja_utils import (
+            invalidate_loja_info_publica_cache,
+            rebuild_loja_info_publica_cache,
+        )
+        from superadmin.theme_colors import (
+            normalize_hex_color,
+            sanitize_agenda_status_colors,
+            sanitize_colunas_consultas,
+            sanitize_colunas_estoque,
+            sanitize_colunas_pacientes,
+        )
+
+        update_fields = ["updated_at"]
+        data = request.data
+
+        for img_field in ("logo", "login_background", "login_logo"):
+            if _patch_imagem_loja(loja, img_field, data):
+                update_fields.append(img_field)
+
+        for cor_field in ("cor_primaria", "cor_secundaria"):
+            if _patch_cor_loja(loja, cor_field, data):
+                update_fields.append(cor_field)
+
+        if "cor_fundo_pagina" in data:
+            raw = data.get("cor_fundo_pagina")
+            if raw is None or str(raw).strip() == "":
+                loja.cor_fundo_pagina = ""
+            else:
+                loja.cor_fundo_pagina = normalize_hex_color(raw) or loja.cor_fundo_pagina
+            update_fields.append("cor_fundo_pagina")
+
+        if "agenda_status_colors" in data:
+            loja.agenda_status_colors = sanitize_agenda_status_colors(data.get("agenda_status_colors"))
+            update_fields.append("agenda_status_colors")
+        if "colunas_consultas" in data:
+            loja.colunas_consultas = sanitize_colunas_consultas(data.get("colunas_consultas"))
+            update_fields.append("colunas_consultas")
+        if "colunas_estoque" in data:
+            loja.colunas_estoque = sanitize_colunas_estoque(data.get("colunas_estoque"))
+            update_fields.append("colunas_estoque")
+        if "colunas_pacientes" in data:
+            loja.colunas_pacientes = sanitize_colunas_pacientes(data.get("colunas_pacientes"))
+            update_fields.append("colunas_pacientes")
+
+        loja.save(update_fields=update_fields)
+        invalidate_loja_info_publica_cache(loja)
+        rebuild_loja_info_publica_cache(loja)
+
+        return Response(serialize_login_config(loja))

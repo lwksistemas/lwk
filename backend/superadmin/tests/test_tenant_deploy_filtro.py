@@ -3,6 +3,7 @@ from types import SimpleNamespace
 
 from django.test import SimpleTestCase
 
+from superadmin.services.database_schema_service import get_apps_esperados_para_loja
 from superadmin.tenant_deploy import (
     ENSURE_POR_APP,
     ensures_para_apps,
@@ -26,6 +27,11 @@ class TenantDeployFiltroTest(SimpleTestCase):
     def test_clinica_nao_recebe_tabelas_do_crm(self):
         loja = SimpleNamespace(tipo_loja=SimpleNamespace(slug="clinica-beleza"))
         self.assertEqual(filtrar_apps_loja(loja, ["crm_vendas"]), [])
+
+    def test_salao_migra_so_salao(self):
+        loja = SimpleNamespace(tipo_loja=SimpleNamespace(slug="salao-cabeleireiro"))
+        self.assertEqual(filtrar_apps_loja(loja, ["salao_cabeleireiro"]), ["salao_cabeleireiro"])
+        self.assertEqual(filtrar_apps_loja(loja, ["clinica_beleza"]), [])
 
     def test_clinica_migra_so_clinica_beleza(self):
         loja = SimpleNamespace(tipo_loja=SimpleNamespace(slug="clinica-beleza"))
@@ -56,3 +62,18 @@ class TenantDeployFiltroTest(SimpleTestCase):
         self.assertEqual(names, ["ensure_clinica_beleza_consultas"])
         self.assertTrue("ensure_crm_config_colunas" in ENSURE_POR_APP["crm_vendas"])
         self.assertIn("ensure_orcamento_tables", ENSURE_POR_APP["clinica_beleza"])
+
+    def test_apps_esperados_clinica_sem_crm(self):
+        loja = SimpleNamespace(tipo_loja=SimpleNamespace(slug="clinica-beleza"))
+        apps = get_apps_esperados_para_loja(loja)
+        self.assertIn("clinica_beleza", apps)
+        self.assertIn("whatsapp", apps)
+        self.assertIn("nfse_integration", apps)
+        self.assertNotIn("crm_vendas", apps)
+
+    def test_apps_esperados_salao_so_salao(self):
+        loja = SimpleNamespace(tipo_loja=SimpleNamespace(slug="salao-cabeleireiro"))
+        apps = get_apps_esperados_para_loja(loja)
+        self.assertIn("salao_cabeleireiro", apps)
+        self.assertNotIn("clinica_beleza", apps)
+        self.assertNotIn("crm_vendas", apps)

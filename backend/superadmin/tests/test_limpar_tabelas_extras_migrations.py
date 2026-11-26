@@ -19,6 +19,13 @@ class LimparExtrasHistoricoTest(SimpleTestCase):
         self.assertTrue(tipo_usa_app("clinica-beleza", "clinica_beleza"))
         self.assertNotIn("clinica_beleza", apps_permitidos_para_tipo("crm-vendas"))
 
+    def test_clinica_nao_espera_crm_nem_salao(self):
+        self.assertFalse(tipo_usa_app("clinica-beleza", "crm_vendas"))
+        self.assertNotIn("crm_vendas", apps_permitidos_para_tipo("clinica-beleza"))
+        self.assertTrue(tipo_usa_app("salao-cabeleireiro", "salao_cabeleireiro"))
+        self.assertNotIn("clinica_beleza", apps_permitidos_para_tipo("salao-cabeleireiro"))
+        self.assertNotIn("crm_vendas", apps_permitidos_para_tipo("salao-cabeleireiro"))
+
     def test_ensure_so_lista_loja_clinica(self):
         src = inspect.getsource(queryset_lojas_clinica_beleza)
         self.assertIn("tipo_loja__slug__in", src)

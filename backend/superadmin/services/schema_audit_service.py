@@ -95,6 +95,7 @@ ENSURE_COMANDOS_POR_TIPO.update(
             "ensure_assinatura_link_enviado_em",
             "ensure_whatsapp_evolution_fields",
         ],
+        "salao-cabeleireiro": [],
     },
 )
 
@@ -180,8 +181,14 @@ def limpar_tabelas_extras_loja(loja) -> dict[str, Any]:
             apps_removidos.add("clinica_beleza")
         elif table.startswith("clinica_"):
             apps_removidos.add("clinica_estetica")
-        elif table.startswith("crm_vendas_") or table == "crm_relatorio_comissao":
+        elif (
+            table.startswith("crm_vendas_")
+            or table.startswith("crm_financeiro_")
+            or table == "crm_relatorio_comissao"
+        ):
             apps_removidos.add("crm_vendas")
+        elif table.startswith("salao_cabeleireiro_"):
+            apps_removidos.add("salao_cabeleireiro")
         elif table.startswith("whatsapp_"):
             apps_removidos.add("whatsapp")
         elif table == "django_admin_log":

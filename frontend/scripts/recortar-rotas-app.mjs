@@ -10,6 +10,7 @@ const app = (process.env.LWK_FRONTEND_APP || "all").trim();
 const TIRAR_DO_CRM = [
   "app/(dashboard)/loja/[slug]/clinica-beleza",
   "app/(dashboard)/loja/[slug]/clinica",
+  "app/(dashboard)/loja/[slug]/salao-cabeleireiro",
   "app/(dashboard)/loja/[slug]/cabeleireiro",
   "app/(dashboard)/loja/[slug]/hotel",
   "app/(dashboard)/loja/[slug]/agenda",
@@ -27,6 +28,7 @@ const TIRAR_DO_CRM = [
 const TIRAR_DA_CLINICA = [
   "app/(dashboard)/loja/[slug]/crm-vendas",
   "app/(dashboard)/loja/[slug]/clinica",
+  "app/(dashboard)/loja/[slug]/salao-cabeleireiro",
   "app/(dashboard)/loja/[slug]/cabeleireiro",
   "app/(dashboard)/loja/[slug]/hotel",
   "app/(dashboard)/superadmin",
@@ -34,8 +36,33 @@ const TIRAR_DA_CLINICA = [
   "app/assinar-reserva",
 ];
 
+const TIRAR_DO_SALAO = [
+  "app/(dashboard)/loja/[slug]/clinica-beleza",
+  "app/(dashboard)/loja/[slug]/clinica",
+  "app/(dashboard)/loja/[slug]/crm-vendas",
+  "app/(dashboard)/loja/[slug]/cabeleireiro",
+  "app/(dashboard)/loja/[slug]/hotel",
+  "app/(dashboard)/loja/[slug]/agenda",
+  "app/(dashboard)/loja/[slug]/relatorios",
+  "app/(dashboard)/loja/[slug]/dashboard",
+  "app/(dashboard)/superadmin",
+  "app/confirmar-agendamento",
+  "app/enviar-foto",
+  "app/assinar-consentimento",
+  "app/assinar-recibo",
+  "app/teleconsulta",
+  "app/assinar-reserva",
+  "app/relatorio-comissao",
+];
+
 const alvos =
-  app === "crm-vendas" ? TIRAR_DO_CRM : app === "clinica-beleza" ? TIRAR_DA_CLINICA : [];
+  app === "crm-vendas"
+    ? TIRAR_DO_CRM
+    : app === "clinica-beleza"
+      ? TIRAR_DA_CLINICA
+      : app === "salao-cabeleireiro"
+        ? TIRAR_DO_SALAO
+        : [];
 
 if (alvos.length === 0) {
   console.log(`recortar-rotas: app=${app || "all"} — site completo`);

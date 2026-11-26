@@ -15,6 +15,8 @@ from superadmin.views.permissions import IsSuperAdmin
 
 logger = logging.getLogger(__name__)
 
+from nfse_integration.mensagens_erro import ERR_NFSE_TESTE_CONEXAO
+
 
 def _parse_bool(val) -> bool:
     if isinstance(val, bool):
@@ -383,4 +385,4 @@ def nfse_config_test_nacional(request):
 
     except Exception as e:
         logger.exception("Erro ao testar Nacional superadmin: %s", e)
-        return Response({"success": False, "detail": str(e)}, status=400)
+        return Response({"success": False, "detail": ERR_NFSE_TESTE_CONEXAO}, status=400)

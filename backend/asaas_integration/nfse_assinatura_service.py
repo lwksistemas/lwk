@@ -11,6 +11,8 @@ from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 
+from nfse_integration.mensagens_erro import ERR_ISSNet_NACIONAL, ERR_NACIONAL
+
 
 def _data_emissao_resultado(resultado: dict) -> datetime:
     """Data/hora da emissão a partir da resposta do provedor ou agora."""
@@ -215,7 +217,7 @@ def _emitir_via_nacional(
 
     except Exception as e:
         logger.exception("Erro ao emitir NFS-e assinatura via Nacional: %s", e)
-        return {"success": False, "error": str(e)}
+        return {"success": False, "error": ERR_NACIONAL}
 
 
 def _emitir_via_issnet(
@@ -313,7 +315,7 @@ def _emitir_via_issnet(
 
     except Exception as e:
         logger.exception("Erro ao emitir NFS-e assinatura via ISSNet Nacional: %s", e)
-        return {"success": False, "error": str(e)}
+        return {"success": False, "error": ERR_ISSNet_NACIONAL}
 
 
 def _salvar_nfse_emitida_issnet(pagamento, config, resultado, tomador_nome, tomador_cpf_cnpj, tomador_email, descricao, valor):

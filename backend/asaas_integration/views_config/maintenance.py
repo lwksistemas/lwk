@@ -11,6 +11,8 @@ from ._common import IsSuperAdmin
 
 logger = logging.getLogger(__name__)
 
+from nfse_integration.mensagens_erro import ERR_ASAAS_MANUTENCAO
+
 @api_view(["POST"])
 @permission_classes([IsSuperAdmin])
 def asaas_cleanup_orphans(request):
@@ -60,7 +62,7 @@ def asaas_cleanup_orphans(request):
         logger.error(f"Erro na limpeza de órfãos Asaas: {e}")
         return Response({
             "success": False,
-            "error": str(e),
+            "error": ERR_ASAAS_MANUTENCAO,
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -97,7 +99,7 @@ def asaas_delete_loja(request):
         logger.error(f"Erro ao excluir loja do Asaas: {e}")
         return Response({
             "success": False,
-            "error": str(e),
+            "error": ERR_ASAAS_MANUTENCAO,
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 

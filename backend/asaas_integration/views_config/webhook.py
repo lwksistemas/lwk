@@ -7,6 +7,8 @@ from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 
+from nfse_integration.mensagens_erro import ERR_ASAAS_CONEXAO
+
 from ._common import REQUESTS_AVAILABLE, AsaasClient, IsSuperAdmin, _asaas_webhook_log_context
 
 logger = logging.getLogger(__name__)
@@ -107,6 +109,6 @@ def asaas_test_public(request):
     except Exception as e:
         logger.error(f"Erro ao testar API Asaas: {e}")
         return Response(
-            {"detail": f"Erro na conexão: {e!s}"},
+            {"detail": ERR_ASAAS_CONEXAO},
             status=status.HTTP_400_BAD_REQUEST,
         )

@@ -11,6 +11,7 @@ from rest_framework.response import Response
 
 from core.audit import audit_log
 from core.rate_limit import rate_limit
+from nfse_integration.mensagens_erro import ERR_NFSE_PDF
 from nfse_integration.superadmin_nfse_api import (
     ReenvioNFSeError,
     filtrar_nfse_emitidas,
@@ -128,7 +129,7 @@ def nfse_download_pdf(request, nfse_id):
         return Response({"error": "NFS-e não encontrada"}, status=404)
     except Exception as e:
         logger.exception("Erro ao gerar PDF da NFS-e: %s", e)
-        return Response({"error": f"Erro ao gerar PDF: {e!s}"}, status=500)
+        return Response({"error": ERR_NFSE_PDF}, status=500)
 
 
 @api_view(["POST"])

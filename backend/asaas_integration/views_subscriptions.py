@@ -10,6 +10,8 @@ from rest_framework.response import Response
 from core.throttling import DashboardRateThrottle
 from superadmin.models import Loja
 
+from nfse_integration.mensagens_erro import ERR_ASAAS_COBRANCA, ERR_ASAAS_MANUTENCAO
+
 from .models import AsaasPayment, LojaAssinatura
 from .serializers import LojaAssinaturaSerializer
 from .views_config import REQUESTS_AVAILABLE, IsSuperAdmin
@@ -78,7 +80,7 @@ class AsaasSubscriptionViewSet(viewsets.ReadOnlyModelViewSet):
         except Exception as e:
             logger.error(f"Erro ao obter estatísticas: {e}")
             return Response(
-                {"error": f"Erro interno: {e!s}"},
+                {"error": ERR_ASAAS_MANUTENCAO},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
@@ -196,7 +198,7 @@ class AsaasSubscriptionViewSet(viewsets.ReadOnlyModelViewSet):
             import traceback
             logger.error(traceback.format_exc())
             return Response(
-                {"error": f"Erro interno: {e!s}"},
+                {"error": ERR_ASAAS_COBRANCA},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
@@ -371,6 +373,6 @@ class AsaasSubscriptionViewSet(viewsets.ReadOnlyModelViewSet):
             import traceback
             logger.error(traceback.format_exc())
             return Response(
-                {"error": f"Erro interno: {e!s}"},
+                {"error": ERR_ASAAS_COBRANCA},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )

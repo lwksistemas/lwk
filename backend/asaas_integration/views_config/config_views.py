@@ -6,6 +6,8 @@ from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 
+from nfse_integration.mensagens_erro import ERR_ASAAS, ERR_ASAAS_CONEXAO, ERR_ASAAS_MANUTENCAO
+
 from ..models import AsaasConfig
 from ._common import REQUESTS_AVAILABLE, AsaasClient, IsSuperAdmin, _asaas_webhook_url
 
@@ -81,7 +83,8 @@ def _asaas_config_post(request, config, resolved_key):
             "asaas_webhook_sync": asaas_webhook_sync,
         })
     except Exception as e:
-        return Response({"detail": f"Erro ao salvar configuração: {e!s}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        logger.exception("Erro ao salvar configuração Asaas: %s", e)
+        return Response({"detail": ERR_ASAAS_MANUTENCAO}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @api_view(["GET", "POST"])
@@ -136,7 +139,7 @@ def asaas_test(request):
     except Exception as e:
         logger.error(f"Erro ao testar API Asaas: {e}")
         err_text = str(e)
-        detail = f"Erro na conexão: {err_text}"
+        detail = ERR_ASAAS_CONEXAO
         if "401" in err_text:
             detail = (
                 'Chave API rejeitada pelo Asaas (401). '
@@ -171,7 +174,7 @@ def asaas_status(request):
                     client._make_request("GET", "customers?limit=1")
                     api_connected = True
             except Exception as e:
-                error_message = str(e)
+                error_message = ERR_ASAAS_CONEXAO
                 if "401" in str(e):
                     error_message = (
                         'Chave API rejeitada pelo Asaas. Cole a chave completa de '
@@ -190,8 +193,9 @@ def asaas_status(request):
         })
 
     except Exception as e:
+        logger.exception("Erro ao verificar status Asaas: %s", e)
         return Response(
-            {"detail": f"Erro ao verificar status: {e!s}"},
+            {"detail": ERR_ASAAS},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 

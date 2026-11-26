@@ -9,6 +9,8 @@ from django.db import transaction
 
 logger = logging.getLogger(__name__)
 
+from nfse_integration.mensagens_erro import ERR_ASAAS_MANUTENCAO, ERR_COBRANCA
+
 
 class PaymentProviderStrategy(ABC):
     """Interface abstrata para provedores de pagamento"""
@@ -83,7 +85,7 @@ class AsaasPaymentStrategy(PaymentProviderStrategy):
             return {
                 "success": False,
                 "cancelled_count": 0,
-                "error": str(e),
+                "error": ERR_ASAAS_MANUTENCAO,
             }
 
     def delete_local_data(self, loja_slug: str) -> dict[str, Any]:
@@ -129,7 +131,7 @@ class AsaasPaymentStrategy(PaymentProviderStrategy):
             logger.error(f"❌ Erro ao remover dados locais {self.provider_name}: {e}")
             return {
                 "success": False,
-                "error": str(e),
+                "error": ERR_ASAAS_MANUTENCAO,
                 "deleted_payments": 0,
                 "deleted_customers": 0,
                 "deleted_subscriptions": 0,
@@ -176,7 +178,7 @@ class MercadoPagoPaymentStrategy(PaymentProviderStrategy):
             return {
                 "success": False,
                 "cancelled_count": 0,
-                "error": str(e),
+                "error": ERR_COBRANCA,
             }
 
     def delete_local_data(self, loja_slug: str) -> dict[str, Any]:
@@ -219,7 +221,7 @@ class MercadoPagoPaymentStrategy(PaymentProviderStrategy):
             logger.error(f"❌ Erro ao verificar dados locais {self.provider_name}: {e}")
             return {
                 "success": False,
-                "error": str(e),
+                "error": ERR_COBRANCA,
                 "deleted_payments": 0,
                 "deleted_customers": 0,
                 "deleted_subscriptions": 0,
@@ -293,10 +295,10 @@ class UnifiedPaymentDeletionService:
                     provider_result["errors"].append(f"API: {error}")
                     logger.warning(f"⚠️ {provider_name} API: {error}")
             except Exception as e:
-                error_msg = f"Erro ao cancelar na API: {e!s}"
+                error_msg = ERR_ASAAS_MANUTENCAO if provider_name == "Asaas" else ERR_COBRANCA
                 provider_result["errors"].append(error_msg)
                 results["errors"].append(f"{provider_name}: {error_msg}")
-                logger.error(f"❌ {provider_name}: {error_msg}")
+                logger.error(f"❌ {provider_name}: Erro ao cancelar na API: {e}")
 
             # 2. Remover dados locais
             try:
@@ -317,10 +319,10 @@ class UnifiedPaymentDeletionService:
                     provider_result["errors"].append(f"Local: {error}")
                     logger.warning(f"⚠️ {provider_name} local: {error}")
             except Exception as e:
-                error_msg = f"Erro ao remover dados locais: {e!s}"
+                error_msg = ERR_ASAAS_MANUTENCAO if provider_name == "Asaas" else ERR_COBRANCA
                 provider_result["errors"].append(error_msg)
                 results["errors"].append(f"{provider_name}: {error_msg}")
-                logger.error(f"❌ {provider_name}: {error_msg}")
+                logger.error(f"❌ {provider_name}: Erro ao remover dados locais: {e}")
 
             results["providers"][provider_name] = provider_result
 

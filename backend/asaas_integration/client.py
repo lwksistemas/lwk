@@ -12,6 +12,8 @@ from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
+from nfse_integration.mensagens_erro import ERR_ASAAS, ERR_ASAAS_COBRANCA
+
 class AsaasClient:
     """Cliente para API do Asaas"""
 
@@ -623,7 +625,7 @@ class AsaasPaymentService:
             logger.error(f"Erro ao criar cobrança Asaas: {e}")
             return {
                 "success": False,
-                "error": str(e),
+                "error": ERR_ASAAS_COBRANCA,
             }
 
     def get_payment_status(self, payment_id: str) -> dict[str, Any]:
@@ -643,7 +645,7 @@ class AsaasPaymentService:
             logger.error(f"Erro ao consultar pagamento: {e}")
             return {
                 "success": False,
-                "error": str(e),
+                "error": ERR_ASAAS,
             }
 
     def download_boleto_pdf(self, payment_id: str) -> bytes:

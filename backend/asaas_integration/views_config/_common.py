@@ -5,6 +5,8 @@ from django.db.models import F
 from django.utils import timezone
 from rest_framework import permissions
 
+from nfse_integration.mensagens_erro import ERR_ASAAS_CONEXAO
+
 from ..models import AsaasConfig
 
 logger = logging.getLogger(__name__)
@@ -85,7 +87,7 @@ def _check_asaas_api():
                 level = "error"
                 details.append(
                     "Asaas rejeitou a chave (401) — gere/cole nova chave em Integrações → API"
-                    if "401" in str(exc) else f"Falha na API: {exc}"
+                    if "401" in str(exc) else ERR_ASAAS_CONEXAO
                 )
     return _diag_item(
         "asaas_api", "API Asaas (criar cobrança no cadastro)", ok, level,
@@ -199,7 +201,8 @@ def _check_nfse():
                     details.append("Ambiente Nacional em homologação — notas de teste")
     except Exception as exc:
         level = "error"
-        details.append(f"Erro ao ler config NFS-e: {exc}")
+        logger.exception("Erro ao ler config NFS-e no diagnóstico: %s", exc)
+        details.append("Erro ao ler configuração NFS-e")
     return _diag_item(
         "nfse", "NFS-e (nota fiscal após pagamento)", ok, level,
         "NFS-e pronta para emissão automática" if ok and level == "ok"

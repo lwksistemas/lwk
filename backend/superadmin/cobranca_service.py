@@ -13,6 +13,8 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
+from nfse_integration.mensagens_erro import ERR_ASAAS_COBRANCA, ERR_COBRANCA
+
 
 def cobranca_ja_registrada(financeiro) -> bool:
     """True quando a primeira cobrança já existe em algum provedor."""
@@ -264,7 +266,7 @@ class AsaasPaymentStrategy(PaymentProviderStrategy):
 
         except Exception as e:
             logger.exception(f"Erro ao criar cobrança Asaas para loja {loja.slug}: {e}")
-            return {"success": False, "error": str(e)}
+            return {"success": False, "error": ERR_ASAAS_COBRANCA}
 
 
 class MercadoPagoPaymentStrategy(PaymentProviderStrategy):
@@ -325,7 +327,7 @@ class MercadoPagoPaymentStrategy(PaymentProviderStrategy):
 
         except Exception as e:
             logger.exception(f"Erro ao criar cobrança Mercado Pago para loja {loja.slug}: {e}")
-            return {"success": False, "error": str(e)}
+            return {"success": False, "error": ERR_COBRANCA}
 
 
 class CoraPaymentStrategy(PaymentProviderStrategy):
@@ -364,7 +366,7 @@ class CoraPaymentStrategy(PaymentProviderStrategy):
             return result
         except Exception as e:
             logger.exception("Erro ao criar boleto Cora para %s", loja.slug)
-            return {"success": False, "error": str(e)}
+            return {"success": False, "error": ERR_COBRANCA}
 
 
 class CobrancaService:

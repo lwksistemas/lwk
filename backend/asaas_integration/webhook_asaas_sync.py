@@ -6,6 +6,8 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
+from nfse_integration.mensagens_erro import ERR_ASAAS_WEBHOOK
+
 EVENTOS_PAGAMENTO = (
     "PAYMENT_CREATED",
     "PAYMENT_UPDATED",
@@ -41,7 +43,7 @@ def sincronizar_token_webhook_asaas(token: str | None = None) -> dict[str, Any]:
         data = client._make_request("GET", "webhooks")
     except Exception as exc:
         logger.warning("Falha ao listar webhooks Asaas: %s", exc)
-        return {"success": False, "error": str(exc)[:240]}
+        return {"success": False, "error": ERR_ASAAS_WEBHOOK}
 
     items = data.get("data") if isinstance(data, dict) else []
     if not isinstance(items, list):
@@ -68,7 +70,7 @@ def sincronizar_token_webhook_asaas(token: str | None = None) -> dict[str, Any]:
         client._make_request("PUT", f"webhooks/{alvo['id']}", payload)
     except Exception as exc:
         logger.warning("Falha ao gravar token no webhook Asaas %s: %s", alvo.get("id"), exc)
-        return {"success": False, "error": str(exc)[:240], "webhook_id": alvo.get("id")}
+        return {"success": False, "error": ERR_ASAAS_WEBHOOK, "webhook_id": alvo.get("id")}
 
     logger.info("Token do webhook LWK gravado no Asaas (id=%s)", alvo.get("id"))
     return {"success": True, "webhook_id": alvo.get("id")}

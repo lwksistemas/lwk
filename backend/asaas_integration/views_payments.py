@@ -6,6 +6,8 @@ from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
+from nfse_integration.mensagens_erro import ERR_ASAAS, ERR_ASAAS_MANUTENCAO
+
 from .models import AsaasConfig, AsaasPayment
 from .serializers import AsaasPaymentSerializer
 from .views_config import REQUESTS_AVAILABLE, IsSuperAdmin
@@ -93,14 +95,14 @@ class AsaasPaymentViewSet(viewsets.ReadOnlyModelViewSet):
             except Exception as pdf_error:
                 logger.error(f"Erro específico ao baixar PDF: {pdf_error}")
                 return Response(
-                    {"error": f"Erro ao baixar PDF: {pdf_error!s}"},
+                    {"error": ERR_ASAAS},
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 )
 
         except Exception as e:
             logger.error(f"Erro ao baixar PDF: {e}")
             return Response(
-                {"error": f"Erro interno: {e!s}"},
+                {"error": ERR_ASAAS_MANUTENCAO},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
@@ -190,7 +192,7 @@ class AsaasPaymentViewSet(viewsets.ReadOnlyModelViewSet):
             import traceback
             traceback.print_exc()
             return Response(
-                {"error": f"Erro interno: {e!s}"},
+                {"error": ERR_ASAAS_MANUTENCAO},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
@@ -239,7 +241,7 @@ class AsaasPaymentViewSet(viewsets.ReadOnlyModelViewSet):
             except Exception as e:
                 logger.error(f"❌ Erro ao excluir no Asaas: {e}")
                 return Response(
-                    {"error": f"Erro ao excluir no Asaas: {e!s}"},
+                    {"error": ERR_ASAAS_MANUTENCAO},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
@@ -258,6 +260,6 @@ class AsaasPaymentViewSet(viewsets.ReadOnlyModelViewSet):
             import traceback
             traceback.print_exc()
             return Response(
-                {"error": f"Erro interno: {e!s}"},
+                {"error": ERR_ASAAS_MANUTENCAO},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )

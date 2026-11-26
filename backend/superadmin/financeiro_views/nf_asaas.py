@@ -10,6 +10,8 @@ from ..models import FinanceiroLoja
 
 logger = logging.getLogger(__name__)
 
+from nfse_integration.mensagens_erro import ERR_ASAAS
+
 def _get_asaas_client():
     """Retorna cliente Asaas configurado ou None."""
     from asaas_integration.client import AsaasClient
@@ -57,7 +59,7 @@ def nf_baixar_por_payment(request, payment_id):
         return Response({"success": True, "pdf_url": pdf_url, "invoice_id": invoice.get("id"), "status": status_nf})
     except Exception as e:
         logger.exception("nf_baixar_por_payment: %s", e)
-        return Response({"success": False, "error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response({"success": False, "error": ERR_ASAAS}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @api_view(["GET"])
@@ -92,7 +94,7 @@ def nf_xml_por_payment(request, payment_id):
         return Response({"success": False, "error": "XML não disponível para esta nota"}, status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
         logger.exception("nf_xml_por_payment: %s", e)
-        return Response({"success": False, "error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response({"success": False, "error": ERR_ASAAS}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @api_view(["POST"])
@@ -154,7 +156,7 @@ def nf_reenviar_por_payment(request, payment_id):
         return Response({"success": True, "message": f"Nota fiscal reenviada para {email_destino}", "invoice_id": invoice_id})
     except Exception as e:
         logger.exception("nf_reenviar_por_payment: %s", e)
-        return Response({"success": False, "error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response({"success": False, "error": ERR_ASAAS}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @api_view(["POST"])
@@ -183,4 +185,4 @@ def nf_cancelar_por_payment(request, payment_id):
         return Response({"success": True, "message": f"Nota fiscal {invoice_id} cancelada com sucesso", "invoice_id": invoice_id})
     except Exception as e:
         logger.exception("nf_cancelar_por_payment: %s", e)
-        return Response({"success": False, "error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response({"success": False, "error": ERR_ASAAS}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

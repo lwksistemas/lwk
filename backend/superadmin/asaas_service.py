@@ -4,6 +4,8 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+from nfse_integration.mensagens_erro import ERR_ASAAS
+
 class LojaAsaasService:
     """Serviço para criar cobrança Asaas quando uma loja é criada"""
 
@@ -67,4 +69,4 @@ class LojaAsaasService:
 
         except Exception as e:
             logger.error(f"Erro ao consultar status: {e}")
-            return {"success": False, "error": str(e)}
+            return {"success": False, "error": ERR_ASAAS}

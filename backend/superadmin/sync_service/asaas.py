@@ -13,6 +13,8 @@ from .nfse import tentar_emitir_nfse_assinatura
 
 logger = logging.getLogger(__name__)
 
+from nfse_integration.mensagens_erro import ERR_ASAAS, ERR_ASAAS_SYNC
+
 class AsaasSyncService:
     """Serviço para sincronização automática com Asaas"""
 
@@ -162,7 +164,7 @@ class AsaasSyncService:
             # Salvar erro de sincronização
             try:
                 financeiro = loja.financeiro
-                financeiro.sync_error = str(e)
+                financeiro.sync_error = ERR_ASAAS_SYNC
                 financeiro.save()
             except Exception:
                 pass
@@ -170,7 +172,7 @@ class AsaasSyncService:
             logger.error(f"Erro ao sincronizar loja {loja.nome}: {e}")
             return {
                 "success": False,
-                "error": str(e),
+                "error": ERR_ASAAS_SYNC,
                 "loja": loja.nome,
             }
 
@@ -230,7 +232,7 @@ class AsaasSyncService:
             logger.error(f"Erro ao sincronizar pagamento {pagamento.id}: {e}")
             return {
                 "updated": False,
-                "error": str(e),
+                "error": ERR_ASAAS_SYNC,
             }
 
     def update_loja_status(self, loja, pagamento_pago=False):
@@ -319,7 +321,7 @@ class AsaasSyncService:
         except Exception as e:
             logger.error(f"Erro ao atualizar status da loja {loja.nome}: {e}")
             return {
-                "error": str(e),
+                "error": ERR_ASAAS_SYNC,
             }
 
     def process_webhook_payment(self, payment_data):
@@ -390,7 +392,7 @@ class AsaasSyncService:
             logger.exception(f"Erro ao processar webhook: {e}")
             return {
                 "success": False,
-                "error": str(e),
+                "error": ERR_ASAAS_SYNC,
             }
 
     def _cobranca_asaas_em_aberto(self, loja):
@@ -549,7 +551,7 @@ class AsaasSyncService:
             remoto = client.get_payment(payment_id)
         except Exception as exc:
             logger.exception("Falha ao consultar boleto Asaas %s", payment_id)
-            return {"success": False, "error": f"Não foi possível consultar o boleto no Asaas: {exc}"}
+            return {"success": False, "error": ERR_ASAAS}
 
         status_asaas = (remoto.get("status") or "").upper()
         if status_asaas in ("RECEIVED", "CONFIRMED", "RECEIVED_IN_CASH"):
@@ -560,7 +562,7 @@ class AsaasSyncService:
                 baixa = client.receive_payment_in_cash(payment_id, valor_baixa)
             except Exception as exc:
                 logger.exception("Falha ao dar baixa no boleto Asaas %s", payment_id)
-                return {"success": False, "error": f"Não foi possível dar baixa no boleto Asaas: {exc}"}
+                return {"success": False, "error": ERR_ASAAS}
             if isinstance(baixa, dict) and not baixa.get("status"):
                 baixa["status"] = "RECEIVED_IN_CASH"
         else:
@@ -730,7 +732,7 @@ class AsaasSyncService:
             return {
                 "success": True,
                 "boleto_url": url,
-                "message": f"Boleto emitido, mas o e-mail não saiu: {exc}",
+                "message": "Boleto emitido, mas o e-mail não saiu. Tente reenviar.",
             }
         if not ok:
             return {"success": True, "boleto_url": url, "message": f"Boleto emitido. {destino}"}
@@ -750,7 +752,7 @@ class AsaasSyncService:
             ok, destino = self._enviar_email_boleto(loja, url, aberto.get("vencimento"))
         except Exception as exc:
             logger.exception("Falha ao reenviar boleto: loja=%s", loja.slug)
-            return {"success": False, "error": f"Não foi possível reenviar o boleto: {exc}"}
+            return {"success": False, "error": ERR_ASAAS_SYNC}
         if not ok:
             return {"success": False, "error": destino}
         logger.info("Boleto reenviado: loja=%s destino=%s", loja.slug, mask_email(destino))
@@ -881,7 +883,7 @@ class AsaasSyncService:
             logger.exception(f"Erro ao processar pagamento confirmado: {e}")
             return {
                 "success": False,
-                "error": str(e),
+                "error": ERR_ASAAS_SYNC,
             }
 
     def _process_card_registration(self, financeiro, payment_data):
@@ -926,7 +928,7 @@ class AsaasSyncService:
             logger.exception(f"Erro ao processar cadastro de cartão: {e}")
             return {
                 "success": False,
-                "error": str(e),
+                "error": ERR_ASAAS_SYNC,
             }
 
     def _enviar_email_senha_acesso(self, loja):
@@ -1393,5 +1395,5 @@ Equipe LWK Sistemas
         except Exception as e:
             logger.error(f"Erro ao obter estatísticas: {e}")
             return {
-                "error": str(e),
+                "error": ERR_ASAAS_SYNC,
             }

@@ -9,6 +9,8 @@ from .models import AsaasConfig, AsaasPayment, LojaAssinatura
 
 logger = logging.getLogger(__name__)
 
+from nfse_integration.mensagens_erro import ERR_ASAAS_MANUTENCAO
+
 class AsaasDeletionService:
     """Serviço para exclusão de dados no Asaas"""
 
@@ -84,7 +86,7 @@ class AsaasDeletionService:
             logger.error(f"❌ Erro ao excluir dados Asaas da loja {loja_slug}: {e}")
             return {
                 "success": False,
-                "error": str(e),
+                "error": ERR_ASAAS_MANUTENCAO,
                 "loja_slug": loja_slug,
             }
 
@@ -235,5 +237,5 @@ class AsaasDeletionService:
             logger.error(f"❌ Erro na limpeza de dados órfãos: {e}")
             return {
                 "success": False,
-                "error": str(e),
+                "error": ERR_ASAAS_MANUTENCAO,
             }

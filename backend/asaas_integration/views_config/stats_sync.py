@@ -14,6 +14,8 @@ from ._common import IsSuperAdmin
 
 logger = logging.getLogger(__name__)
 
+from nfse_integration.mensagens_erro import ERR_ASAAS_SYNC
+
 @api_view(["GET"])
 @permission_classes([IsSuperAdmin])
 def asaas_stats(request):
@@ -59,7 +61,7 @@ def asaas_stats(request):
     except Exception as e:
         logger.error(f"Erro ao obter estatísticas Asaas: {e}")
         return Response(
-            {"detail": f"Erro ao obter estatísticas: {e!s}"},
+            {"detail": ERR_ASAAS_SYNC},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
@@ -99,7 +101,7 @@ def asaas_sync(request):
         logger.error(f"Erro na sincronização manual: {e}")
         return Response({
             "success": False,
-            "error": str(e),
+            "error": ERR_ASAAS_SYNC,
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -122,7 +124,7 @@ def asaas_sync_stats(request):
     except Exception as e:
         logger.error(f"Erro ao obter estatísticas: {e}")
         return Response({
-            "error": str(e),
+            "error": ERR_ASAAS_SYNC,
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 @csrf_exempt
@@ -170,7 +172,7 @@ def asaas_sync_realtime(request):
             except Exception as e:
                 return Response({
                     "success": False,
-                    "error": str(e),
+                    "error": ERR_ASAAS_SYNC,
                 }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         elif loja_slug:
@@ -196,7 +198,7 @@ def asaas_sync_realtime(request):
         logger.error(f"Erro na sincronização em tempo real: {e}")
         return Response({
             "success": False,
-            "error": str(e),
+            "error": ERR_ASAAS_SYNC,
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 

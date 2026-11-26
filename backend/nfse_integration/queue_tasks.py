@@ -60,9 +60,10 @@ def run_emissao_nfse_loja(loja_id: int, validated_data: dict) -> None:
 
     close_old_connections()
     token = nfse_sync_only.set(True)
-    dados = deserialize_validated_data(validated_data)
+    dados: dict = validated_data if isinstance(validated_data, dict) else {}
     tenant_ok = False
     try:
+        dados = deserialize_validated_data(validated_data)
         loja = Loja.objects.using("default").filter(id=loja_id).first()
         if not loja:
             logger.warning("NFS-e fila loja: loja_id=%s não encontrada", loja_id)

@@ -236,7 +236,7 @@ class NacionalClient:
 
         except Exception as e:
             logger.exception("NFS-e Nacional: erro inesperado: %s", e)
-            result["error"] = str(e)
+            result["error"] = "Falha interna na emissão da NFS-e Nacional"
 
         return result
 
@@ -298,14 +298,16 @@ class NacionalClient:
             }
 
         except req.exceptions.SSLError as e:
+            logger.error("NFS-e Nacional: teste mTLS SSL: %s", e)
             return {
                 "success": False,
-                "detail": f"Erro SSL/mTLS: certificado pode estar inválido ou expirado. {e}",
+                "detail": "Erro SSL/mTLS: certificado pode estar inválido ou expirado.",
             }
         except Exception as e:
+            logger.exception("NFS-e Nacional: teste mTLS falhou: %s", e)
             return {
                 "success": False,
-                "detail": f"Erro ao testar conexão: {e}",
+                "detail": "Erro ao testar conexão com a API Nacional",
             }
         finally:
             if cert_path or key_path:
@@ -336,6 +338,6 @@ class NacionalClient:
                 if compl:
                     msg += f" ({compl})"
                 msgs.append(msg)
-            else:
+            elif isinstance(e, (str, int)):
                 msgs.append(str(e))
         return "; ".join(msgs)

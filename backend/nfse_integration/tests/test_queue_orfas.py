@@ -47,3 +47,14 @@ class QueueOrfasTest(SimpleTestCase):
             run_emissao_nfse_loja(9, {"numero_rps_reservado": 3, "valor_servicos": "1"})
         marcar.assert_called_once()
         self.assertEqual(marcar.call_args.args[0], 9)
+
+    @patch("nfse_integration.sync_context.nfse_sync_only")
+    @patch(
+        "nfse_integration.queue_serialize.deserialize_validated_data",
+        side_effect=ValueError("payload inválido"),
+    )
+    def test_deserialize_falha_ainda_reseta_contexto(self, _deser, sync_only):
+        sync_only.set.return_value = "tok"
+        with self.assertRaises(ValueError):
+            run_emissao_nfse_loja(1, {"numero_rps_reservado": 1})
+        sync_only.reset.assert_called_once_with("tok")

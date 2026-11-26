@@ -71,7 +71,7 @@ class ReciboTituloProcedimentosTest(SimpleTestCase):
 
 class BaixarLogoSsrfTest(SimpleTestCase):
     def test_url_de_fora_nao_dispara_download(self):
-        with patch("clinica_beleza.pdf_common.logo.requests.get") as mock_get:
+        with patch("core.pdf_logo.requests.get") as mock_get:
             self.assertIsNone(baixar_logo("https://evil.example/logo.png"))
             self.assertIsNone(baixar_logo("http://127.0.0.1:6379/"))
             mock_get.assert_not_called()

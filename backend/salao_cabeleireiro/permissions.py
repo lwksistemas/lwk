@@ -32,7 +32,7 @@ def contexto_salao(request):
         resultado = (None, None)
         setattr(request, cache, resultado)
         return resultado
-    from clinica_beleza.views_base import resolve_loja_id_from_request
+    from core.loja_request import resolve_loja_id_from_request
 
     loja_id = resolve_loja_id_from_request(request)
     if not loja_id:

@@ -1,5 +1,5 @@
 """Gravação da nota de serviço e do cupom de produto. Não envia documento à SEFAZ."""
-from clinica_beleza.nfce.chave import digitos, dinheiro
+from core.fiscal_format import digitos, dinheiro
 from core.encryption import encrypt_value
 
 from .models_fiscal import SalaoNFSeConfig, SalaoNfceConfig

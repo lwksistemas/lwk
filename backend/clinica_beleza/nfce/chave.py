@@ -2,9 +2,9 @@
 from __future__ import annotations
 
 import hashlib
-import re
 import unicodedata
-from decimal import Decimal, ROUND_HALF_UP
+
+from core.fiscal_format import digitos, dinheiro  # noqa: F401
 
 NS_NFE = "http://www.portalfiscal.inf.br/nfe"
 UF_SP = "35"
@@ -31,13 +31,6 @@ TPAG = {
 }
 
 
-def digitos(valor, tamanho: int = 0) -> str:
-    texto = re.sub(r"\D", "", str(valor or ""))
-    if tamanho:
-        return texto.zfill(tamanho)[-tamanho:]
-    return texto
-
-
 def sem_acento(valor: str) -> str:
     base = unicodedata.normalize("NFKD", str(valor or ""))
     return "".join(ch for ch in base if not unicodedata.combining(ch))
@@ -46,10 +39,6 @@ def sem_acento(valor: str) -> str:
 def texto_fiscal(valor: str, limite: int) -> str:
     limpo = " ".join(sem_acento(valor).split())
     return (limpo or "NAO INFORMADO")[:limite]
-
-
-def dinheiro(valor) -> Decimal:
-    return Decimal(str(valor or 0)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 
 def digito_chave(base: str) -> str:

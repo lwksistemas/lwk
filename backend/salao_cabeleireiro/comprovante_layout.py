@@ -100,7 +100,7 @@ def _bytes_da_logo(url: str) -> bytes | None:
     if not texto:
         return None
     try:
-        from clinica_beleza.pdf_common.logo import baixar_logo
+        from core.pdf_logo import baixar_logo
 
         conteudo = baixar_logo(texto, timeout=8)
     except Exception:

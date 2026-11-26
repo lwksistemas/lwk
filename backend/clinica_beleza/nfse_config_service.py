@@ -1,8 +1,8 @@
 """Service layer para configuração de NFS-e da Clínica da Beleza.
 """
 import logging
-import os
-import tempfile
+
+from nfse_integration.issnet_teste import test_issnet_connection  # noqa: F401
 
 from .models import ClinicaBelezaNFSeConfig
 
@@ -16,73 +16,3 @@ def get_or_create_nfse_config(loja_id: int) -> ClinicaBelezaNFSeConfig:
         config = ClinicaBelezaNFSeConfig(loja_id=loja_id)
         config.save()
     return config
-
-
-def test_issnet_connection(request, config: ClinicaBelezaNFSeConfig) -> dict:
-    """Testa conexão com o WebService ISSNet usando certificado da loja.
-    Valida PFX/senha e tenta acessar o WSDL.
-    Retorna dict com 'success', 'message'/'detail'.
-    """
-    # Certificado: do upload ou do banco
-    from nfse_integration.certificado_armazenado import ler_pfx
-
-    cert_file = request.FILES.get("issnet_certificado")
-    if cert_file:
-        cert_data = cert_file.read()
-    else:
-        cert_data = ler_pfx(getattr(config, "issnet_certificado", None))
-
-    from core.encryption import decrypt_value
-
-    senha = (request.data.get("issnet_senha_certificado") or "").strip()
-    if not senha:
-        senha = decrypt_value(getattr(config, "issnet_senha_certificado", "") or "")
-
-    if not cert_data:
-        return {"success": False, "detail": "Certificado .pfx não configurado."}
-    if not senha:
-        return {"success": False, "detail": "Senha do certificado não informada."}
-
-    try:
-        from nfse_integration.issnet_client import testar_conexao_issnet
-
-        usuario = (
-            (request.data.get("issnet_usuario") or "").strip()
-            or getattr(config, "issnet_usuario", "") or ""
-        )
-        senha_ws = (request.data.get("issnet_senha") or "").strip() or decrypt_value(
-            getattr(config, "issnet_senha", "") or ""
-        )
-        ambiente = "homologacao" if getattr(config, "issnet_ambiente_homologacao", False) else "producao"
-
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".pfx") as tmp:
-            tmp.write(cert_data)
-            tmp_path = tmp.name
-
-        try:
-            resultado = testar_conexao_issnet(
-                usuario=usuario,
-                senha=senha_ws,
-                certificado_path=tmp_path,
-                senha_certificado=senha,
-                ambiente=ambiente,
-            )
-        finally:
-            os.unlink(tmp_path)
-
-        if resultado.get("success"):
-            return {
-                "success": True,
-                "message": resultado.get("message", "Conexão ISSNet OK."),
-                "ambiente": ambiente,
-            }
-        return {
-            "success": False,
-            "detail": resultado.get("detail", "Falha ao conectar ao ISSNet."),
-        }
-
-    except Exception as e:
-        from nfse_integration.mensagens_erro import ERR_ISSNet
-
-        logger.warning("test_issnet_connection (clinica_beleza): %s", e)
-        return {"success": False, "detail": ERR_ISSNet}

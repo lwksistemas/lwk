@@ -122,7 +122,7 @@ class LojaInfoView(APIView):
         return [IsAuthenticated(), IsSalaoMembro()]
 
     def get(self, request):
-        from clinica_beleza.utils import LojaContextHelper
+        from core.loja_context import LojaContextHelper
 
         info = LojaContextHelper.get_loja_owner_info()
         if info is None:
@@ -130,6 +130,6 @@ class LojaInfoView(APIView):
         return Response(info)
 
     def patch(self, request):
-        from clinica_beleza.loja_contato_api import patch_contato_loja
+        from core.loja_contato_api import patch_contato_loja
 
         return patch_contato_loja(request)

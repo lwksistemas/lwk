@@ -117,7 +117,7 @@ def _linhas_preview(parsed: dict) -> list[dict]:
 
 
 def preview_xml(xml_bytes: bytes, loja) -> dict:
-    from clinica_beleza.estoque_xml_import_service import parse_nfe_xml
+    from core.nfe.xml_parser import parse_nfe_xml
 
     parsed = parse_nfe_xml(xml_bytes)
     return {
@@ -277,9 +277,8 @@ def ignorar_nota(nota_id: int) -> None:
 def _credencial(loja):
     from core.cpf_utils import eh_cnpj, normalizar_cpf_cnpj
     from core.encryption import decrypt_value
+    from core.nfe.sefaz import SefazNfeErro, pem_do_pfx
     from nfse_integration.certificado_armazenado import ler_pfx
-
-    from clinica_beleza.estoque_nfe_sefaz import SefazNfeErro, pem_do_pfx
 
     from .models_fiscal import SalaoNFSeConfig
 
@@ -313,7 +312,7 @@ def _pode_consultar(estado) -> bool:
 
 
 def sincronizar_loja(loja) -> dict:
-    from clinica_beleza.estoque_nfe_sefaz import (
+    from core.nfe.sefaz import (
         SefazNfeErro,
         classificar_documento,
         consultar_distribuicao,

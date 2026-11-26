@@ -4,7 +4,7 @@ from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from clinica_beleza.nfse_config_service import test_issnet_connection
+from nfse_integration.issnet_teste import test_issnet_connection
 from tenants.middleware import get_current_loja_id
 
 from .fiscal_serializers import SalaoNFSeConfigSerializer

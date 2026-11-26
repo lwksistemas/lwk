@@ -13,6 +13,7 @@ from superadmin.models import Loja
 from tenants.middleware import get_current_loja_id, get_current_tenant_db
 
 from .emissao import ContaTomadorNaoEncontrada
+from .mensagens_erro import ERR_NFSE_OPERACAO, ERR_NFSE_PDF
 from .loja_nfse_api import (
     ExclusaoNFSeLojaError,
     ReenvioNFSeLojaError,
@@ -264,7 +265,7 @@ class NFSeViewSet(viewsets.ReadOnlyModelViewSet):
         except Exception as e:
             logger.exception("Erro ao gerar PDF da NFS-e: %s", e)
             return Response(
-                {"error": f"Erro ao gerar PDF: {e!s}"},
+                {"error": ERR_NFSE_PDF},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
@@ -388,6 +389,6 @@ class NFSeViewSet(viewsets.ReadOnlyModelViewSet):
         except Exception as e:
             logger.exception("Erro ao excluir NFS-e id=%s: %s", pk, e)
             return Response(
-                {"error": f"Erro ao excluir NFS-e: {e!s}"},
+                {"error": ERR_NFSE_OPERACAO},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )

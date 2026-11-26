@@ -19,3 +19,9 @@ ERR_ISSNet_XML = "XML inválido na resposta do ISSNet"
 ERR_ESTOQUE_XML = "XML de entrada inválido. Verifique o arquivo."
 ERR_WHATSAPP_ENVIO = "Não foi possível enviar pelo WhatsApp. Tente novamente."
 ERR_EMAIL_ENVIO = "Não foi possível enviar o e-mail. Tente novamente."
+ERR_NFSE_OPERACAO = (
+    "Não foi possível concluir a operação da nota. Tente de novo. Se repetir, avise o suporte."
+)
+ERR_PDF = "Não foi possível gerar o PDF. Tente novamente."
+ERR_RELATORIO = "Não foi possível gerar o relatório. Tente novamente."
+ERR_CONFIG = "Não foi possível carregar a configuração. Tente novamente."

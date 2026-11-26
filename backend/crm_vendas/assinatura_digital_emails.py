@@ -63,8 +63,10 @@ def enviar_email_assinatura_cliente(documento, assinatura, request):
 
         return True, None
     except Exception as e:
+        from nfse_integration.mensagens_erro import ERR_EMAIL_ENVIO
+
         logger.exception(f"Erro ao enviar email de assinatura para cliente: {e}")
-        return False, str(e)
+        return False, ERR_EMAIL_ENVIO
 
 
 def enviar_email_assinatura_vendedor(documento, assinatura, request):
@@ -115,8 +117,10 @@ def enviar_email_assinatura_vendedor(documento, assinatura, request):
 
         return True, None
     except Exception as e:
+        from nfse_integration.mensagens_erro import ERR_EMAIL_ENVIO
+
         logger.exception(f"Erro ao enviar email de assinatura para vendedor: {e}")
-        return False, str(e)
+        return False, ERR_EMAIL_ENVIO
 
 
 def enviar_pdf_final(documento, loja_id):
@@ -187,8 +191,10 @@ def enviar_pdf_final(documento, loja_id):
                 destinatarios,
             )
         except Exception as e:
+            from nfse_integration.mensagens_erro import ERR_EMAIL_ENVIO
+
             logger.exception("Erro ao enviar PDF final: %s", e)
-            email_err = str(e)
+            email_err = ERR_EMAIL_ENVIO
     else:
         email_err = "Nenhum destinatário com email cadastrado."
 
@@ -197,8 +203,10 @@ def enviar_pdf_final(documento, loja_id):
     try:
         whats_ok, whats_err = enviar_whatsapp_pdf_assinado(documento, loja_id, pdf_bytes, tipo_doc)
     except Exception as e:
+        from nfse_integration.mensagens_erro import ERR_WHATSAPP_ENVIO
+
         logger.exception("Erro ao enviar PDF assinado por WhatsApp: %s", e)
-        whats_ok, whats_err = False, str(e)
+        whats_ok, whats_err = False, ERR_WHATSAPP_ENVIO
 
     if email_ok or whats_ok:
         return True, None

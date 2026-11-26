@@ -209,9 +209,11 @@ def crm_config_asaas_test(request):
     try:
         cfg = _get_crm_config_for_loja(loja_id)
     except Exception as e:
+        from nfse_integration.mensagens_erro import ERR_CONFIG
+
         logger.exception("crm_config_asaas_test: config")
         return Response(
-            {"success": False, "detail": f"Erro ao carregar configuração: {e}"},
+            {"success": False, "detail": ERR_CONFIG},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
@@ -280,7 +282,10 @@ def crm_config_issnet_test(request):
     try:
         cfg = _get_crm_config_for_loja(loja_id)
     except Exception as e:
-        return Response({"success": False, "detail": str(e)}, status=500)
+        from nfse_integration.mensagens_erro import ERR_CONFIG
+
+        logger.exception("crm_config_issnet_test: config: %s", e)
+        return Response({"success": False, "detail": ERR_CONFIG}, status=500)
 
     # Certificado: do upload ou do banco
     from nfse_integration.certificado_armazenado import ler_pfx
@@ -342,5 +347,7 @@ def crm_config_issnet_test(request):
         }, status=400)
 
     except Exception as e:
+        from nfse_integration.mensagens_erro import ERR_ISSNet
+
         logger.warning("crm_config_issnet_test: %s", e)
-        return Response({"success": False, "detail": str(e)}, status=400)
+        return Response({"success": False, "detail": ERR_ISSNet}, status=400)

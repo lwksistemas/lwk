@@ -94,8 +94,10 @@ def gerar_boleto_comissao(relatorio):
         return True, None
 
     except Exception as e:
+        from nfse_integration.mensagens_erro import ERR_ASAAS_COBRANCA
+
         logger.exception("Erro ao gerar boleto: %s", e)
-        return False, str(e)
+        return False, ERR_ASAAS_COBRANCA
 
 
 def emitir_nfse_comissao_sync(relatorio_id: int, loja_id: int) -> None:

@@ -433,8 +433,10 @@ def enviar_pdf_final(adapter: AssinaturaAdapter, documento, loja_id: int) -> tup
         pdf_buffer.seek(0)
         pdf_bytes = pdf_buffer.read()
     except Exception as e:
+        from nfse_integration.mensagens_erro import ERR_PDF
+
         logger.exception(f"Erro ao gerar PDF final: {e}")
-        return False, f"Erro ao gerar PDF: {e}"
+        return False, ERR_PDF
 
     filename = f'{tipo_doc.lower().replace(" ", "_")}_{titulo or documento.id}_assinado.pdf'
 
@@ -464,8 +466,10 @@ def _enviar_email(subject, html, texto_fallback, to, loja_nome, pdf_bytes=None, 
         logger.info(f'Email enviado: subject="{subject}", to={to}')
         return True, None
     except Exception as e:
+        from nfse_integration.mensagens_erro import ERR_EMAIL_ENVIO
+
         logger.exception(f"Erro ao enviar email: {e}")
-        return False, str(e)
+        return False, ERR_EMAIL_ENVIO
 
 
 # ---------------------------------------------------------------------------

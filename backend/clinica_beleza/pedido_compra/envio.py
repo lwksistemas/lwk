@@ -99,8 +99,10 @@ já assinado pelo profissional responsável, para processamento junto à sua emp
         send_prepared(msg, fail_silently=False)
         return {"sucesso": True}
     except Exception as exc:
+        from nfse_integration.mensagens_erro import ERR_EMAIL_ENVIO
+
         logger.warning("Falha e-mail PDF pedido #%s: %s", pedido.numero, exc)
-        return {"sucesso": False, "erro": str(exc)}
+        return {"sucesso": False, "erro": ERR_EMAIL_ENVIO}
 
 
 def _enviar_pdf_whatsapp(pedido: PedidoCompra, pdf_bytes: bytes) -> dict:
@@ -159,8 +161,10 @@ def _enviar_pdf_whatsapp(pedido: PedidoCompra, pdf_bytes: bytes) -> dict:
             logger.warning("PDF pedido via WhatsApp falhou (texto já enviado): %s", pdf_err)
         return {"sucesso": True}
     except Exception as exc:
+        from nfse_integration.mensagens_erro import ERR_WHATSAPP_ENVIO
+
         logger.warning("Falha WhatsApp PDF pedido #%s: %s", pedido.numero, exc)
-        return {"sucesso": False, "erro": str(exc)}
+        return {"sucesso": False, "erro": ERR_WHATSAPP_ENVIO}
 
 
 def pdf_publico_cache(pedido_id: int, token: str) -> bytes | None:

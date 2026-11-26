@@ -152,7 +152,9 @@ def gerar_relatorio(request):
 
     except Exception as e:
         logger.exception(f"Erro ao gerar relatório: {e}")
-        return Response({"detail": f"Erro ao gerar relatório: {e!s}"}, status=500)
+        from nfse_integration.mensagens_erro import ERR_RELATORIO
+
+        return Response({"detail": ERR_RELATORIO}, status=500)
 
 
 

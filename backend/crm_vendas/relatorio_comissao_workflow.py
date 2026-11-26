@@ -150,8 +150,10 @@ def enviar_relatorio_para_empresa(relatorio, loja):
         )
         return True, None
     except Exception as e:
+        from nfse_integration.mensagens_erro import ERR_EMAIL_ENVIO
+
         logger.exception("Erro ao enviar relatório: %s", e)
-        return False, str(e)
+        return False, ERR_EMAIL_ENVIO
 
 
 def aprovar_relatorio(relatorio, nome_aprovador: str, ip: str):

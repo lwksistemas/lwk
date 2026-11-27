@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
-import { Layers, Plus, Search, Trash2 } from "lucide-react";
+import { Layers, Plus, Search, Trash2, X } from "lucide-react";
 import { precoProcedimento } from "@/lib/convenio-precos";
 import { entityName, procedureDuration, procedurePrice } from "@/lib/clinica-beleza-entities";
 import {
@@ -14,6 +14,12 @@ import {
 import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
 import { formatCurrency } from "@/lib/financeiro-helpers";
 import { useClinicaBelezaTheme } from "@/components/clinica-beleza/ClinicaBelezaThemeContext";
+import {
+  estadoAposAdicionarProcedimento,
+  estadoFecharListaDisponiveis,
+  estadoToggleCategoria,
+  mostrarListaDisponiveis,
+} from "@/components/clinica-beleza/procedure-picker-state";
 
 export interface ProcedureOption {
   id: number;
@@ -65,8 +71,11 @@ export function ProcedureMultiSelect({
   const catalog = categoriasCatalog ?? catalogLoaded;
   const [categoriaAtiva, setCategoriaAtiva] = useState("");
   const [busca, setBusca] = useState("");
+  const [listaAberta, setListaAberta] = useState(false);
   const [maisCategoriasAberto, setMaisCategoriasAberto] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+
+  const filterState = { categoriaAtiva, busca, listaAberta };
 
   useEffect(() => {
     if (categoriasCatalog || !lojaSlug) return;
@@ -110,7 +119,7 @@ export function ProcedureMultiSelect({
   const chipsPrincipais = categoriasDisponiveis.slice(0, CHIPS_VISIVEIS);
   const chipsExtras = categoriasDisponiveis.slice(CHIPS_VISIVEIS);
 
-  const mostrarDisponiveis = Boolean(categoriaAtiva || busca.trim());
+  const mostrarDisponiveis = mostrarListaDisponiveis(filterState);
 
   const disponiveis = useMemo(() => {
     if (!mostrarDisponiveis) return [];
@@ -155,9 +164,26 @@ export function ProcedureMultiSelect({
         : "border-[#E9D5E3] dark:border-neutral-600 text-gray-600 dark:text-gray-300 bg-white dark:bg-neutral-800"
     }`;
 
+  const aplicarFiltro = (next: typeof filterState) => {
+    setCategoriaAtiva(next.categoriaAtiva);
+    setBusca(next.busca);
+    setListaAberta(next.listaAberta);
+  };
+
   const adicionar = (id: number) => {
     onAdd(id);
-    setBusca("");
+    aplicarFiltro(estadoAposAdicionarProcedimento());
+    setMaisCategoriasAberto(false);
+  };
+
+  const fecharLista = () => {
+    aplicarFiltro(estadoFecharListaDisponiveis(filterState));
+    setMaisCategoriasAberto(false);
+  };
+
+  const ativarCategoria = (categoriaClicada: string) => {
+    aplicarFiltro(estadoToggleCategoria(filterState, categoriaClicada));
+    setMaisCategoriasAberto(false);
   };
 
   return (
@@ -175,9 +201,9 @@ export function ProcedureMultiSelect({
           <div className="flex min-w-0 flex-1 basis-0 items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-thin">
             <button
               type="button"
-              onClick={() => setCategoriaAtiva("")}
-              className={chipClass(!categoriaAtiva)}
-              style={!categoriaAtiva ? { backgroundColor: theme.primary } : undefined}
+              onClick={() => ativarCategoria("")}
+              className={chipClass(listaAberta && !categoriaAtiva)}
+              style={listaAberta && !categoriaAtiva ? { backgroundColor: theme.primary } : undefined}
             >
               Todas
             </button>
@@ -185,7 +211,7 @@ export function ProcedureMultiSelect({
               <button
                 key={cat.value}
                 type="button"
-                onClick={() => setCategoriaAtiva(cat.value)}
+                onClick={() => ativarCategoria(cat.value)}
                 className={chipClass(categoriaAtiva === cat.value)}
                 style={categoriaAtiva === cat.value ? { backgroundColor: theme.primary } : undefined}
               >
@@ -216,10 +242,7 @@ export function ProcedureMultiSelect({
                   <button
                     key={cat.value}
                     type="button"
-                    onClick={() => {
-                      setCategoriaAtiva(cat.value);
-                      setMaisCategoriasAberto(false);
-                    }}
+                    onClick={() => ativarCategoria(cat.value)}
                     className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs hover:bg-gray-50 dark:hover:bg-neutral-800"
                   >
                     {cat.label} ({cat.count})
@@ -236,10 +259,24 @@ export function ProcedureMultiSelect({
         <input
           type="search"
           value={busca}
-          onChange={(e) => setBusca(e.target.value)}
+          onChange={(e) => {
+            const value = e.target.value;
+            setBusca(value);
+            if (value.trim()) setListaAberta(true);
+          }}
           placeholder="Buscar procedimento..."
-          className="w-full pl-8 pr-3 py-1.5 text-sm border border-[#E9D5E3] dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 min-h-[36px]"
+          className="w-full pl-8 pr-9 py-1.5 text-sm border border-[#E9D5E3] dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 min-h-[36px]"
         />
+        {busca || listaAberta ? (
+          <button
+            type="button"
+            onClick={fecharLista}
+            className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded text-gray-400 hover:text-gray-600"
+            aria-label="Fechar lista de procedimentos"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        ) : null}
       </div>
 
       {mostrarDisponiveis ? (

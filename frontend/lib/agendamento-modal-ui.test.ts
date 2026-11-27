@@ -5,6 +5,12 @@ import {
   formatTerminoPrevisto,
 } from "@/components/clinica-beleza/criar-agendamento/agendamento-resumo-format";
 import { iconeTipoAgenda } from "@/components/clinica-beleza/criar-agendamento/TipoAgendaButtons";
+import {
+  estadoAposAdicionarProcedimento,
+  estadoFecharListaDisponiveis,
+  estadoToggleCategoria,
+  mostrarListaDisponiveis,
+} from "@/components/clinica-beleza/procedure-picker-state";
 import { Layers, Stethoscope, RefreshCw } from "lucide-react";
 import { buildAgendaPatientSearchQuery } from "@/components/clinica-beleza/patient-quick-register/patient-quick-register-utils";
 
@@ -59,5 +65,39 @@ describe("buildAgendaPatientSearchQuery", () => {
     expect(buildAgendaPatientSearchQuery("Maria Silva")).toBe("Maria Silva");
     expect(buildAgendaPatientSearchQuery("(11) 99999-0000")).toBe("11999990000");
     expect(buildAgendaPatientSearchQuery("123.456.789-00")).toBe("12345678900");
+  });
+});
+
+describe("procedure picker — lista disponível", () => {
+  it("começa fechada sem categoria nem busca", () => {
+    expect(mostrarListaDisponiveis({ categoriaAtiva: "", busca: "", listaAberta: false })).toBe(false);
+  });
+
+  it("abre ao ativar categoria ou buscar", () => {
+    expect(
+      mostrarListaDisponiveis(estadoToggleCategoria({ categoriaAtiva: "", busca: "", listaAberta: false }, "facial")),
+    ).toBe(true);
+    expect(mostrarListaDisponiveis({ categoriaAtiva: "", busca: "botox", listaAberta: false })).toBe(true);
+  });
+
+  it("fecha e limpa após adicionar", () => {
+    expect(estadoAposAdicionarProcedimento()).toEqual({
+      categoriaAtiva: "",
+      busca: "",
+      listaAberta: false,
+    });
+  });
+
+  it("permite fechar sem selecionar e reabrir a mesma categoria", () => {
+    const aberto = estadoToggleCategoria({ categoriaAtiva: "", busca: "", listaAberta: false }, "facial");
+    expect(aberto).toEqual({ categoriaAtiva: "facial", busca: "", listaAberta: true });
+    expect(estadoFecharListaDisponiveis({ ...aberto, busca: "x" })).toEqual({
+      categoriaAtiva: "",
+      busca: "",
+      listaAberta: false,
+    });
+    const deNovo = estadoToggleCategoria({ categoriaAtiva: "", busca: "", listaAberta: false }, "facial");
+    expect(deNovo.listaAberta).toBe(true);
+    expect(estadoToggleCategoria(deNovo, "facial").listaAberta).toBe(false);
   });
 });

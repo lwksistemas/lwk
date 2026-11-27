@@ -2,7 +2,8 @@ import { ClipboardList } from "lucide-react";
 import { ProcedureMultiSelect } from "@/components/clinica-beleza/ProcedureMultiSelect";
 import { procedimentosSemCategoriaProtocolo } from "@/hooks/clinica-beleza/criar-agendamento/criar-agendamento-builders";
 import type { UseCriarAgendamentoReturn } from "@/hooks/clinica-beleza/useCriarAgendamento";
-import { AgendamentoResumoCard } from "./AgendamentoResumoCard";
+import { calcularDuracaoAgendamento } from "@/lib/clinica-beleza-duracao";
+import { AgendamentoResumoCard, formatRetornoResumoCompact } from "./AgendamentoResumoCard";
 import { AgendamentoSectionCard } from "./AgendamentoSectionCard";
 import { CriarAgendamentoAdvancedSection } from "./CriarAgendamentoAdvancedSection";
 
@@ -31,6 +32,12 @@ type Props = Pick<
   | "verificandoRetorno"
   | "protocoloSelecionado"
   | "protocoloCliente"
+  | "time"
+  | "professionalId"
+  | "professionals"
+  | "localAtendimentoId"
+  | "locaisAtendimento"
+  | "localUnico"
 >;
 
 export function CriarAgendamentoDireitaSection({
@@ -57,21 +64,26 @@ export function CriarAgendamentoDireitaSection({
   verificandoRetorno,
   protocoloSelecionado,
   protocoloCliente,
+  time,
+  professionalId,
+  professionals,
+  localAtendimentoId,
+  locaisAtendimento,
+  localUnico,
 }: Props) {
   const proceduresDoHorario = procedimentosSemCategoriaProtocolo(procedures);
   const taxaZerada = Boolean(retornoInfo?.elegivel);
-  const retornoTexto =
-    retornoInfo?.elegivel && retornoInfo.mensagem
-      ? retornoInfo.mensagem
-      : retornoInfo?.elegivel
-        ? "Retorno gratuito"
-        : "Não informado";
+  const retornoTexto = formatRetornoResumoCompact(retornoInfo);
 
-  const duracaoMinutos =
-    protocoloCliente?.tempo_minutos ||
-    protocoloSelecionado?.tempo_estimado ||
-    resumo.duracao ||
+  const prof = professionals.find((p) => p.id === professionalId) || null;
+  const local =
+    localUnico ||
+    locaisAtendimento.find((l) => l.id === localAtendimentoId) ||
+    null;
+  const duracaoBase =
+    Number(protocoloCliente?.tempo_minutos || protocoloSelecionado?.tempo_estimado || resumo.duracao || 0) ||
     0;
+  const duracaoMinutos = calcularDuracaoAgendamento(duracaoBase, prof, local);
 
   return (
     <div className="space-y-2">
@@ -97,7 +109,8 @@ export function CriarAgendamentoDireitaSection({
         procedimentosValor={agendaEhProtocolo ? 0 : resumo.valor}
         procedimentosCount={agendaEhProtocolo ? 0 : selectedProcedures.length}
         totalEstimado={totalEstimado}
-        duracaoMinutos={Number(duracaoMinutos) || 0}
+        duracaoMinutos={duracaoMinutos}
+        horarioInicio={time}
         retornoTexto={retornoTexto}
       >
         <CriarAgendamentoAdvancedSection

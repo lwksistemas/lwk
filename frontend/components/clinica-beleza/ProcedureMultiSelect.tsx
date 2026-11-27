@@ -149,7 +149,7 @@ export function ProcedureMultiSelect({
   const dica = hint ?? (optional ? "(opcional)" : "");
 
   const chipClass = (ativo: boolean) =>
-    `shrink-0 px-2.5 py-1 rounded-full text-xs font-medium border transition-colors whitespace-nowrap ${
+    `shrink-0 px-2.5 py-1 rounded-full text-[13px] font-medium border transition-colors whitespace-nowrap ${
       ativo
         ? "text-white border-transparent"
         : "border-[#E9D5E3] dark:border-neutral-600 text-gray-600 dark:text-gray-300 bg-white dark:bg-neutral-800"
@@ -260,16 +260,16 @@ export function ProcedureMultiSelect({
                   className="w-full flex items-center gap-2.5 px-2.5 py-1.5 text-left hover:bg-gray-50 dark:hover:bg-neutral-800 min-h-[44px]"
                 >
                   <span className="min-w-0 flex-1">
-                    <span className="block text-[13px] font-semibold text-gray-900 dark:text-gray-100 truncate">
+                    <span className="block text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">
                       {stripCategoriaPrefixFromNome(entityName(p), slug, catalog)}
                     </span>
-                    <span className="text-[11px] text-slate-500">
+                    <span className="text-xs text-slate-500">
                       {procedureCategoriaLabel(slug, catalog)}
                       {dur > 0 ? ` · ${dur} min` : ""}
                     </span>
                   </span>
                   {valor > 0 ? (
-                    <span className="text-[12px] font-bold shrink-0" style={{ color: theme.primary }}>
+                    <span className="text-[13px] font-bold shrink-0" style={{ color: theme.primary }}>
                       {formatCurrency(valor)}
                     </span>
                   ) : null}
@@ -289,7 +289,7 @@ export function ProcedureMultiSelect({
 
       {selecionados.length > 0 ? (
         <div className={`space-y-1 ${mostrarDisponiveis ? "mt-0.5" : ""}`}>
-          <p className="text-[11px] font-medium text-slate-500 dark:text-gray-400">
+          <p className="text-xs font-medium text-slate-500 dark:text-gray-400">
             Procedimentos selecionados ({selecionados.length})
           </p>
           <div className="max-h-[118px] overflow-y-auto space-y-1.5 pr-0.5">
@@ -310,16 +310,16 @@ export function ProcedureMultiSelect({
                     <Layers className="h-3.5 w-3.5" />
                   </span>
                   <div className="min-w-0 flex-1">
-                    <p className="text-[13px] font-semibold text-gray-900 dark:text-gray-100 truncate leading-tight">
+                    <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate leading-tight">
                       {stripCategoriaPrefixFromNome(entityName(proc), slug, catalog)}
                     </p>
-                    <p className="text-[11px] text-slate-500 dark:text-gray-400 truncate mt-0.5">
+                    <p className="text-xs text-slate-500 dark:text-gray-400 truncate mt-0.5">
                       {procedureCategoriaLabel(slug, catalog)}
                       {dur > 0 ? ` · ${dur} min` : ""}
                     </p>
                   </div>
                   {valorProc > 0 ? (
-                    <span className="text-[13px] font-bold shrink-0 tabular-nums" style={{ color: theme.primary }}>
+                    <span className="text-sm font-bold shrink-0 tabular-nums" style={{ color: theme.primary }}>
                       {formatCurrency(valorProc)}
                     </span>
                   ) : null}
@@ -337,7 +337,7 @@ export function ProcedureMultiSelect({
           </div>
         </div>
       ) : optional && !mostrarDisponiveis ? (
-        <p className="text-[11px] leading-snug text-slate-500 dark:text-gray-400">
+        <p className="text-xs leading-snug text-slate-500 dark:text-gray-400">
           Categoria ou busca para adicionar · opcional na consulta.
         </p>
       ) : null}

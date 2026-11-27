@@ -62,7 +62,7 @@ export function PatientQuickRegisterField(props: PatientQuickRegisterFieldProps)
               {entityName(selecionado)}
             </p>
             {metaPaciente(selecionado) ? (
-              <p className="text-[11px] text-slate-500 dark:text-gray-400 truncate mt-0.5">
+              <p className="text-xs text-slate-500 dark:text-gray-400 truncate mt-0.5">
                 {metaPaciente(selecionado)}
               </p>
             ) : null}

@@ -80,9 +80,6 @@ class MigrateAllLojasExitCodeTest(SimpleTestCase):
             "superadmin.tenant_deploy.filtrar_apps_loja",
             return_value=["crm_vendas"],
         ), patch(
-            "superadmin.tenant_deploy.deve_rodar_fix_colunas_crm",
-            return_value=False,
-        ), patch(
             "tenants.middleware.set_current_tenant_db",
         ), patch(
             "tenants.middleware.set_current_loja_id",

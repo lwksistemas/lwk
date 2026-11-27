@@ -75,13 +75,6 @@ ENSURES_SO_DEPLOY_COMPLETO: tuple[str, ...] = (
     "setup_security_schedules",
 )
 
-FIX_COLUMNS_CRM: tuple[str, ...] = (
-    "fix_google_event_id_column",
-    "fix_duracao_minutos_column",
-    "fix_vendedor_column",
-)
-
-
 def parse_apps_option(values: list[str] | None) -> list[str]:
     """Aceita --apps clinica_beleza,whatsapp ou várias flags --apps."""
     if not values:
@@ -143,7 +136,3 @@ def ensures_para_apps(filtro_apps: list[str] | None, all_ensures: list[tuple[str
     return [(name, kwargs) for name, kwargs in all_ensures if name in allowed]
 
 
-def deve_rodar_fix_colunas_crm(filtro_apps: list[str] | None) -> bool:
-    if not filtro_apps:
-        return True
-    return "crm_vendas" in filtro_apps

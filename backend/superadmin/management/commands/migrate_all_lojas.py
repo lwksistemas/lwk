@@ -35,7 +35,6 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         from superadmin.tenant_deploy import (
-            deve_rodar_fix_colunas_crm,
             filtrar_apps_loja,
             parse_apps_option,
             slugs_tipo_que_usam_algum,
@@ -162,17 +161,6 @@ class Command(BaseCommand):
                 if loja.database_name in settings.DATABASES:
                     del settings.DATABASES[loja.database_name]
                     self.stdout.write("✅ Banco removido das configurações")
-
-        if deve_rodar_fix_colunas_crm(filtro_apps or None):
-            self.stdout.write(f"\n{'='*60}")
-            self.stdout.write("🔧 Verificando colunas em schemas com CRM...")
-            try:
-                call_command("fix_google_event_id_column", verbosity=1)
-                call_command("fix_duracao_minutos_column", verbosity=1)
-                call_command("fix_vendedor_column", verbosity=1)
-            except Exception as e:
-                falhas.append(f"fix_columns: {e}")
-                self.stdout.write(self.style.ERROR(f"  ❌ fix columns: {e}"))
 
         self.stdout.write(f"\n{'='*60}")
         if falhas:

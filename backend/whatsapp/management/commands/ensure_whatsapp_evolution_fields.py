@@ -31,6 +31,7 @@ COLUMNS = (
 
 ENVIO_TABLE = "whatsapp_whatsappconfirmacaoenvio"
 MIGRATION_CONFIRMACAO = "0008_confirmacao_antecedencias"
+MIGRATION_COBRANCA = "0009_whatsappconfig_mensagem_cobranca"
 
 
 class Command(BaseCommand):
@@ -116,7 +117,7 @@ class Command(BaseCommand):
             # migrate FORA do bloco de conexão aberta e após fechar o socket da loja,
             # para não deixar a conexão em estado que afete a próxima iteração.
             with contextlib.suppress(Exception):
-                call_command("migrate", "whatsapp", MIGRATION_CONFIRMACAO, database=db_name, verbosity=0)
+                call_command("migrate", "whatsapp", MIGRATION_COBRANCA, database=db_name, verbosity=0)
                 connections[db_name].close()
 
         self.stdout.write(self.style.SUCCESS(f"Concluído: {ok} loja(s) OK, {skip} pulada(s)."))

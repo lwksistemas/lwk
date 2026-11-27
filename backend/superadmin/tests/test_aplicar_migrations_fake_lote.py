@@ -23,6 +23,11 @@ class PrefixosCrmVendasTest(SimpleTestCase):
             ["crm_vendas_", "crm_financeiro_"],
         )
 
+    def test_salao_inclui_tabelas_fiscais_curtas(self):
+        esperado = ["salao_cabeleireiro_", "salao_nfse_config", "salao_nfce_config"]
+        self.assertEqual(_prefixos_tabela_app("salao_cabeleireiro"), esperado)
+        self.assertEqual(prefixos_tabela_para_app("salao_cabeleireiro"), esperado)
+
 
 class ContarTabelasAppTest(SimpleTestCase):
     def test_conta_com_multiplos_prefixos(self):

@@ -28,6 +28,7 @@ def prefixos_tabela_para_app(app_label: str) -> list[str]:
     contenttypes usa django_content_type (não contenttypes_*).
     auth usa auth_* (auth_permission, auth_group, etc).
     crm_vendas também cria crm_financeiro_* (models/financeiro.py).
+    salao_cabeleireiro também cria salao_nfse_config / salao_nfce_config (models_fiscal.py).
     """
     if app_label == "clinica_estetica":
         return ["clinica_"]
@@ -35,6 +36,8 @@ def prefixos_tabela_para_app(app_label: str) -> list[str]:
         return ["django_content_type"]
     if app_label == "crm_vendas":
         return ["crm_vendas_", "crm_financeiro_"]
+    if app_label == "salao_cabeleireiro":
+        return ["salao_cabeleireiro_", "salao_nfse_config", "salao_nfce_config"]
     return [f"{app_label}_"]
 
 
@@ -47,6 +50,10 @@ TABELAS_OBRIGATORIAS_POR_TIPO: dict[str, list[str]] = {
         "clinica_beleza_consulta_termo_procedimento",
         "clinica_beleza_orcamento_consulta",
         "clinica_beleza_orcamento_item",
+    ],
+    "salao-cabeleireiro": [
+        "salao_nfse_config",
+        "salao_nfce_config",
     ],
 }
 
@@ -95,7 +102,10 @@ ENSURE_COMANDOS_POR_TIPO.update(
             "ensure_assinatura_link_enviado_em",
             "ensure_whatsapp_evolution_fields",
         ],
-        "salao-cabeleireiro": [],
+        "salao-cabeleireiro": [
+            "ensure_salao_fiscal_config",
+            "ensure_salao_lembrete_schedule",
+        ],
     },
 )
 
@@ -103,6 +113,7 @@ ENSURE_COMANDOS_POR_TIPO.update(
 # Tabelas com prefixo fora do padrão do app, mas válidas para o tipo.
 TABELAS_PERMITIDAS_EXTRA_POR_TIPO: dict[str, frozenset[str]] = {
     "crm-vendas": frozenset({"crm_relatorio_comissao"}),
+    "salao-cabeleireiro": frozenset({"salao_nfse_config", "salao_nfce_config"}),
 }
 
 
@@ -187,7 +198,10 @@ def limpar_tabelas_extras_loja(loja) -> dict[str, Any]:
             or table == "crm_relatorio_comissao"
         ):
             apps_removidos.add("crm_vendas")
-        elif table.startswith("salao_cabeleireiro_"):
+        elif (
+            table.startswith("salao_cabeleireiro_")
+            or table in {"salao_nfse_config", "salao_nfce_config"}
+        ):
             apps_removidos.add("salao_cabeleireiro")
         elif table.startswith("whatsapp_"):
             apps_removidos.add("whatsapp")

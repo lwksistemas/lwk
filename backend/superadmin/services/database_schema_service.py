@@ -58,6 +58,9 @@ def _prefixos_tabela_app(app_label: str) -> list[str]:
     if app_label == "crm_vendas":
         # models/financeiro.py usa crm_financeiro_*; demais usam crm_vendas_*
         return ["crm_vendas_", "crm_financeiro_"]
+    if app_label == "salao_cabeleireiro":
+        # models_fiscal.py usa Meta.db_table curto (fora do prefixo do app)
+        return ["salao_cabeleireiro_", "salao_nfse_config", "salao_nfce_config"]
     return [f"{app_label}_"]
 
 
@@ -415,7 +418,11 @@ class DatabaseSchemaService:
             logger.warning(f"Nome de schema inválido: {schema_name}")
             return
 
-        app_prefixes = [f"{app}_" for app in apps_to_migrate]
+        app_prefixes: list[str] = []
+        for app in apps_to_migrate:
+            for p in _prefixos_tabela_app(app):
+                if p not in app_prefixes:
+                    app_prefixes.append(p)
 
         try:
             conn = connections[loja.database_name]

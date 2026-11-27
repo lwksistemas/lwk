@@ -66,6 +66,7 @@ ENSURES = [
     ("ensure_nfe_entrada_schedule", {}),
     ("ensure_caixa_fechamento_schedule", {}),
     ("ensure_capacidade_metricas_schedule", {}),
+    ("ensure_salao_fiscal_config", {}),
     ("ensure_salao_lembrete_schedule", {}),
     ("ensure_suporte_schema", {}),
     ("verificar_storage_lojas", {}),

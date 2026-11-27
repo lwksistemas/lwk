@@ -62,6 +62,7 @@ class TenantDeployFiltroTest(SimpleTestCase):
         self.assertEqual(names, ["ensure_clinica_beleza_consultas"])
         self.assertTrue("ensure_crm_config_colunas" in ENSURE_POR_APP["crm_vendas"])
         self.assertIn("ensure_orcamento_tables", ENSURE_POR_APP["clinica_beleza"])
+        self.assertIn("ensure_salao_fiscal_config", ENSURE_POR_APP["salao_cabeleireiro"])
 
     def test_apps_esperados_clinica_sem_crm(self):
         loja = SimpleNamespace(tipo_loja=SimpleNamespace(slug="clinica-beleza"))

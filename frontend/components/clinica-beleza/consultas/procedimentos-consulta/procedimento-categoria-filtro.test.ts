@@ -17,6 +17,18 @@ describe("listarCategoriasProcedimento", () => {
     expect(cards[0]).toEqual({ value: "soroterapia", label: "Soroterapia", count: 2 });
     expect(cards.map((c) => c.value)).toEqual(["soroterapia", "facial", "injetavel"]);
   });
+
+  it("usa o nome do catálogo em categorias customizadas", () => {
+    const cards = listarCategoriasProcedimento(
+      [{ id: 9, categoria: "ultrassom-microfocado-ultraformer" }],
+      [{ slug: "ultrassom-microfocado-ultraformer", nome: "ultraformer" }],
+    );
+    expect(cards[0]).toEqual({
+      value: "ultrassom-microfocado-ultraformer",
+      label: "ultraformer",
+      count: 1,
+    });
+  });
 });
 
 describe("filtrarProcedimentosPorCategoria", () => {

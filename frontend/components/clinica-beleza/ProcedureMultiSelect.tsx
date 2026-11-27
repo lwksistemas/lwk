@@ -1,17 +1,20 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useParams } from "next/navigation";
 import { Trash2 } from "lucide-react";
 import { precoProcedimento } from "@/lib/convenio-precos";
 import { entityName, procedureDuration, procedurePrice } from "@/lib/clinica-beleza-entities";
 import {
   PROCEDURE_CATEGORIA_OPTIONS,
+  type CategoriaCatalogItem,
   groupProceduresByCategoria,
   procedureCategoriaLabel,
   procedureItemCategoriaSlug,
   procedureSelectLabel,
   stripCategoriaPrefixFromNome,
 } from "@/lib/clinica-beleza-categories";
+import { ClinicaBelezaAPI } from "@/lib/clinica-beleza-api";
 
 export interface ProcedureOption {
   id: number;
@@ -38,6 +41,8 @@ interface Props {
   /** Substitui o rótulo padrão "Procedimentos". */
   label?: string;
   hint?: string;
+  /** Catálogo com nomes editados; se omitido, carrega de /procedures/categorias/. */
+  categoriasCatalog?: CategoriaCatalogItem[];
 }
 
 export function ProcedureMultiSelect({
@@ -51,8 +56,31 @@ export function ProcedureMultiSelect({
   optional = false,
   label,
   hint,
+  categoriasCatalog,
 }: Props) {
+  const params = useParams();
+  const lojaSlug = (params?.slug as string) || "";
+  const [catalogLoaded, setCatalogLoaded] = useState<CategoriaCatalogItem[]>([]);
+  const catalog = categoriasCatalog ?? catalogLoaded;
   const [categoriaAtiva, setCategoriaAtiva] = useState("");
+
+  useEffect(() => {
+    if (categoriasCatalog || !lojaSlug) return;
+    let cancelled = false;
+    void ClinicaBelezaAPI.procedures.categorias
+      .list({ slug: lojaSlug })
+      .then((data) => {
+        if (!cancelled) {
+          setCatalogLoaded(Array.isArray(data) ? data : []);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setCatalogLoaded([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [categoriasCatalog, lojaSlug]);
 
   const categoriasDisponiveis = useMemo(() => {
     const counts = new Map<string, number>();
@@ -62,19 +90,23 @@ export function ProcedureMultiSelect({
       counts.set(slug, (counts.get(slug) || 0) + 1);
     }
     const cards: { value: string; label: string; count: number }[] = PROCEDURE_CATEGORIA_OPTIONS.filter((o) => (counts.get(o.value) || 0) > 0).map(
-      (o) => ({ value: o.value, label: o.label, count: counts.get(o.value) || 0 }),
+      (o) => ({
+        value: o.value,
+        label: procedureCategoriaLabel(o.value, catalog) || o.label,
+        count: counts.get(o.value) || 0,
+      }),
     );
     for (const [slug, count] of counts) {
       if (!cards.some((c) => c.value === slug)) {
         cards.push({
           value: slug,
-          label: procedureCategoriaLabel(slug) || slug,
+          label: procedureCategoriaLabel(slug, catalog) || slug,
           count,
         });
       }
     }
     return cards.sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
-  }, [procedures, selectedIds]);
+  }, [procedures, selectedIds, catalog]);
 
   const disponiveis = useMemo(() => {
     const base = procedures.filter((p) => !selectedIds.includes(p.id));
@@ -91,13 +123,13 @@ export function ProcedureMultiSelect({
   );
 
   const selecionadosAgrupados = useMemo(
-    () => groupProceduresByCategoria(selecionados),
-    [selecionados],
+    () => groupProceduresByCategoria(selecionados, catalog),
+    [selecionados, catalog],
   );
 
   const disponiveisAgrupados = useMemo(
-    () => groupProceduresByCategoria(disponiveis),
-    [disponiveis],
+    () => groupProceduresByCategoria(disponiveis, catalog),
+    [disponiveis, catalog],
   );
 
   const resumo = useMemo(() => {
@@ -179,7 +211,7 @@ export function ProcedureMultiSelect({
       >
         <option value="">
           {categoriaAtiva
-            ? `Adicionar de ${procedureCategoriaLabel(categoriaAtiva)}...`
+            ? `Adicionar de ${procedureCategoriaLabel(categoriaAtiva, catalog)}...`
             : "Adicionar procedimento por categoria..."}
         </option>
         {usarOptgroups
@@ -189,6 +221,7 @@ export function ProcedureMultiSelect({
                   <option key={p.id} value={p.id}>
                     {procedureSelectLabel(entityName(p), grupo.slug, {
                       includeCategorySuffix: false,
+                      catalog,
                     })}
                   </option>
                 ))}
@@ -198,6 +231,7 @@ export function ProcedureMultiSelect({
               <option key={p.id} value={p.id}>
                 {procedureSelectLabel(entityName(p), procedureItemCategoriaSlug(p), {
                   includeCategorySuffix: !categoriaAtiva,
+                  catalog,
                 })}
               </option>
             ))}
@@ -228,7 +262,7 @@ export function ProcedureMultiSelect({
                     >
                       <div className="text-sm">
                         <span className="font-medium text-gray-800 dark:text-gray-200">
-                          {stripCategoriaPrefixFromNome(entityName(proc), grupo.slug)}
+                          {stripCategoriaPrefixFromNome(entityName(proc), grupo.slug, catalog)}
                         </span>
                         <span className="text-gray-500 dark:text-gray-400 ml-2 text-xs">
                           {procedureDuration(proc)}min

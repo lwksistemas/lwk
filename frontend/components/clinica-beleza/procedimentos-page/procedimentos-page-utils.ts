@@ -120,13 +120,7 @@ export function labelCategoriaProcedimento(
   slug: string | undefined | null,
   catalog?: { slug: string; nome: string }[],
 ): string {
-  if (!slug) return "";
-  const resolved = resolveProcedureCategoriaSlug(slug);
-  const fromCatalog = catalog?.find(
-    (c) => c.slug === resolved || c.slug === slug,
-  );
-  if (fromCatalog?.nome) return fromCatalog.nome;
-  return procedureCategoriaLabel(slug);
+  return procedureCategoriaLabel(slug, catalog);
 }
 
 /** Cards da grade: catálogo da API, com fallback na lista hardcoded. */

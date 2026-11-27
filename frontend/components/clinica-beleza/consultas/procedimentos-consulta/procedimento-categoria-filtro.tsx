@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import {
   PROCEDURE_CATEGORIA_OPTIONS,
+  type CategoriaCatalogItem,
   procedureCategoriaLabel,
   procedureItemCategoriaSlug,
 } from "@/lib/clinica-beleza-categories";
@@ -11,20 +12,27 @@ export type CategoriaChip = { value: string; label: string; count: number };
 
 type ComCategoria = { categoria?: string | null; category?: string | null };
 
-export function listarCategoriasProcedimento<T extends ComCategoria>(itens: T[]): CategoriaChip[] {
+export function listarCategoriasProcedimento<T extends ComCategoria>(
+  itens: T[],
+  catalog?: CategoriaCatalogItem[],
+): CategoriaChip[] {
   const counts = new Map<string, number>();
   for (const p of itens) {
     const slug = procedureItemCategoriaSlug(p);
     counts.set(slug, (counts.get(slug) || 0) + 1);
   }
   const cards: CategoriaChip[] = PROCEDURE_CATEGORIA_OPTIONS.filter((o) => (counts.get(o.value) || 0) > 0).map(
-    (o) => ({ value: o.value, label: o.label, count: counts.get(o.value) || 0 }),
+    (o) => ({
+      value: o.value,
+      label: procedureCategoriaLabel(o.value, catalog) || o.label,
+      count: counts.get(o.value) || 0,
+    }),
   );
   for (const [slug, count] of counts) {
     if (!cards.some((c) => c.value === slug)) {
       cards.push({
         value: slug,
-        label: procedureCategoriaLabel(slug) || slug,
+        label: procedureCategoriaLabel(slug, catalog) || slug,
         count,
       });
     }
@@ -40,9 +48,15 @@ export function filtrarProcedimentosPorCategoria<T extends ComCategoria>(
   return itens.filter((p) => procedureItemCategoriaSlug(p) === categoriaAtiva);
 }
 
-export function useProcedimentoCategoriaFiltro<T extends ComCategoria>(itens: T[]) {
+export function useProcedimentoCategoriaFiltro<T extends ComCategoria>(
+  itens: T[],
+  catalog?: CategoriaCatalogItem[],
+) {
   const [categoriaAtiva, setCategoriaAtiva] = useState("");
-  const categoriasDisponiveis = useMemo(() => listarCategoriasProcedimento(itens), [itens]);
+  const categoriasDisponiveis = useMemo(
+    () => listarCategoriasProcedimento(itens, catalog),
+    [itens, catalog],
+  );
   const filtrados = useMemo(
     () => filtrarProcedimentosPorCategoria(itens, categoriaAtiva),
     [itens, categoriaAtiva],

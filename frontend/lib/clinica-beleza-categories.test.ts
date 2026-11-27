@@ -6,6 +6,7 @@ import {
 import {
   groupProceduresByCategoria,
   labelTipoAgendamento,
+  procedureCategoriaLabel,
   procedureSelectLabel,
   stripCategoriaPrefixFromNome,
 } from "@/lib/clinica-beleza-categories";
@@ -63,6 +64,24 @@ describe("groupProceduresByCategoria", () => {
     expect(grupos).toHaveLength(1);
     expect(grupos[0].slug).toBe("outro");
     expect(grupos[0].label).toBe("Outro");
+  });
+
+  it("usa o nome editado do catálogo no rótulo", () => {
+    const grupos = groupProceduresByCategoria(
+      [{ id: 1, nome: "HIFU", categoria: "ultrassom-microfocado-ultraformer" }],
+      [{ slug: "ultrassom-microfocado-ultraformer", nome: "ultraformer" }],
+    );
+    expect(grupos[0].label).toBe("ultraformer");
+  });
+});
+
+describe("procedureCategoriaLabel", () => {
+  it("prefere o nome do catálogo ao slug", () => {
+    expect(
+      procedureCategoriaLabel("laser-etherea", [
+        { slug: "laser-etherea", nome: "Laser Etherea" },
+      ]),
+    ).toBe("Laser Etherea");
   });
 });
 

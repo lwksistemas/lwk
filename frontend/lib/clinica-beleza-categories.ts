@@ -34,16 +34,29 @@ export function resolveProcedureCategoriaSlug(raw: string | undefined | null): s
   return norm;
 }
 
-export function procedureCategoriaLabel(slug: string | undefined | null): string {
+export type CategoriaCatalogItem = { slug: string; nome: string };
+
+/** Nome exibido: catálogo da API (renomeações) > opções fixas > slug. */
+export function procedureCategoriaLabel(
+  slug: string | undefined | null,
+  catalog?: CategoriaCatalogItem[],
+): string {
+  if (!slug) return "";
   const resolved = resolveProcedureCategoriaSlug(slug);
-  return PROCEDURE_CATEGORIA_OPTIONS.find((o) => o.value === resolved)?.label ?? slug ?? "";
+  const fromCatalog = catalog?.find((c) => c.slug === resolved || c.slug === slug);
+  if (fromCatalog?.nome) return fromCatalog.nome;
+  return PROCEDURE_CATEGORIA_OPTIONS.find((o) => o.value === resolved)?.label ?? slug;
 }
 
 /** Tira "Soroterapia — " do nome quando a categoria já é soroterapia. */
-export function stripCategoriaPrefixFromNome(nome: string, categoriaRaw?: string | null): string {
+export function stripCategoriaPrefixFromNome(
+  nome: string,
+  categoriaRaw?: string | null,
+  catalog?: CategoriaCatalogItem[],
+): string {
   const raw = (nome || "").trim();
   if (!raw) return raw;
-  const catLabel = procedureCategoriaLabel(categoriaRaw);
+  const catLabel = procedureCategoriaLabel(categoriaRaw, catalog);
   if (!catLabel) return raw;
   const escaped = catLabel.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const re = new RegExp(`^${escaped}\\s*[—\\-–:]\\s*`, "i");
@@ -55,11 +68,11 @@ export function stripCategoriaPrefixFromNome(nome: string, categoriaRaw?: string
 export function procedureSelectLabel(
   nome: string,
   categoriaRaw?: string | null,
-  opts?: { includeCategorySuffix?: boolean },
+  opts?: { includeCategorySuffix?: boolean; catalog?: CategoriaCatalogItem[] },
 ): string {
-  const stripped = stripCategoriaPrefixFromNome(nome, categoriaRaw);
+  const stripped = stripCategoriaPrefixFromNome(nome, categoriaRaw, opts?.catalog);
   if (!opts?.includeCategorySuffix) return stripped;
-  const catLabel = procedureCategoriaLabel(categoriaRaw);
+  const catLabel = procedureCategoriaLabel(categoriaRaw, opts?.catalog);
   if (!catLabel) return stripped;
   const already = stripped.toLowerCase().includes(catLabel.toLowerCase());
   if (already) return stripped;
@@ -124,7 +137,7 @@ export function procedureItemCategoriaSlug(item: {
 /** Agrupa procedimentos pela categoria cadastrada, na ordem dos chips do formulário. */
 export function groupProceduresByCategoria<
   T extends { categoria?: string | null; category?: string | null },
->(items: T[]): ProcedureCategoriaGroup<T>[] {
+>(items: T[], catalog?: CategoriaCatalogItem[]): ProcedureCategoriaGroup<T>[] {
   const order = PROCEDURE_CATEGORIA_OPTIONS.map((o) => o.value);
   const buckets = new Map<string, T[]>();
   for (const item of items) {
@@ -140,11 +153,14 @@ export function groupProceduresByCategoria<
       const ra = ia < 0 ? order.length : ia;
       const rb = ib < 0 ? order.length : ib;
       if (ra !== rb) return ra - rb;
-      return procedureCategoriaLabel(a).localeCompare(procedureCategoriaLabel(b), "pt-BR");
+      return procedureCategoriaLabel(a, catalog).localeCompare(
+        procedureCategoriaLabel(b, catalog),
+        "pt-BR",
+      );
     })
     .map(([slug, grouped]) => ({
       slug,
-      label: procedureCategoriaLabel(slug) || slug,
+      label: procedureCategoriaLabel(slug, catalog) || slug,
       items: grouped,
     }));
 }

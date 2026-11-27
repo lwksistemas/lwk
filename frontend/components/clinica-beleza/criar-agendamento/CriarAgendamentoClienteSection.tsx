@@ -64,7 +64,7 @@ export function CriarAgendamentoClienteSection({
   setSelectedProcedures,
 }: Props) {
   return (
-    <div className="space-y-4">
+    <div className="space-y-2.5">
       <AgendamentoSectionCard icon={UserRound} title="Paciente">
         <PatientQuickRegisterField
           variant="agenda"

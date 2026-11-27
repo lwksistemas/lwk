@@ -1,12 +1,10 @@
-import { ClipboardList, MessageSquareText } from "lucide-react";
+import { ClipboardList } from "lucide-react";
 import { ProcedureMultiSelect } from "@/components/clinica-beleza/ProcedureMultiSelect";
 import { procedimentosSemCategoriaProtocolo } from "@/hooks/clinica-beleza/criar-agendamento/criar-agendamento-builders";
 import type { UseCriarAgendamentoReturn } from "@/hooks/clinica-beleza/useCriarAgendamento";
-import { CRIAR_AGENDAMENTO_INPUT_CLASS } from "@/components/clinica-beleza/criar-agendamento/criar-agendamento-utils";
 import { AgendamentoResumoCard } from "./AgendamentoResumoCard";
 import { AgendamentoSectionCard } from "./AgendamentoSectionCard";
 import { CriarAgendamentoAdvancedSection } from "./CriarAgendamentoAdvancedSection";
-import { FieldLabel } from "./CriarAgendamentoFormFields";
 
 type Props = Pick<
   UseCriarAgendamentoReturn,
@@ -76,7 +74,7 @@ export function CriarAgendamentoDireitaSection({
     0;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-2.5">
       {!agendaEhProtocolo ? (
         <AgendamentoSectionCard icon={ClipboardList} title="Procedimentos">
           <ProcedureMultiSelect
@@ -101,19 +99,7 @@ export function CriarAgendamentoDireitaSection({
         totalEstimado={totalEstimado}
         duracaoMinutos={Number(duracaoMinutos) || 0}
         retornoTexto={retornoTexto}
-      />
-
-      <AgendamentoSectionCard icon={MessageSquareText} title="Observações">
-        <div>
-          <FieldLabel>Anotações do agendamento</FieldLabel>
-          <textarea
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            rows={3}
-            className={`${CRIAR_AGENDAMENTO_INPUT_CLASS} resize-y min-h-[80px]`}
-            placeholder="Observações (opcional)"
-          />
-        </div>
+      >
         <CriarAgendamentoAdvancedSection
           showAdvanced={showAdvanced}
           setShowAdvanced={setShowAdvanced}
@@ -130,7 +116,7 @@ export function CriarAgendamentoDireitaSection({
           protocoloCliente={protocoloCliente}
           hideNotes
         />
-      </AgendamentoSectionCard>
+      </AgendamentoResumoCard>
     </div>
   );
 }

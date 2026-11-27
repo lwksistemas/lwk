@@ -19,6 +19,16 @@ export function cbPrimaryAlpha(percent: number): string {
   return `color-mix(in srgb, ${CB_PRIMARY_CSS} ${p}%, transparent)`;
 }
 
+/** Degradê suave no eixo da cor da clínica (botões / tipo selecionado). */
+export function cbPrimaryGradient(angle = 135): string {
+  return `linear-gradient(${angle}deg, ${CB_PRIMARY_CSS} 0%, color-mix(in srgb, ${CB_PRIMARY_CSS} 72%, #7f1d1d) 100%)`;
+}
+
+/** Tom vinho para títulos — escurece a primária da loja. */
+export function cbPrimaryTitle(): string {
+  return `color-mix(in srgb, ${CB_PRIMARY_CSS} 78%, #111827)`;
+}
+
 export function normalizeHexColor(value?: string | null): string | null {
   if (!value) return null;
   const v = value.trim();

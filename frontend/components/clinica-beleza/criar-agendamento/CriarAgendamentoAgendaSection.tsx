@@ -1,4 +1,6 @@
-import { CalendarDays, MapPin, UserRound } from "lucide-react";
+import type { ReactNode } from "react";
+import type { LucideIcon } from "lucide-react";
+import { BadgePercent, CalendarDays, Clock3, MapPin, UserRound } from "lucide-react";
 import { ConvenioSelect } from "@/components/clinica-beleza/ConvenioSelect";
 import {
   CRIAR_AGENDAMENTO_INPUT_CLASS,
@@ -16,6 +18,23 @@ import {
 import { AgendamentoSectionCard } from "./AgendamentoSectionCard";
 import { FieldLabel } from "./CriarAgendamentoFormFields";
 import { TipoAgendaButtons } from "./TipoAgendaButtons";
+
+function FieldWithIcon({
+  icon: Icon,
+  children,
+}: {
+  icon: LucideIcon;
+  children: ReactNode;
+}) {
+  return (
+    <div className="relative">
+      <Icon className="pointer-events-none absolute left-2.5 top-1/2 z-[1] h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+      {children}
+    </div>
+  );
+}
+
+const INPUT_WITH_ICON = `${CRIAR_AGENDAMENTO_INPUT_CLASS} pl-8`;
 
 type Props = Pick<
   UseCriarAgendamentoReturn,
@@ -96,55 +115,56 @@ export function CriarAgendamentoAgendaSection({
 
   return (
     <AgendamentoSectionCard icon={CalendarDays} title="Agendamento">
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
         <div>
           <FieldLabel>Data *</FieldLabel>
-          <input
-            type="date"
-            value={dateInput}
-            onChange={(e) => setDateInput(e.target.value)}
-            className={inputClass}
-            required
-          />
+          <FieldWithIcon icon={CalendarDays}>
+            <input
+              type="date"
+              value={dateInput}
+              onChange={(e) => setDateInput(e.target.value)}
+              className={INPUT_WITH_ICON}
+              required
+            />
+          </FieldWithIcon>
         </div>
         <div>
           <FieldLabel>Horário *</FieldLabel>
-          <select
-            value={slotsHorario.includes(time) ? time : time || slotsHorario[0]}
-            onChange={(e) => setTime(e.target.value)}
-            className={`${inputClass} touch-manipulation`}
-            required
-          >
-            {!slotsHorario.includes(time) && time ? <option value={time}>{time}</option> : null}
-            {slotsHorario.map((slot) => (
-              <option key={slot} value={slot}>
-                {slot}
-              </option>
-            ))}
-          </select>
+          <FieldWithIcon icon={Clock3}>
+            <select
+              value={slotsHorario.includes(time) ? time : time || slotsHorario[0]}
+              onChange={(e) => setTime(e.target.value)}
+              className={`${INPUT_WITH_ICON} touch-manipulation`}
+              required
+            >
+              {!slotsHorario.includes(time) && time ? <option value={time}>{time}</option> : null}
+              {slotsHorario.map((slot) => (
+                <option key={slot} value={slot}>
+                  {slot}
+                </option>
+              ))}
+            </select>
+          </FieldWithIcon>
         </div>
       </div>
 
       <div>
-        <FieldLabel>
-          <span className="inline-flex items-center gap-1.5">
-            <UserRound className="h-3.5 w-3.5" />
-            Profissional *
-          </span>
-        </FieldLabel>
-        <select
-          value={professionalId}
-          onChange={(e) => setProfessionalId(e.target.value ? Number(e.target.value) : "")}
-          className={inputClass}
-          required
-        >
-          <option value="">Selecione o profissional</option>
-          {professionals.map((p) => (
-            <option key={p.id} value={p.id}>
-              {entityName(p)}
-            </option>
-          ))}
-        </select>
+        <FieldLabel>Profissional *</FieldLabel>
+        <FieldWithIcon icon={UserRound}>
+          <select
+            value={professionalId}
+            onChange={(e) => setProfessionalId(e.target.value ? Number(e.target.value) : "")}
+            className={INPUT_WITH_ICON}
+            required
+          >
+            <option value="">Selecione o profissional</option>
+            {professionals.map((p) => (
+              <option key={p.id} value={p.id}>
+                {entityName(p)}
+              </option>
+            ))}
+          </select>
+        </FieldWithIcon>
       </div>
 
       <div>
@@ -157,40 +177,40 @@ export function CriarAgendamentoAgendaSection({
         />
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
         <div>
           <ConvenioSelect
             convenios={convenios}
             value={convenioId}
             onChange={setConvenioId}
-            hint="Particular é o padrão."
-            className={inputClass}
+            hint=""
+            className={INPUT_WITH_ICON}
+            labelIcon={BadgePercent}
           />
         </div>
         <div>
-          <FieldLabel>
-            <span className="inline-flex items-center gap-1.5">
-              <MapPin className="h-3.5 w-3.5" />
-              Local de atendimento
-            </span>
-          </FieldLabel>
+          <FieldLabel>Local de atendimento</FieldLabel>
           {localUnico ? (
-            <div className="px-3 py-2.5 text-sm border border-gray-200 dark:border-neutral-600 rounded-lg bg-gray-50/80 dark:bg-neutral-900/50">
-              {localUnico.nome}
-            </div>
+            <FieldWithIcon icon={MapPin}>
+              <div className={`${INPUT_WITH_ICON} bg-gray-50/80 dark:bg-neutral-900/50`}>
+                {localUnico.nome}
+              </div>
+            </FieldWithIcon>
           ) : (
-            <select
-              value={localAtendimentoId}
-              onChange={(e) => setLocalAtendimentoId(e.target.value ? Number(e.target.value) : "")}
-              className={inputClass}
-            >
-              <option value="">Selecione o local (opcional)</option>
-              {locaisAtendimento.map((l) => (
-                <option key={l.id} value={l.id}>
-                  {l.nome}
-                </option>
-              ))}
-            </select>
+            <FieldWithIcon icon={MapPin}>
+              <select
+                value={localAtendimentoId}
+                onChange={(e) => setLocalAtendimentoId(e.target.value ? Number(e.target.value) : "")}
+                className={INPUT_WITH_ICON}
+              >
+                <option value="">Selecione o local (opcional)</option>
+                {locaisAtendimento.map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {l.nome}
+                  </option>
+                ))}
+              </select>
+            </FieldWithIcon>
           )}
           {!localUnico && locaisAtendimento.length === 0 ? (
             <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">

@@ -39,7 +39,6 @@ interface Props {
   label?: string;
   hint?: string;
   categoriasCatalog?: CategoriaCatalogItem[];
-  /** Esconde o título interno (quando a section card já tem). */
   hideLabel?: boolean;
 }
 
@@ -66,9 +65,8 @@ export function ProcedureMultiSelect({
   const catalog = categoriasCatalog ?? catalogLoaded;
   const [categoriaAtiva, setCategoriaAtiva] = useState("");
   const [busca, setBusca] = useState("");
-  const [pickerAberto, setPickerAberto] = useState(false);
   const [maisCategoriasAberto, setMaisCategoriasAberto] = useState(false);
-  const pickerRef = useRef<HTMLDivElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (categoriasCatalog || !lojaSlug) return;
@@ -87,21 +85,17 @@ export function ProcedureMultiSelect({
   }, [categoriasCatalog, lojaSlug]);
 
   useEffect(() => {
-    if (!pickerAberto && !maisCategoriasAberto) return;
+    if (!maisCategoriasAberto) return;
     const onDoc = (e: MouseEvent) => {
-      if (!pickerRef.current?.contains(e.target as Node)) {
-        setPickerAberto(false);
-        setMaisCategoriasAberto(false);
-      }
+      if (!rootRef.current?.contains(e.target as Node)) setMaisCategoriasAberto(false);
     };
     document.addEventListener("mousedown", onDoc);
     return () => document.removeEventListener("mousedown", onDoc);
-  }, [pickerAberto, maisCategoriasAberto]);
+  }, [maisCategoriasAberto]);
 
   const categoriasDisponiveis = useMemo(() => {
     const counts = new Map<string, number>();
     for (const p of procedures) {
-      if (selectedIds.includes(p.id)) continue;
       const slug = procedureItemCategoriaSlug(p);
       counts.set(slug, (counts.get(slug) || 0) + 1);
     }
@@ -111,20 +105,23 @@ export function ProcedureMultiSelect({
       count,
     }));
     return cards.sort((a, b) => b.count - a.count || a.label.localeCompare(b.label, "pt-BR"));
-  }, [procedures, selectedIds, catalog]);
+  }, [procedures, catalog]);
 
   const chipsPrincipais = categoriasDisponiveis.slice(0, CHIPS_VISIVEIS);
   const chipsExtras = categoriasDisponiveis.slice(CHIPS_VISIVEIS);
 
+  const mostrarDisponiveis = Boolean(categoriaAtiva || busca.trim());
+
   const disponiveis = useMemo(() => {
+    if (!mostrarDisponiveis) return [];
     const q = busca.trim().toLowerCase();
     return procedures.filter((p) => {
       if (selectedIds.includes(p.id)) return false;
       if (categoriaAtiva && procedureItemCategoriaSlug(p) !== categoriaAtiva) return false;
-      if (!q) return true;
-      return entityName(p).toLowerCase().includes(q);
+      if (q && !entityName(p).toLowerCase().includes(q)) return false;
+      return true;
     });
-  }, [procedures, selectedIds, categoriaAtiva, busca]);
+  }, [procedures, selectedIds, categoriaAtiva, busca, mostrarDisponiveis]);
 
   const selecionados = useMemo(
     () =>
@@ -152,14 +149,19 @@ export function ProcedureMultiSelect({
   const dica = hint ?? (optional ? "(opcional)" : "");
 
   const chipClass = (ativo: boolean) =>
-    `px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
+    `shrink-0 px-2.5 py-1 rounded-full text-xs font-medium border transition-colors whitespace-nowrap ${
       ativo
         ? "text-white border-transparent"
-        : "border-gray-300 dark:border-neutral-600 text-gray-600 dark:text-gray-300 bg-white dark:bg-neutral-800"
+        : "border-[#E9D5E3] dark:border-neutral-600 text-gray-600 dark:text-gray-300 bg-white dark:bg-neutral-800"
     }`;
 
+  const adicionar = (id: number) => {
+    onAdd(id);
+    setBusca("");
+  };
+
   return (
-    <div ref={pickerRef} className="space-y-3">
+    <div ref={rootRef} className="space-y-2">
       {!hideLabel ? (
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
           {rotulo}
@@ -168,172 +170,180 @@ export function ProcedureMultiSelect({
         </label>
       ) : null}
 
-      {categoriasDisponiveis.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 items-center">
-          <button
-            type="button"
-            onClick={() => setCategoriaAtiva("")}
-            className={chipClass(!categoriaAtiva)}
-            style={!categoriaAtiva ? { backgroundColor: theme.primary } : undefined}
-          >
-            Todas
-          </button>
-          {chipsPrincipais.map((cat) => (
+      {categoriasDisponiveis.length > 0 ? (
+        <div className="flex w-full min-w-0 items-center gap-1.5">
+          <div className="flex min-w-0 flex-1 basis-0 items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-thin">
             <button
-              key={cat.value}
               type="button"
-              onClick={() => setCategoriaAtiva(cat.value)}
-              className={chipClass(categoriaAtiva === cat.value)}
-              style={categoriaAtiva === cat.value ? { backgroundColor: theme.primary } : undefined}
+              onClick={() => setCategoriaAtiva("")}
+              className={chipClass(!categoriaAtiva)}
+              style={!categoriaAtiva ? { backgroundColor: theme.primary } : undefined}
             >
-              {cat.label} ({cat.count})
+              Todas
             </button>
-          ))}
-          {chipsExtras.length > 0 ? (
-            <div className="relative">
+            {chipsPrincipais.map((cat) => (
               <button
+                key={cat.value}
                 type="button"
-                onClick={() => setMaisCategoriasAberto((v) => !v)}
-                className={chipClass(chipsExtras.some((c) => c.value === categoriaAtiva))}
-                style={
-                  chipsExtras.some((c) => c.value === categoriaAtiva)
-                    ? { backgroundColor: theme.primary }
-                    : undefined
-                }
+                onClick={() => setCategoriaAtiva(cat.value)}
+                className={chipClass(categoriaAtiva === cat.value)}
+                style={categoriaAtiva === cat.value ? { backgroundColor: theme.primary } : undefined}
               >
-                + Categorias
+                {cat.label} ({cat.count})
               </button>
-              {maisCategoriasAberto ? (
-                <div className="absolute z-20 mt-1 left-0 min-w-[200px] max-h-48 overflow-y-auto rounded-xl border border-gray-200 dark:border-neutral-600 bg-white dark:bg-neutral-900 shadow-lg p-1.5">
-                  {chipsExtras.map((cat) => (
-                    <button
-                      key={cat.value}
-                      type="button"
-                      onClick={() => {
-                        setCategoriaAtiva(cat.value);
-                        setMaisCategoriasAberto(false);
-                      }}
-                      className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs hover:bg-gray-50 dark:hover:bg-neutral-800"
-                    >
-                      {cat.label} ({cat.count})
-                    </button>
-                  ))}
-                </div>
-              ) : null}
-            </div>
-          ) : null}
-        </div>
-      )}
-
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
-        <input
-          type="search"
-          value={busca}
-          onChange={(e) => {
-            setBusca(e.target.value);
-            setPickerAberto(true);
-          }}
-          onFocus={() => setPickerAberto(true)}
-          placeholder="Buscar procedimento..."
-          className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700"
-        />
-      </div>
-
-      {selecionados.length > 0 ? (
-        <div className="space-y-2">
-          {selecionados.map((proc) => {
-            const slug = procedureItemCategoriaSlug(proc);
-            const particular = Number(procedurePrice(proc)) || 0;
-            const valorProc = precoProcedimento(proc.id, particular, convenioId, precosMap);
-            const dur = procedureDuration(proc);
-            return (
-              <div
-                key={proc.id}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-gray-100 dark:border-neutral-700 bg-gray-50/80 dark:bg-neutral-800/40"
-              >
-                <span
-                  className="flex h-9 w-9 items-center justify-center rounded-lg shrink-0"
-                  style={{ backgroundColor: theme.primaryLight, color: theme.primary }}
-                >
-                  <Layers className="h-4 w-4" />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">
-                    {stripCategoriaPrefixFromNome(entityName(proc), slug, catalog)}
-                  </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    {procedureCategoriaLabel(slug, catalog)}
-                    {dur > 0 ? ` · ${dur} min` : ""}
-                    {valorProc > 0 ? ` · ${formatCurrency(valorProc)}` : ""}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => onRemove(proc.id)}
-                  className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg"
-                  aria-label="Remover procedimento"
-                >
-                  <Trash2 size={16} />
-                </button>
+            ))}
+          </div>
+          <div className="relative shrink-0">
+            <button
+              type="button"
+              onClick={() => {
+                if (chipsExtras.length === 0) return;
+                setMaisCategoriasAberto((v) => !v);
+              }}
+              className={chipClass(chipsExtras.some((c) => c.value === categoriaAtiva))}
+              style={
+                chipsExtras.some((c) => c.value === categoriaAtiva)
+                  ? { backgroundColor: theme.primary }
+                  : undefined
+              }
+              title={chipsExtras.length === 0 ? "Nenhuma categoria adicional" : "Mais categorias"}
+            >
+              + Categorias
+            </button>
+            {maisCategoriasAberto && chipsExtras.length > 0 ? (
+              <div className="absolute z-20 mt-1 right-0 min-w-[200px] max-h-48 overflow-y-auto rounded-xl border border-gray-200 dark:border-neutral-600 bg-white dark:bg-neutral-900 shadow-lg p-1.5">
+                {chipsExtras.map((cat) => (
+                  <button
+                    key={cat.value}
+                    type="button"
+                    onClick={() => {
+                      setCategoriaAtiva(cat.value);
+                      setMaisCategoriasAberto(false);
+                    }}
+                    className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs hover:bg-gray-50 dark:hover:bg-neutral-800"
+                  >
+                    {cat.label} ({cat.count})
+                  </button>
+                ))}
               </div>
-            );
-          })}
+            ) : null}
+          </div>
         </div>
-      ) : optional ? (
-        <p className="text-sm text-gray-500 dark:text-gray-400">
-          Nenhum procedimento — horário como <strong className="font-medium">somente consulta</strong>.
-        </p>
       ) : null}
 
       <div className="relative">
-        <button
-          type="button"
-          onClick={() => setPickerAberto((v) => !v)}
-          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 border-dashed text-sm font-semibold transition-colors"
-          style={{ borderColor: theme.primary, color: theme.primary }}
-        >
-          <Plus className="h-4 w-4" />
-          Adicionar procedimento
-        </button>
-        {pickerAberto ? (
-          <div className="absolute z-20 mt-1.5 left-0 right-0 max-h-52 overflow-y-auto rounded-xl border border-gray-200 dark:border-neutral-600 bg-white dark:bg-neutral-900 shadow-xl">
-            {disponiveis.length === 0 ? (
-              <p className="px-3 py-3 text-sm text-gray-500">Nenhum procedimento nesta filtragem.</p>
-            ) : (
-              disponiveis.map((p) => {
-                const slug = procedureItemCategoriaSlug(p);
-                const particular = Number(procedurePrice(p)) || 0;
-                const valor = precoProcedimento(p.id, particular, convenioId, precosMap);
-                return (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => {
-                      onAdd(p.id);
-                      setBusca("");
-                      setPickerAberto(false);
-                    }}
-                    className="w-full text-left px-3 py-2.5 border-b last:border-b-0 border-gray-100 dark:border-neutral-700 hover:bg-gray-50 dark:hover:bg-neutral-800"
-                  >
-                    <span className="block text-sm font-medium text-gray-900 dark:text-gray-100">
-                      {stripCategoriaPrefixFromNome(entityName(p), slug, catalog)}
-                    </span>
-                    <span className="text-xs text-gray-500">
-                      {procedureCategoriaLabel(slug, catalog)}
-                      {procedureDuration(p) > 0 ? ` · ${procedureDuration(p)} min` : ""}
-                      {valor > 0 ? ` · ${formatCurrency(valor)}` : ""}
-                    </span>
-                  </button>
-                );
-              })
-            )}
-          </div>
-        ) : null}
+        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
+        <input
+          type="search"
+          value={busca}
+          onChange={(e) => setBusca(e.target.value)}
+          placeholder="Buscar procedimento..."
+          className="w-full pl-8 pr-3 py-1.5 text-sm border border-[#E9D5E3] dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 min-h-[36px]"
+        />
       </div>
 
+      {mostrarDisponiveis ? (
+        <div className="max-h-32 overflow-y-auto rounded-xl border border-[#E9D5E3] dark:border-neutral-600 bg-white dark:bg-neutral-900 divide-y divide-gray-100 dark:divide-neutral-700">
+          {disponiveis.length === 0 ? (
+            <p className="px-3 py-2.5 text-xs text-gray-500">Nenhum procedimento nesta filtragem.</p>
+          ) : (
+            disponiveis.map((p) => {
+              const slug = procedureItemCategoriaSlug(p);
+              const particular = Number(procedurePrice(p)) || 0;
+              const valor = precoProcedimento(p.id, particular, convenioId, precosMap);
+              const dur = procedureDuration(p);
+              return (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => adicionar(p.id)}
+                  className="w-full flex items-center gap-2.5 px-2.5 py-1.5 text-left hover:bg-gray-50 dark:hover:bg-neutral-800 min-h-[44px]"
+                >
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[13px] font-semibold text-gray-900 dark:text-gray-100 truncate">
+                      {stripCategoriaPrefixFromNome(entityName(p), slug, catalog)}
+                    </span>
+                    <span className="text-[11px] text-slate-500">
+                      {procedureCategoriaLabel(slug, catalog)}
+                      {dur > 0 ? ` · ${dur} min` : ""}
+                    </span>
+                  </span>
+                  {valor > 0 ? (
+                    <span className="text-[12px] font-bold shrink-0" style={{ color: theme.primary }}>
+                      {formatCurrency(valor)}
+                    </span>
+                  ) : null}
+                  <span
+                    className="flex h-6 w-6 items-center justify-center rounded-full shrink-0 text-white"
+                    style={{ backgroundColor: theme.primary }}
+                    aria-hidden
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                  </span>
+                </button>
+              );
+            })
+          )}
+        </div>
+      ) : null}
+
+      {selecionados.length > 0 ? (
+        <div className={`space-y-1 ${mostrarDisponiveis ? "mt-0.5" : ""}`}>
+          <p className="text-[11px] font-medium text-slate-500 dark:text-gray-400">
+            Procedimentos selecionados ({selecionados.length})
+          </p>
+          <div className="max-h-[118px] overflow-y-auto space-y-1.5 pr-0.5">
+            {selecionados.map((proc) => {
+              const slug = procedureItemCategoriaSlug(proc);
+              const particular = Number(procedurePrice(proc)) || 0;
+              const valorProc = precoProcedimento(proc.id, particular, convenioId, precosMap);
+              const dur = procedureDuration(proc);
+              return (
+                <div
+                  key={proc.id}
+                  className="flex items-center gap-2.5 px-2.5 rounded-xl border border-[#E9D5E3] dark:border-neutral-700 bg-[#FAF8FA] dark:bg-neutral-800/40 h-[52px] min-h-[48px] max-h-[56px]"
+                >
+                  <span
+                    className="flex h-7 w-7 items-center justify-center rounded-lg shrink-0"
+                    style={{ backgroundColor: theme.primaryLight, color: theme.primary }}
+                  >
+                    <Layers className="h-3.5 w-3.5" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[13px] font-semibold text-gray-900 dark:text-gray-100 truncate leading-tight">
+                      {stripCategoriaPrefixFromNome(entityName(proc), slug, catalog)}
+                    </p>
+                    <p className="text-[11px] text-slate-500 dark:text-gray-400 truncate mt-0.5">
+                      {procedureCategoriaLabel(slug, catalog)}
+                      {dur > 0 ? ` · ${dur} min` : ""}
+                    </p>
+                  </div>
+                  {valorProc > 0 ? (
+                    <span className="text-[13px] font-bold shrink-0 tabular-nums" style={{ color: theme.primary }}>
+                      {formatCurrency(valorProc)}
+                    </span>
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={() => onRemove(proc.id)}
+                    className="p-1 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg shrink-0"
+                    aria-label="Remover procedimento"
+                  >
+                    <Trash2 size={15} />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : optional && !mostrarDisponiveis ? (
+        <p className="text-xs text-slate-500 dark:text-gray-400">
+          Selecione uma categoria ou busque para adicionar. Opcional — só consulta.
+        </p>
+      ) : null}
+
       {showSummary && selectedIds.length > 1 ? (
-        <div className="flex items-center justify-between px-1 text-sm text-gray-600 dark:text-gray-400">
+        <div className="flex items-center justify-between px-1 text-xs text-gray-600 dark:text-gray-400">
           <span>
             Duração: <strong>{resumo.duracao} min</strong>
           </span>

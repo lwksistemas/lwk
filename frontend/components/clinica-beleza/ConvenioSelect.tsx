@@ -31,7 +31,11 @@ export function ConvenioSelect({
 
   return (
     <div>
-      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+      <label
+        className={`block font-medium text-gray-700 dark:text-gray-300 ${
+          LabelIcon ? "text-[11px] text-slate-500 dark:text-gray-400 mb-0.5" : "text-sm mb-2"
+        }`}
+      >
         Convênio
       </label>
       <div className={LabelIcon ? "relative" : undefined}>

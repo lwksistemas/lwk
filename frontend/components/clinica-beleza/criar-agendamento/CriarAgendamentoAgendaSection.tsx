@@ -68,6 +68,8 @@ type Props = Pick<
   | "protocoloModeloId"
   | "setProtocoloModeloId"
   | "setSelectedProcedures"
+  | "notes"
+  | "setNotes"
 >;
 
 export function CriarAgendamentoAgendaSection({
@@ -101,6 +103,8 @@ export function CriarAgendamentoAgendaSection({
   protocoloModeloId,
   setProtocoloModeloId,
   setSelectedProcedures,
+  notes,
+  setNotes,
 }: Props) {
   const inputClass = CRIAR_AGENDAMENTO_INPUT_CLASS;
   const protocoloEscolhido = Boolean(protocoloSelecionado || protocoloCliente);
@@ -237,11 +241,24 @@ export function CriarAgendamentoAgendaSection({
       ) : null}
 
       {retornoInfo?.elegivel && patientId && !protocoloSelecionado && !protocoloCliente ? (
-        <div className="p-2.5 rounded-lg text-sm bg-emerald-50 dark:bg-emerald-900/20 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+        <div className="p-2 rounded-lg text-sm bg-emerald-50 dark:bg-emerald-900/20 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
           <span className="font-medium">Retorno gratuito</span>
           <span className="block text-xs mt-0.5">{retornoInfo.mensagem}</span>
         </div>
       ) : null}
+
+      <div>
+        <FieldLabel>
+          Observações <span className="font-normal text-gray-400">(opcional)</span>
+        </FieldLabel>
+        <textarea
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          rows={2}
+          className={`${inputClass} resize-y min-h-[44px]`}
+          placeholder="Observações opcionais sobre o atendimento..."
+        />
+      </div>
     </AgendamentoSectionCard>
   );
 }

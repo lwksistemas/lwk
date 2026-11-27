@@ -337,8 +337,8 @@ export function ProcedureMultiSelect({
           </div>
         </div>
       ) : optional && !mostrarDisponiveis ? (
-        <p className="text-xs text-slate-500 dark:text-gray-400">
-          Selecione uma categoria ou busque para adicionar. Opcional — só consulta.
+        <p className="text-[11px] leading-snug text-slate-500 dark:text-gray-400">
+          Categoria ou busca para adicionar · opcional na consulta.
         </p>
       ) : null}
 

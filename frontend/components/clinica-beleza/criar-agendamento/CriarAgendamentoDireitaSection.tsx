@@ -74,7 +74,7 @@ export function CriarAgendamentoDireitaSection({
     0;
 
   return (
-    <div className="space-y-2.5">
+    <div className="space-y-2">
       {!agendaEhProtocolo ? (
         <AgendamentoSectionCard icon={ClipboardList} title="Procedimentos">
           <ProcedureMultiSelect

@@ -74,4 +74,4 @@ export function resolveDefaultLocalId(items: LocalAtendimentoItem[]): number | "
 export { formatDateInputValue };
 
 export const CRIAR_AGENDAMENTO_INPUT_CLASS =
-  "w-full px-2.5 py-1.5 text-sm border border-[#E9D5E3] dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-gray-100 min-h-[36px] focus:outline-none focus:ring-2 focus:ring-offset-0";
+  "w-full px-2 py-1 text-sm border border-[#E9D5E3] dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-gray-100 min-h-[32px] focus:outline-none focus:ring-2 focus:ring-offset-0";

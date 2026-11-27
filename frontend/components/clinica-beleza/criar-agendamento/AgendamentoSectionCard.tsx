@@ -34,7 +34,7 @@ export function AgendamentoSectionCard({
         </span>
         <h2 className="text-[13px] font-semibold text-gray-900 dark:text-gray-100">{title}</h2>
       </header>
-      <div className="p-2.5 space-y-2">{children}</div>
+      <div className="p-2 space-y-1.5">{children}</div>
     </section>
   );
 }

@@ -57,7 +57,7 @@ export function TipoAgendaButtons({
             type="button"
             disabled={Boolean(locked)}
             onClick={() => onChange(item.id)}
-            className={`relative flex flex-col items-center justify-center gap-0.5 rounded-xl border px-1.5 text-center transition-colors h-[52px] min-h-[50px] max-h-[58px] ${
+            className={`relative flex flex-col items-center justify-center gap-0.5 rounded-lg border px-1 text-center transition-colors h-[46px] min-h-[44px] max-h-[50px] ${
               selected
                 ? "text-white border-transparent shadow-sm"
                 : "border-[#E9D5E3] dark:border-neutral-600 text-gray-700 dark:text-gray-200 bg-white dark:bg-neutral-800 hover:bg-gray-50 dark:hover:bg-neutral-700"

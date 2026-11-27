@@ -84,12 +84,12 @@ export function AgendamentoResumoCard({
         <div className="flex items-start gap-1.5 rounded-lg border border-[#E9D5E3] dark:border-neutral-700 bg-[#FAF8FA] dark:bg-neutral-800/50 px-2 py-1.5 min-h-[40px]">
           <Clock3 className="h-3.5 w-3.5 shrink-0 text-slate-400 mt-0.5" />
           <div className="min-w-0">
-            <p className="text-[11px] text-slate-500 leading-none">Duração prevista</p>
-            <p className="text-[13px] font-semibold text-gray-900 dark:text-gray-100 mt-0.5">
+            <p className="text-[12px] text-slate-500 leading-none">Duração prevista</p>
+            <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 mt-0.5">
               {formatDuracaoPrevista(duracaoMinutos)}
             </p>
             {termino ? (
-              <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">
+              <p className="text-[12px] text-slate-500 mt-0.5 leading-snug">
                 Término previsto: <span className="font-semibold text-gray-800 dark:text-gray-200">{termino}</span>
               </p>
             ) : null}
@@ -98,8 +98,8 @@ export function AgendamentoResumoCard({
         <div className="flex items-start gap-1.5 rounded-lg border border-[#E9D5E3] dark:border-neutral-700 bg-[#FAF8FA] dark:bg-neutral-800/50 px-2 py-1.5 min-h-[40px]">
           <CalendarClock className="h-3.5 w-3.5 shrink-0 text-slate-400 mt-0.5" />
           <div className="min-w-0">
-            <p className="text-[11px] text-slate-500 leading-none">Retorno</p>
-            <p className="text-[12px] font-semibold text-gray-900 dark:text-gray-100 mt-0.5 leading-snug break-words">
+            <p className="text-[12px] text-slate-500 leading-none">Retorno</p>
+            <p className="text-[13px] font-semibold text-gray-900 dark:text-gray-100 mt-0.5 leading-snug break-words">
               {retornoTexto}
             </p>
           </div>

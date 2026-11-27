@@ -4,6 +4,43 @@ export type ProcedurePickerFilterState = {
   listaAberta: boolean;
 };
 
+/** Quantos chips cabem inteiros na largura (sem corte). */
+export function quantosChipsCabem(
+  larguraDisponivel: number,
+  largurasChips: number[],
+  gap = 6,
+): number {
+  if (larguraDisponivel <= 0 || largurasChips.length === 0) return 0;
+  let used = 0;
+  let count = 0;
+  for (const w of largurasChips) {
+    const next = count === 0 ? w : used + gap + w;
+    if (next > larguraDisponivel + 0.5) break;
+    used = next;
+    count += 1;
+  }
+  return count;
+}
+
+/**
+ * Quantos chips exibir na linha, reservando espaço para "+ Categorias"
+ * quando nem todos cabem.
+ */
+export function quantosChipsVisiveisComMais(
+  larguraTotal: number,
+  largurasChips: number[],
+  larguraMaisCategorias: number,
+  gap = 6,
+): number {
+  const cabemTodos = quantosChipsCabem(larguraTotal, largurasChips, gap);
+  if (cabemTodos >= largurasChips.length) return largurasChips.length;
+  const reservado = Math.max(0, larguraTotal - larguraMaisCategorias - gap);
+  return Math.max(1, quantosChipsCabem(reservado, largurasChips, gap));
+}
+
+/** Altura máxima da lista de selecionados: até 4 cards (~52px) + gaps. */
+export const MAX_ALTURA_SELECIONADOS_PX = 4 * 52 + 3 * 6;
+
 export function mostrarListaDisponiveis(state: ProcedurePickerFilterState): boolean {
   return state.listaAberta || Boolean(state.busca.trim());
 }

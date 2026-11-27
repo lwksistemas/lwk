@@ -70,7 +70,7 @@ export function TipoAgendaButtons({
               </span>
             ) : null}
             <Icon className="h-3.5 w-3.5 shrink-0" style={selected ? undefined : { color: theme.primary }} />
-            <span className="text-xs font-semibold leading-tight line-clamp-1">{item.nome}</span>
+            <span className="text-[13px] font-semibold leading-tight line-clamp-1">{item.nome}</span>
           </button>
         );
       })}

@@ -32,7 +32,7 @@ export function AgendamentoSectionCard({
         >
           <Icon className="h-3.5 w-3.5" />
         </span>
-        <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">{title}</h2>
+        <h2 className="text-[15px] font-semibold text-gray-900 dark:text-gray-100">{title}</h2>
       </header>
       <div className="p-2 space-y-1.5">{children}</div>
     </section>

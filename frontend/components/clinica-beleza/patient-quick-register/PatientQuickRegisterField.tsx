@@ -10,7 +10,7 @@ import type { PatientQuickRegisterFieldProps } from "./patient-quick-register-ty
 import { usePatientQuickRegister } from "./usePatientQuickRegister";
 
 const inputClass =
-  "w-full px-2 py-1 text-sm border border-[#E9D5E3] dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 min-h-[32px]";
+  "w-full px-2.5 py-1.5 text-sm border border-[#E9D5E3] dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 min-h-[34px]";
 
 function metaPaciente(p: { telefone?: string | null; phone?: string | null; cpf?: string | null }) {
   const tel = p.telefone || p.phone ? formatTelefone(p.telefone || p.phone) : "";

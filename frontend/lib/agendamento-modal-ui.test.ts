@@ -9,7 +9,10 @@ import {
   estadoAposAdicionarProcedimento,
   estadoFecharListaDisponiveis,
   estadoToggleCategoria,
+  MAX_ALTURA_SELECIONADOS_PX,
   mostrarListaDisponiveis,
+  quantosChipsCabem,
+  quantosChipsVisiveisComMais,
 } from "@/components/clinica-beleza/procedure-picker-state";
 import { Layers, Stethoscope, RefreshCw } from "lucide-react";
 import { buildAgendaPatientSearchQuery } from "@/components/clinica-beleza/patient-quick-register/patient-quick-register-utils";
@@ -99,5 +102,23 @@ describe("procedure picker — lista disponível", () => {
     const deNovo = estadoToggleCategoria({ categoriaAtiva: "", busca: "", listaAberta: false }, "facial");
     expect(deNovo.listaAberta).toBe(true);
     expect(estadoToggleCategoria(deNovo, "facial").listaAberta).toBe(false);
+  });
+});
+
+describe("quantosChipsVisiveisComMais", () => {
+  it("mostra todos quando cabem sem cortar", () => {
+    expect(quantosChipsCabem(400, [80, 90, 100], 6)).toBe(3);
+    expect(quantosChipsVisiveisComMais(400, [80, 90, 100], 110, 6)).toBe(3);
+  });
+
+  it("reserva espaço para + Categorias e não corta chip", () => {
+    // 80+6+90+6+100 = 282; com mais=110 e gap, disponível para chips = 400-110-6=284 → cabem 3
+    expect(quantosChipsVisiveisComMais(300, [80, 90, 100, 120], 110, 6)).toBe(2);
+    // 80+6+90 = 176; 176+6+100 = 282 > 300-116=184 → só 2
+    expect(quantosChipsVisiveisComMais(200, [80, 90, 100, 120], 110, 6)).toBe(1);
+  });
+
+  it("lista de selecionados comporta até 4 cards sem scroll forçado", () => {
+    expect(MAX_ALTURA_SELECIONADOS_PX).toBe(4 * 52 + 3 * 6);
   });
 });

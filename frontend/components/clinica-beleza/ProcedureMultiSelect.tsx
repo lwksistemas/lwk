@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { Layers, Plus, Search, Trash2, X } from "lucide-react";
 import { precoProcedimento } from "@/lib/convenio-precos";
@@ -18,7 +18,9 @@ import {
   estadoAposAdicionarProcedimento,
   estadoFecharListaDisponiveis,
   estadoToggleCategoria,
+  MAX_ALTURA_SELECIONADOS_PX,
   mostrarListaDisponiveis,
+  quantosChipsVisiveisComMais,
 } from "@/components/clinica-beleza/procedure-picker-state";
 
 export interface ProcedureOption {
@@ -48,7 +50,7 @@ interface Props {
   hideLabel?: boolean;
 }
 
-const CHIPS_VISIVEIS = 4;
+type CategoriaChip = { value: string; label: string; count: number };
 
 export function ProcedureMultiSelect({
   procedures,
@@ -73,7 +75,10 @@ export function ProcedureMultiSelect({
   const [busca, setBusca] = useState("");
   const [listaAberta, setListaAberta] = useState(false);
   const [maisCategoriasAberto, setMaisCategoriasAberto] = useState(false);
+  const [chipsVisiveisCount, setChipsVisiveisCount] = useState(1);
   const rootRef = useRef<HTMLDivElement>(null);
+  const chipsRowRef = useRef<HTMLDivElement>(null);
+  const measureRef = useRef<HTMLDivElement>(null);
 
   const filterState = { categoriaAtiva, busca, listaAberta };
 
@@ -116,8 +121,38 @@ export function ProcedureMultiSelect({
     return cards.sort((a, b) => b.count - a.count || a.label.localeCompare(b.label, "pt-BR"));
   }, [procedures, catalog]);
 
-  const chipsPrincipais = categoriasDisponiveis.slice(0, CHIPS_VISIVEIS);
-  const chipsExtras = categoriasDisponiveis.slice(CHIPS_VISIVEIS);
+  const todosChips: CategoriaChip[] = useMemo(
+    () => [{ value: "", label: "Todas", count: 0 }, ...categoriasDisponiveis],
+    [categoriasDisponiveis],
+  );
+
+  const recalcularChipsVisiveis = () => {
+    const row = chipsRowRef.current;
+    const measure = measureRef.current;
+    if (!row || !measure) return;
+    const chipEls = [...measure.querySelectorAll<HTMLElement>("[data-chip-measure]")];
+    const maisEl = measure.querySelector<HTMLElement>("[data-mais-measure]");
+    if (chipEls.length === 0) return;
+    const larguras = chipEls.map((el) => el.getBoundingClientRect().width);
+    const maisW = maisEl?.getBoundingClientRect().width || 110;
+    const total = row.getBoundingClientRect().width;
+    const n = quantosChipsVisiveisComMais(total, larguras, maisW, 6);
+    setChipsVisiveisCount(Math.max(1, Math.min(n, todosChips.length)));
+  };
+
+  useLayoutEffect(() => {
+    recalcularChipsVisiveis();
+    const row = chipsRowRef.current;
+    if (!row || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(() => recalcularChipsVisiveis());
+    ro.observe(row);
+    return () => ro.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mede sempre que a lista de categorias muda
+  }, [todosChips]);
+
+  // "Todas" é sempre o 1º chip; o restante que não couber vai para "+ Categorias"
+  const chipsNaLinha = todosChips.slice(0, Math.max(1, chipsVisiveisCount));
+  const extrasNoMenu = todosChips.slice(chipsNaLinha.length).filter((c) => c.value !== "");
 
   const mostrarDisponiveis = mostrarListaDisponiveis(filterState);
 
@@ -158,7 +193,7 @@ export function ProcedureMultiSelect({
   const dica = hint ?? (optional ? "(opcional)" : "");
 
   const chipClass = (ativo: boolean) =>
-    `shrink-0 px-2.5 py-1 rounded-full text-[13px] font-medium border transition-colors whitespace-nowrap ${
+    `shrink-0 px-2.5 py-1 rounded-full text-sm font-medium border transition-colors whitespace-nowrap ${
       ativo
         ? "text-white border-transparent"
         : "border-[#E9D5E3] dark:border-neutral-600 text-gray-600 dark:text-gray-300 bg-white dark:bg-neutral-800"
@@ -186,8 +221,10 @@ export function ProcedureMultiSelect({
     setMaisCategoriasAberto(false);
   };
 
+  const categoriaAtivaNoMenu = extrasNoMenu.some((c) => c.value === categoriaAtiva);
+
   return (
-    <div ref={rootRef} className="space-y-2">
+    <div ref={rootRef} className="relative space-y-2">
       {!hideLabel ? (
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
           {rotulo}
@@ -197,61 +234,73 @@ export function ProcedureMultiSelect({
       ) : null}
 
       {categoriasDisponiveis.length > 0 ? (
-        <div className="flex w-full min-w-0 items-center gap-1.5">
-          <div className="flex min-w-0 flex-1 basis-0 items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-thin">
-            <button
-              type="button"
-              onClick={() => ativarCategoria("")}
-              className={chipClass(listaAberta && !categoriaAtiva)}
-              style={listaAberta && !categoriaAtiva ? { backgroundColor: theme.primary } : undefined}
-            >
-              Todas
-            </button>
-            {chipsPrincipais.map((cat) => (
-              <button
-                key={cat.value}
-                type="button"
-                onClick={() => ativarCategoria(cat.value)}
-                className={chipClass(categoriaAtiva === cat.value)}
-                style={categoriaAtiva === cat.value ? { backgroundColor: theme.primary } : undefined}
-              >
-                {cat.label} ({cat.count})
-              </button>
+        <>
+          {/* Medição offscreen: larguras reais dos chips sem afetar o layout */}
+          <div
+            ref={measureRef}
+            className="pointer-events-none absolute -z-10 flex items-center gap-1.5 opacity-0"
+            aria-hidden
+          >
+            {todosChips.map((cat) => (
+              <span key={`m-${cat.value || "todas"}`} data-chip-measure className={chipClass(false)}>
+                {cat.value ? `${cat.label} (${cat.count})` : "Todas"}
+              </span>
             ))}
-          </div>
-          <div className="relative shrink-0">
-            <button
-              type="button"
-              onClick={() => {
-                if (chipsExtras.length === 0) return;
-                setMaisCategoriasAberto((v) => !v);
-              }}
-              className={chipClass(chipsExtras.some((c) => c.value === categoriaAtiva))}
-              style={
-                chipsExtras.some((c) => c.value === categoriaAtiva)
-                  ? { backgroundColor: theme.primary }
-                  : undefined
-              }
-              title={chipsExtras.length === 0 ? "Nenhuma categoria adicional" : "Mais categorias"}
-            >
+            <span data-mais-measure className={chipClass(false)}>
               + Categorias
-            </button>
-            {maisCategoriasAberto && chipsExtras.length > 0 ? (
-              <div className="absolute z-20 mt-1 right-0 min-w-[200px] max-h-48 overflow-y-auto rounded-xl border border-gray-200 dark:border-neutral-600 bg-white dark:bg-neutral-900 shadow-lg p-1.5">
-                {chipsExtras.map((cat) => (
+            </span>
+          </div>
+
+          <div ref={chipsRowRef} className="flex w-full min-w-0 items-center gap-1.5 overflow-hidden">
+            <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden">
+              {chipsNaLinha.map((cat) => {
+                const ativo = cat.value
+                  ? categoriaAtiva === cat.value
+                  : listaAberta && !categoriaAtiva;
+                return (
                   <button
-                    key={cat.value}
+                    key={cat.value || "todas"}
                     type="button"
                     onClick={() => ativarCategoria(cat.value)}
-                    className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs hover:bg-gray-50 dark:hover:bg-neutral-800"
+                    className={chipClass(ativo)}
+                    style={ativo ? { backgroundColor: theme.primary } : undefined}
                   >
-                    {cat.label} ({cat.count})
+                    {cat.value ? `${cat.label} (${cat.count})` : "Todas"}
                   </button>
-                ))}
+                );
+              })}
+            </div>
+            {extrasNoMenu.length > 0 ? (
+              <div className="relative shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setMaisCategoriasAberto((v) => !v)}
+                  className={chipClass(categoriaAtivaNoMenu)}
+                  style={categoriaAtivaNoMenu ? { backgroundColor: theme.primary } : undefined}
+                  title="Mais categorias"
+                >
+                  + Categorias
+                </button>
+                {maisCategoriasAberto ? (
+                  <div className="absolute z-20 mt-1 right-0 min-w-[200px] max-h-48 overflow-y-auto rounded-xl border border-gray-200 dark:border-neutral-600 bg-white dark:bg-neutral-900 shadow-lg p-1.5">
+                    {extrasNoMenu.map((cat) => (
+                      <button
+                        key={cat.value}
+                        type="button"
+                        onClick={() => ativarCategoria(cat.value)}
+                        className={`w-full text-left px-2.5 py-1.5 rounded-lg text-sm hover:bg-gray-50 dark:hover:bg-neutral-800 ${
+                          categoriaAtiva === cat.value ? "font-semibold" : ""
+                        }`}
+                      >
+                        {cat.label} ({cat.count})
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
               </div>
             ) : null}
           </div>
-        </div>
+        </>
       ) : null}
 
       <div className="relative">
@@ -265,7 +314,7 @@ export function ProcedureMultiSelect({
             if (value.trim()) setListaAberta(true);
           }}
           placeholder="Buscar procedimento..."
-          className="w-full pl-8 pr-9 py-1.5 text-sm border border-[#E9D5E3] dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 min-h-[36px]"
+          className="w-full pl-8 pr-9 py-1.5 text-sm border border-[#E9D5E3] dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 min-h-[34px]"
         />
         {busca || listaAberta ? (
           <button
@@ -280,9 +329,9 @@ export function ProcedureMultiSelect({
       </div>
 
       {mostrarDisponiveis ? (
-        <div className="max-h-32 overflow-y-auto rounded-xl border border-[#E9D5E3] dark:border-neutral-600 bg-white dark:bg-neutral-900 divide-y divide-gray-100 dark:divide-neutral-700">
+        <div className="max-h-36 overflow-y-auto rounded-xl border border-[#E9D5E3] dark:border-neutral-600 bg-white dark:bg-neutral-900 divide-y divide-gray-100 dark:divide-neutral-700">
           {disponiveis.length === 0 ? (
-            <p className="px-3 py-2.5 text-xs text-gray-500">Nenhum procedimento nesta filtragem.</p>
+            <p className="px-3 py-2.5 text-sm text-gray-500">Nenhum procedimento nesta filtragem.</p>
           ) : (
             disponiveis.map((p) => {
               const slug = procedureItemCategoriaSlug(p);
@@ -300,13 +349,13 @@ export function ProcedureMultiSelect({
                     <span className="block text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">
                       {stripCategoriaPrefixFromNome(entityName(p), slug, catalog)}
                     </span>
-                    <span className="text-xs text-slate-500">
+                    <span className="text-[13px] text-slate-500">
                       {procedureCategoriaLabel(slug, catalog)}
                       {dur > 0 ? ` · ${dur} min` : ""}
                     </span>
                   </span>
                   {valor > 0 ? (
-                    <span className="text-[13px] font-bold shrink-0" style={{ color: theme.primary }}>
+                    <span className="text-sm font-bold shrink-0" style={{ color: theme.primary }}>
                       {formatCurrency(valor)}
                     </span>
                   ) : null}
@@ -326,10 +375,13 @@ export function ProcedureMultiSelect({
 
       {selecionados.length > 0 ? (
         <div className={`space-y-1 ${mostrarDisponiveis ? "mt-0.5" : ""}`}>
-          <p className="text-xs font-medium text-slate-500 dark:text-gray-400">
+          <p className="text-[13px] font-medium text-slate-500 dark:text-gray-400">
             Procedimentos selecionados ({selecionados.length})
           </p>
-          <div className="max-h-[118px] overflow-y-auto space-y-1.5 pr-0.5">
+          <div
+            className="overflow-y-auto space-y-1.5 pr-0.5"
+            style={{ maxHeight: MAX_ALTURA_SELECIONADOS_PX }}
+          >
             {selecionados.map((proc) => {
               const slug = procedureItemCategoriaSlug(proc);
               const particular = Number(procedurePrice(proc)) || 0;
@@ -350,7 +402,7 @@ export function ProcedureMultiSelect({
                     <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate leading-tight">
                       {stripCategoriaPrefixFromNome(entityName(proc), slug, catalog)}
                     </p>
-                    <p className="text-xs text-slate-500 dark:text-gray-400 truncate mt-0.5">
+                    <p className="text-[13px] text-slate-500 dark:text-gray-400 truncate mt-0.5">
                       {procedureCategoriaLabel(slug, catalog)}
                       {dur > 0 ? ` · ${dur} min` : ""}
                     </p>
@@ -374,13 +426,13 @@ export function ProcedureMultiSelect({
           </div>
         </div>
       ) : optional && !mostrarDisponiveis ? (
-        <p className="text-xs leading-snug text-slate-500 dark:text-gray-400">
+        <p className="text-[13px] leading-snug text-slate-500 dark:text-gray-400">
           Categoria ou busca para adicionar · opcional na consulta.
         </p>
       ) : null}
 
       {showSummary && selectedIds.length > 1 ? (
-        <div className="flex items-center justify-between px-1 text-xs text-gray-600 dark:text-gray-400">
+        <div className="flex items-center justify-between px-1 text-sm text-gray-600 dark:text-gray-400">
           <span>
             Duração: <strong>{resumo.duracao} min</strong>
           </span>

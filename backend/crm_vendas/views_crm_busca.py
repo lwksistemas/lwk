@@ -144,7 +144,9 @@ def crm_busca(request):
     if not loja_id:
         return Response({"leads": [], "oportunidades": [], "contas": []})
 
-    q = (request.GET.get("q") or "").strip()
+    from core.search_utils import sanitize_search_term
+
+    q = sanitize_search_term(request.GET.get("q"))
     if len(q) < 2:
         return Response({"leads": [], "oportunidades": [], "contas": []})
 

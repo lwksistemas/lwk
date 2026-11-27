@@ -46,7 +46,9 @@ def q_contem_digitos_ignorando_mascara(campo: str, digitos: str):
 def filtrar_queryset_busca_texto(queryset, request, q_filter_builder):
     """Filtra ?q=termo (mín. 2 caracteres) usando builder que recebe (term, term_digits).
     """
-    term = (request.query_params.get("q") or "").strip()
+    from core.search_utils import sanitize_search_term
+
+    term = sanitize_search_term(request.query_params.get("q"))
     if len(term) < 2:
         return queryset
     term_digits = "".join(c for c in term if c.isdigit())

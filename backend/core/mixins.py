@@ -277,8 +277,10 @@ class ClienteSearchMixin:
         from django.db.models import Q
         from rest_framework.response import Response
 
+        from core.search_utils import sanitize_search_term
+
         params = getattr(request, "query_params", request.GET)
-        query = params.get("q", "")
+        query = sanitize_search_term(params.get("q"))
 
         if len(query) < 2:
             return Response([])

@@ -140,8 +140,10 @@ class ClienteListCreateView(GetObjectMixin, APIView):
     model_class = Cliente
 
     def get(self, request):
+        from core.search_utils import sanitize_search_term
+
         qs = Cliente.objects.filter(is_active=True).order_by("nome")
-        busca = (request.query_params.get("q") or "").strip()
+        busca = sanitize_search_term(request.query_params.get("q"))
         if busca:
             qs = qs.filter(Q(nome__icontains=busca) | Q(telefone__icontains=busca) | Q(cpf__icontains=busca))
         return Response(ClienteSerializer(qs[:200], many=True).data)

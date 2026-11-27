@@ -27,8 +27,10 @@ class ProdutoListCreateView(APIView):
         return [IsAuthenticated(), IsSalaoMembro()]
 
     def get(self, request):
+        from core.search_utils import sanitize_search_term
+
         qs = Produto.objects.filter(is_active=True).order_by("nome")
-        termo = (request.query_params.get("q") or "").strip()
+        termo = sanitize_search_term(request.query_params.get("q"))
         if termo:
             qs = qs.filter(Q(nome__icontains=termo) | Q(fornecedor__icontains=termo) | Q(codigo_barras__iexact=termo))
         return Response([publico_produto(item) for item in qs[:200]])
@@ -155,12 +157,14 @@ class VendaListView(APIView):
 
         from .models import Venda
 
+        from core.search_utils import sanitize_search_term
+
         qs = Venda.objects.all().order_by("-numero")
-        termo = (request.query_params.get("q") or "").strip()
+        termo = sanitize_search_term(request.query_params.get("q"))
         dia = parse_date((request.query_params.get("data") or "").strip())
         inicio_dia = parse_date((request.query_params.get("inicio") or "").strip())
         fim_dia = parse_date((request.query_params.get("fim") or "").strip())
-        operador = (request.query_params.get("operador") or "").strip()
+        operador = sanitize_search_term(request.query_params.get("operador"))
         situacao = (request.query_params.get("situacao") or "").strip()
         tipo = (request.query_params.get("tipo") or "").strip()
         if termo.isdigit():

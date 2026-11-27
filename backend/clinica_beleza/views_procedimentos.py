@@ -8,6 +8,8 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from core.search_utils import sanitize_search_term
+
 from .models import CategoriaProcedimento, Convenio, ConvenioProcedimentoPreco, Procedure
 from .pagination import paginate_queryset
 from .permissions import CLINICA_RECEPCAO
@@ -78,7 +80,7 @@ class ProcedureListView(APIView):
             queryset = _filter_procedures_by_categoria(queryset, categoria)
         elif modulo:
             queryset = _filter_procedures_by_modulo(queryset, modulo)
-        search = (request.query_params.get("search") or "").strip()
+        search = sanitize_search_term(request.query_params.get("search"))
         if search:
             queryset = queryset.filter(Q(nome__icontains=search) | Q(descricao__icontains=search))
         return paginate_queryset(queryset, request, ProcedureSerializer)

@@ -41,7 +41,9 @@ class OrcamentoConsultaView(APIView):
     permission_classes = CLINICA_CLINICAL
 
     def get(self, request):
-        busca = (request.query_params.get("search") or "").strip()
+        from core.search_utils import sanitize_search_term
+
+        busca = sanitize_search_term(request.query_params.get("search"))
         patient_id = request.query_params.get("patient_id")
         consulta_id = request.query_params.get("consulta_id")
         if busca and not patient_id and not consulta_id:

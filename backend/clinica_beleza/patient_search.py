@@ -3,7 +3,16 @@
 from django.db.models import Case, F, IntegerField, Q, Value, When
 from django.db.models.functions import Coalesce, Replace
 
+from core.search_utils import sanitize_search_term
+
 _PUNCT_TO_STRIP = (".", "-", "/", "(", ")", " ", "+")
+
+__all__ = (
+    "apply_patient_search",
+    "digits_only",
+    "patient_search_rank",
+    "sanitize_search_term",
+)
 
 
 def digits_only(value: str) -> str:
@@ -20,7 +29,7 @@ def _digits_expr(field: str):
 def patient_search_rank(nome: str, search: str) -> int:
     """0 = nome começa com o termo; 1 = palavra no meio; 2 = só contém."""
     n = (nome or "").casefold()
-    s = (search or "").strip().casefold()
+    s = sanitize_search_term(search).casefold()
     if not s:
         return 99
     if n.startswith(s):
@@ -32,7 +41,7 @@ def patient_search_rank(nome: str, search: str) -> int:
 
 def apply_patient_search(queryset, search: str):
     """Filtra pacientes: nome por trecho; CPF/telefone ignorando pontuação."""
-    search = (search or "").strip()
+    search = sanitize_search_term(search)
     if not search:
         return queryset
 

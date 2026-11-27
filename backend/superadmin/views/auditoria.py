@@ -86,7 +86,9 @@ class HistoricoAcessoGlobalViewSet(viewsets.ReadOnlyModelViewSet):
             sucesso_bool = sucesso.lower() == "true"
             queryset = queryset.filter(sucesso=sucesso_bool)
 
-        search = params.get("search")
+        from core.search_utils import sanitize_search_term
+
+        search = sanitize_search_term(params.get("search"))
         if search:
             queryset = queryset.filter(
                 Q(usuario_nome__icontains=search) |
@@ -358,7 +360,9 @@ class HistoricoAcessoGlobalViewSet(viewsets.ReadOnlyModelViewSet):
     @action(detail=False, methods=["get"])
     def busca_avancada(self, request):
         """Busca avançada com texto livre"""
-        query = request.query_params.get("q", "").strip()
+        from core.search_utils import sanitize_search_term
+
+        query = sanitize_search_term(request.query_params.get("q"))
 
         if not query:
             return Response(

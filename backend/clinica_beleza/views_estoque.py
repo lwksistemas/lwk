@@ -154,7 +154,9 @@ class ProdutoEstoqueListView(APIView):
         garantir_categorias_estoque_padrao(loja_id)
         qs = ProdutoEstoque.objects.all().order_by("nome")
         qs = _filtrar_por_categoria(qs, request)
-        search = (request.query_params.get("search") or "").strip()
+        from core.search_utils import sanitize_search_term
+
+        search = sanitize_search_term(request.query_params.get("search"))
         if search:
             filtro = Q(nome__icontains=search)
             if search.isdigit():

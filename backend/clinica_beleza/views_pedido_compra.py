@@ -60,7 +60,11 @@ class PedidoCompraBuscarPacientesView(APIView):
 
     def get(self, request):
         loja_id = _ensure(request)
-        termo = (request.query_params.get("search") or request.query_params.get("q") or "").strip()
+        from core.search_utils import sanitize_search_term
+
+        termo = sanitize_search_term(
+            request.query_params.get("search") or request.query_params.get("q"),
+        )
         if len(termo) < 2:
             return Response([])
         return Response(buscar_pacientes_pedido(loja_id, termo))

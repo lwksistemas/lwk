@@ -106,7 +106,9 @@ class PatientListView(APIView):
             request.query_params.get("active"),
         )
         queryset = aplicar_situacao_pacientes(queryset, situacao)
-        search = (request.query_params.get("search") or "").strip()
+        from core.search_utils import sanitize_search_term
+
+        search = sanitize_search_term(request.query_params.get("search"))
         if search:
             queryset = apply_patient_search(queryset, search)
         return paginate_queryset(queryset, request, PatientSerializer)

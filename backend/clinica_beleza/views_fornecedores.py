@@ -45,7 +45,9 @@ class FornecedorListView(APIView):
         )
         if request.query_params.get("todos") not in ("1", "true", "True"):
             qs = qs.filter(is_active=True)
-        q = (request.query_params.get("search") or "").strip()
+        from core.search_utils import sanitize_search_term
+
+        q = sanitize_search_term(request.query_params.get("search"))
         if q:
             from django.db.models import Q
             qs = qs.filter(
@@ -113,8 +115,10 @@ class FornecedorProdutoListView(APIView):
         forn = Fornecedor.objects.filter(pk=pk).first()
         if not forn:
             return Response({"error": "Fornecedor não encontrado"}, status=status.HTTP_404_NOT_FOUND)
+        from core.search_utils import sanitize_search_term
+
         qs = FornecedorProduto.objects.filter(fornecedor=forn)
-        q = (request.query_params.get("search") or "").strip()
+        q = sanitize_search_term(request.query_params.get("search"))
         if q:
             from django.db.models import Q
             qs = qs.filter(Q(codigo__icontains=q) | Q(nome__icontains=q))

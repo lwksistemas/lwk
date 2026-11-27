@@ -101,7 +101,9 @@ def somar_totais_pastas(diretos: dict[int, int], pai_por_id: dict[int, int | Non
 
 
 def _filtrar_busca_catalogo(qs, termo):
-    texto = (termo or "").strip()
+    from core.search_utils import sanitize_search_term
+
+    texto = sanitize_search_term(termo)
     if not texto:
         return qs
     digitos = "".join(caractere for caractere in texto if caractere.isdigit())

@@ -2,8 +2,21 @@
 from django.test import SimpleTestCase
 
 from clinica_beleza.models import Patient
-from clinica_beleza.patient_search import apply_patient_search, digits_only, patient_search_rank
+from core.search_utils import sanitize_search_term
+
+from clinica_beleza.patient_search import (
+    apply_patient_search,
+    digits_only,
+    patient_search_rank,
+)
 from clinica_beleza.tests.tenant_test_case import ClinicaBelezaIntegrationTestCase
+
+
+class SanitizeSearchTermTest(SimpleTestCase):
+    def test_remove_byte_nulo(self):
+        self.assertEqual(sanitize_search_term("\x00"), "")
+        self.assertEqual(sanitize_search_term("mar\x00ia"), "maria")
+        self.assertEqual(sanitize_search_term("  silva  "), "silva")
 
 
 class PatientSearchRankTest(SimpleTestCase):
@@ -57,3 +70,11 @@ class PatientSearchTest(ClinicaBelezaIntegrationTestCase):
         nomes = self._buscar("silva")
         self.assertEqual(nomes[0], "SILVA COSTA")
         self.assertIn("MARIA SILVA SANTOS", nomes)
+
+    def test_byte_nulo_nao_quebra_a_busca(self):
+        # Postgres rejeita \\x00 em parâmetros de texto; o termo deve ser sanitizado.
+        so_nulo = self._buscar("\x00")
+        self.assertEqual(len(so_nulo), 2)
+        self.assertIn("MARIA SILVA SANTOS", so_nulo)
+        self.assertIn("JOAO PEREIRA", so_nulo)
+        self.assertIn("MARIA SILVA SANTOS", self._buscar("mar\x00ia"))

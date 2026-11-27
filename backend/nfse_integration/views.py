@@ -80,8 +80,10 @@ class NFSeViewSet(viewsets.ReadOnlyModelViewSet):
         if status_filter:
             queryset = queryset.filter(status=status_filter)
 
+        from core.search_utils import sanitize_search_term
+
         tomador = self.request.query_params.get("tomador")
-        busca = (self.request.query_params.get("busca") or tomador or "").strip()
+        busca = sanitize_search_term(self.request.query_params.get("busca") or tomador)
         if busca:
             queryset = queryset.filter(
                 models.Q(tomador_nome__icontains=busca)

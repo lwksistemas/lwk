@@ -57,7 +57,7 @@ LWK_LAST_SHA_FILE="${LWK_LAST_SHA_FILE:-.last_deployed_backend_sha}"
 # exigem rodar a etapa de schema (migrations Django + ensures SQL idempotentes).
 # Só código de aplicação (views, services, serializers, frontend) NÃO exige schema.
 lwk_schema_paths_regex() {
-  echo -E '(/migrations/|/management/commands/ensure_|/management/commands/normalizar_|/management/commands/fix_.*_column|/management/commands/migrate_all_lojas|/management/commands/deploy_app|superadmin/tenant_deploy\.py|management/commands/ensure_all\.py|services/database_schema_service\.py)'
+  echo -E '(/migrations/|/management/commands/ensure_|/management/commands/normalizar_|/management/commands/migrate_all_lojas|/management/commands/deploy_app|superadmin/tenant_deploy\.py|management/commands/ensure_all\.py|services/database_schema_service\.py)'
 }
 
 # Decide se a etapa de schema (migrate_all_lojas/ensure_all/deploy_app) deve rodar.

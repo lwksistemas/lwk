@@ -112,10 +112,13 @@ describe("quantosChipsVisiveisComMais", () => {
   });
 
   it("reserva espaço para + Categorias e não corta chip", () => {
-    // 80+6+90+6+100 = 282; com mais=110 e gap, disponível para chips = 400-110-6=284 → cabem 3
     expect(quantosChipsVisiveisComMais(300, [80, 90, 100, 120], 110, 6)).toBe(2);
-    // 80+6+90 = 176; 176+6+100 = 282 > 300-116=184 → só 2
     expect(quantosChipsVisiveisComMais(200, [80, 90, 100, 120], 110, 6)).toBe(1);
+  });
+
+  it("com medição zerada, limita chips para forçar + Categorias", () => {
+    expect(quantosChipsVisiveisComMais(400, [0, 0, 0, 0, 0], 110, 6)).toBe(4);
+    expect(quantosChipsVisiveisComMais(0, [80, 90], 110, 6)).toBe(1);
   });
 
   it("lista de selecionados comporta até 4 cards sem scroll forçado", () => {

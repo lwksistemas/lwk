@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useParams } from "next/navigation";
 import { Layers, Plus, Search, Trash2, X } from "lucide-react";
 import { precoProcedimento } from "@/lib/convenio-precos";
@@ -75,12 +76,20 @@ export function ProcedureMultiSelect({
   const [busca, setBusca] = useState("");
   const [listaAberta, setListaAberta] = useState(false);
   const [maisCategoriasAberto, setMaisCategoriasAberto] = useState(false);
-  const [chipsVisiveisCount, setChipsVisiveisCount] = useState(1);
+  const [chipsVisiveisCount, setChipsVisiveisCount] = useState(4);
+  const [menuPos, setMenuPos] = useState<{ top: number; right: number } | null>(null);
+  const [menuPortalReady, setMenuPortalReady] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const chipsRowRef = useRef<HTMLDivElement>(null);
   const measureRef = useRef<HTMLDivElement>(null);
+  const maisBtnRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   const filterState = { categoriaAtiva, busca, listaAberta };
+
+  useEffect(() => {
+    setMenuPortalReady(true);
+  }, []);
 
   useEffect(() => {
     if (categoriasCatalog || !lojaSlug) return;
@@ -101,10 +110,19 @@ export function ProcedureMultiSelect({
   useEffect(() => {
     if (!maisCategoriasAberto) return;
     const onDoc = (e: MouseEvent) => {
-      if (!rootRef.current?.contains(e.target as Node)) setMaisCategoriasAberto(false);
+      const t = e.target as Node;
+      if (maisBtnRef.current?.contains(t) || menuRef.current?.contains(t)) return;
+      setMaisCategoriasAberto(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMaisCategoriasAberto(false);
     };
     document.addEventListener("mousedown", onDoc);
-    return () => document.removeEventListener("mousedown", onDoc);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      document.removeEventListener("keydown", onKey);
+    };
   }, [maisCategoriasAberto]);
 
   const categoriasDisponiveis = useMemo(() => {
@@ -133,9 +151,9 @@ export function ProcedureMultiSelect({
     const chipEls = [...measure.querySelectorAll<HTMLElement>("[data-chip-measure]")];
     const maisEl = measure.querySelector<HTMLElement>("[data-mais-measure]");
     if (chipEls.length === 0) return;
-    const larguras = chipEls.map((el) => el.getBoundingClientRect().width);
-    const maisW = maisEl?.getBoundingClientRect().width || 110;
-    const total = row.getBoundingClientRect().width;
+    const larguras = chipEls.map((el) => el.offsetWidth || el.getBoundingClientRect().width);
+    const maisW = maisEl?.offsetWidth || maisEl?.getBoundingClientRect().width || 110;
+    const total = row.clientWidth || row.getBoundingClientRect().width;
     const n = quantosChipsVisiveisComMais(total, larguras, maisW, 6);
     setChipsVisiveisCount(Math.max(1, Math.min(n, todosChips.length)));
   };
@@ -150,9 +168,29 @@ export function ProcedureMultiSelect({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- mede sempre que a lista de categorias muda
   }, [todosChips]);
 
-  // "Todas" é sempre o 1º chip; o restante que não couber vai para "+ Categorias"
+  useLayoutEffect(() => {
+    if (!maisCategoriasAberto || !maisBtnRef.current) {
+      setMenuPos(null);
+      return;
+    }
+    const update = () => {
+      const r = maisBtnRef.current?.getBoundingClientRect();
+      if (!r) return;
+      setMenuPos({ top: r.bottom + 4, right: Math.max(8, window.innerWidth - r.right) });
+    };
+    update();
+    window.addEventListener("resize", update);
+    window.addEventListener("scroll", update, true);
+    return () => {
+      window.removeEventListener("resize", update);
+      window.removeEventListener("scroll", update, true);
+    };
+  }, [maisCategoriasAberto]);
+
+  // "Todas" é sempre o 1º chip; categorias que não couberem vão para "+ Categorias"
   const chipsNaLinha = todosChips.slice(0, Math.max(1, chipsVisiveisCount));
-  const extrasNoMenu = todosChips.slice(chipsNaLinha.length).filter((c) => c.value !== "");
+  const valoresNaLinha = new Set(chipsNaLinha.map((c) => c.value).filter(Boolean));
+  const extrasNoMenu = categoriasDisponiveis.filter((c) => !valoresNaLinha.has(c.value));
 
   const mostrarDisponiveis = mostrarListaDisponiveis(filterState);
 
@@ -235,10 +273,10 @@ export function ProcedureMultiSelect({
 
       {categoriasDisponiveis.length > 0 ? (
         <>
-          {/* Medição offscreen: larguras reais dos chips sem afetar o layout */}
+          {/* Medição fora da tela — larguras reais sem afetar o layout */}
           <div
             ref={measureRef}
-            className="pointer-events-none absolute -z-10 flex items-center gap-1.5 opacity-0"
+            className="pointer-events-none fixed left-[-10000px] top-0 z-[-1] flex items-center gap-1.5 whitespace-nowrap"
             aria-hidden
           >
             {todosChips.map((cat) => (
@@ -251,7 +289,7 @@ export function ProcedureMultiSelect({
             </span>
           </div>
 
-          <div ref={chipsRowRef} className="flex w-full min-w-0 items-center gap-1.5 overflow-hidden">
+          <div ref={chipsRowRef} className="flex w-full min-w-0 items-center gap-1.5">
             <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden">
               {chipsNaLinha.map((cat) => {
                 const ativo = cat.value
@@ -273,30 +311,61 @@ export function ProcedureMultiSelect({
             {extrasNoMenu.length > 0 ? (
               <div className="relative shrink-0">
                 <button
+                  ref={maisBtnRef}
                   type="button"
-                  onClick={() => setMaisCategoriasAberto((v) => !v)}
-                  className={chipClass(categoriaAtivaNoMenu)}
-                  style={categoriaAtivaNoMenu ? { backgroundColor: theme.primary } : undefined}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setMaisCategoriasAberto((v) => !v);
+                  }}
+                  className={chipClass(categoriaAtivaNoMenu || maisCategoriasAberto)}
+                  style={
+                    categoriaAtivaNoMenu || maisCategoriasAberto
+                      ? { backgroundColor: theme.primary }
+                      : undefined
+                  }
                   title="Mais categorias"
+                  aria-expanded={maisCategoriasAberto}
+                  aria-haspopup="listbox"
                 >
                   + Categorias
                 </button>
-                {maisCategoriasAberto ? (
-                  <div className="absolute z-20 mt-1 right-0 min-w-[200px] max-h-48 overflow-y-auto rounded-xl border border-gray-200 dark:border-neutral-600 bg-white dark:bg-neutral-900 shadow-lg p-1.5">
-                    {extrasNoMenu.map((cat) => (
-                      <button
-                        key={cat.value}
-                        type="button"
-                        onClick={() => ativarCategoria(cat.value)}
-                        className={`w-full text-left px-2.5 py-1.5 rounded-lg text-sm hover:bg-gray-50 dark:hover:bg-neutral-800 ${
-                          categoriaAtiva === cat.value ? "font-semibold" : ""
-                        }`}
+                {menuPortalReady &&
+                maisCategoriasAberto &&
+                menuPos &&
+                typeof document !== "undefined"
+                  ? createPortal(
+                      <div
+                        ref={menuRef}
+                        role="listbox"
+                        className="fixed min-w-[220px] max-h-56 overflow-y-auto rounded-xl border border-gray-200 dark:border-neutral-600 bg-white dark:bg-neutral-900 shadow-xl p-1.5"
+                        style={{ top: menuPos.top, right: menuPos.right, zIndex: 200 }}
                       >
-                        {cat.label} ({cat.count})
-                      </button>
-                    ))}
-                  </div>
-                ) : null}
+                        {extrasNoMenu.map((cat) => {
+                          const ativo = categoriaAtiva === cat.value;
+                          return (
+                            <button
+                              key={cat.value}
+                              type="button"
+                              role="option"
+                              aria-selected={ativo}
+                              onClick={() => ativarCategoria(cat.value)}
+                              className={`w-full text-left px-2.5 py-2 rounded-lg text-sm hover:bg-gray-50 dark:hover:bg-neutral-800 ${
+                                ativo ? "font-semibold" : ""
+                              }`}
+                              style={
+                                ativo
+                                  ? { backgroundColor: theme.primaryLight, color: theme.primary }
+                                  : undefined
+                              }
+                            >
+                              {cat.label} ({cat.count})
+                            </button>
+                          );
+                        })}
+                      </div>,
+                      document.body,
+                    )
+                  : null}
               </div>
             ) : null}
           </div>

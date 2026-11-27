@@ -32,6 +32,11 @@ export function quantosChipsVisiveisComMais(
   larguraMaisCategorias: number,
   gap = 6,
 ): number {
+  if (larguraTotal <= 0 || largurasChips.length === 0) return 1;
+  // Medição inválida (larguras zeradas) — mostra poucas chips e força "+ Categorias".
+  if (largurasChips.every((w) => w <= 0)) {
+    return Math.min(4, largurasChips.length);
+  }
   const cabemTodos = quantosChipsCabem(larguraTotal, largurasChips, gap);
   if (cabemTodos >= largurasChips.length) return largurasChips.length;
   const reservado = Math.max(0, larguraTotal - larguraMaisCategorias - gap);

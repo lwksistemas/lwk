@@ -18,10 +18,10 @@ export function AgendamentoSectionCard({
   const theme = useClinicaBelezaTheme();
   return (
     <section
-      className={`rounded-xl border border-[#E9D5E3] dark:border-neutral-700 bg-white dark:bg-neutral-900 overflow-hidden shadow-sm ${className}`}
+      className={`rounded-xl border border-[#E9D5E3] dark:border-neutral-700 bg-white dark:bg-neutral-900 shadow-sm overflow-visible ${className}`}
     >
       <header
-        className="flex items-center gap-2 px-3 py-1.5 border-b border-[#F3E8EE] dark:border-neutral-800 shrink-0"
+        className="flex items-center gap-2 px-3 py-1.5 border-b border-[#F3E8EE] dark:border-neutral-800 shrink-0 rounded-t-xl overflow-hidden"
         style={{
           backgroundImage: `linear-gradient(90deg, ${theme.primaryLight} 0%, ${cbPrimaryAlpha(8)} 100%)`,
         }}

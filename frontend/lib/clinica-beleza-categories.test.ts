@@ -6,6 +6,7 @@ import {
 import {
   groupProceduresByCategoria,
   labelTipoAgendamento,
+  formatCategoriaLabelDisplay,
   procedureCategoriaLabel,
   procedureSelectLabel,
   stripCategoriaPrefixFromNome,
@@ -82,6 +83,14 @@ describe("procedureCategoriaLabel", () => {
         { slug: "laser-etherea", nome: "Laser Etherea" },
       ]),
     ).toBe("Laser Etherea");
+  });
+});
+
+describe("formatCategoriaLabelDisplay", () => {
+  it("capitaliza a primeira letra sem alterar o restante", () => {
+    expect(formatCategoriaLabelDisplay("ultraformer")).toBe("Ultraformer");
+    expect(formatCategoriaLabelDisplay("Laser Etherea")).toBe("Laser Etherea");
+    expect(formatCategoriaLabelDisplay("")).toBe("");
   });
 });
 

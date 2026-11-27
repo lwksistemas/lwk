@@ -8,6 +8,7 @@ import { precoProcedimento } from "@/lib/convenio-precos";
 import { entityName, procedureDuration, procedurePrice } from "@/lib/clinica-beleza-entities";
 import {
   type CategoriaCatalogItem,
+  formatCategoriaLabelDisplay,
   procedureCategoriaLabel,
   procedureItemCategoriaSlug,
   stripCategoriaPrefixFromNome,
@@ -261,6 +262,9 @@ export function ProcedureMultiSelect({
 
   const categoriaAtivaNoMenu = extrasNoMenu.some((c) => c.value === categoriaAtiva);
 
+  const rotuloCategoria = (cat: CategoriaChip) =>
+    cat.value ? `${formatCategoriaLabelDisplay(cat.label)} (${cat.count})` : "Todas";
+
   return (
     <div ref={rootRef} className="relative space-y-2">
       {!hideLabel ? (
@@ -281,7 +285,7 @@ export function ProcedureMultiSelect({
           >
             {todosChips.map((cat) => (
               <span key={`m-${cat.value || "todas"}`} data-chip-measure className={chipClass(false)}>
-                {cat.value ? `${cat.label} (${cat.count})` : "Todas"}
+                {rotuloCategoria(cat)}
               </span>
             ))}
             <span data-mais-measure className={chipClass(false)}>
@@ -303,7 +307,7 @@ export function ProcedureMultiSelect({
                     className={chipClass(ativo)}
                     style={ativo ? { backgroundColor: theme.primary } : undefined}
                   >
-                    {cat.value ? `${cat.label} (${cat.count})` : "Todas"}
+                    {rotuloCategoria(cat)}
                   </button>
                 );
               })}
@@ -337,7 +341,7 @@ export function ProcedureMultiSelect({
                       <div
                         ref={menuRef}
                         role="listbox"
-                        className="fixed min-w-[220px] max-h-56 overflow-y-auto rounded-xl border border-gray-200 dark:border-neutral-600 bg-white dark:bg-neutral-900 shadow-xl p-1.5"
+                        className="fixed w-max min-w-[200px] max-w-[240px] max-h-56 overflow-y-auto rounded-xl border border-gray-200 dark:border-neutral-600 bg-white dark:bg-neutral-900 shadow-xl p-1.5"
                         style={{ top: menuPos.top, right: menuPos.right, zIndex: 200 }}
                       >
                         {extrasNoMenu.map((cat) => {
@@ -358,7 +362,9 @@ export function ProcedureMultiSelect({
                                   : undefined
                               }
                             >
-                              {cat.label} ({cat.count})
+                              <span className="block truncate">
+                                {formatCategoriaLabelDisplay(cat.label)} ({cat.count})
+                              </span>
                             </button>
                           );
                         })}
@@ -419,7 +425,7 @@ export function ProcedureMultiSelect({
                       {stripCategoriaPrefixFromNome(entityName(p), slug, catalog)}
                     </span>
                     <span className="text-[13px] text-slate-500">
-                      {procedureCategoriaLabel(slug, catalog)}
+                      {formatCategoriaLabelDisplay(procedureCategoriaLabel(slug, catalog))}
                       {dur > 0 ? ` · ${dur} min` : ""}
                     </span>
                   </span>
@@ -472,7 +478,7 @@ export function ProcedureMultiSelect({
                       {stripCategoriaPrefixFromNome(entityName(proc), slug, catalog)}
                     </p>
                     <p className="text-[13px] text-slate-500 dark:text-gray-400 truncate mt-0.5">
-                      {procedureCategoriaLabel(slug, catalog)}
+                      {formatCategoriaLabelDisplay(procedureCategoriaLabel(slug, catalog))}
                       {dur > 0 ? ` · ${dur} min` : ""}
                     </p>
                   </div>

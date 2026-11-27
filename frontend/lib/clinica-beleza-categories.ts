@@ -48,6 +48,13 @@ export function procedureCategoriaLabel(
   return PROCEDURE_CATEGORIA_OPTIONS.find((o) => o.value === resolved)?.label ?? slug;
 }
 
+/** Capitaliza só a 1ª letra para UI (ex.: ultraformer → Ultraformer), sem alterar o cadastro. */
+export function formatCategoriaLabelDisplay(nome: string): string {
+  const raw = (nome || "").trim();
+  if (!raw) return raw;
+  return raw.charAt(0).toLocaleUpperCase("pt-BR") + raw.slice(1);
+}
+
 /** Tira "Soroterapia — " do nome quando a categoria já é soroterapia. */
 export function stripCategoriaPrefixFromNome(
   nome: string,

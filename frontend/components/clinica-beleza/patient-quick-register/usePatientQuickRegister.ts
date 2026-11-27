@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { PatientQuickOption, PatientQuickRegisterFieldProps } from "./patient-quick-register-types";
-import { buildPatientQuickSearchQuery, filterPatientsLocal } from "./patient-quick-register-utils";
+import {
+  buildAgendaPatientSearchQuery,
+  buildPatientQuickSearchQuery,
+  filterPatientsLocal,
+} from "./patient-quick-register-utils";
 
 export function usePatientQuickRegister({
   patients,
@@ -12,10 +16,13 @@ export function usePatientQuickRegister({
   onCreatePatient,
   onSearchPatients,
   disabled = false,
+  variant = "default",
 }: PatientQuickRegisterFieldProps) {
   const [nomeNovo, setNomeNovo] = useState("");
   const [telefoneNovo, setTelefoneNovo] = useState("");
   const [cpfNovo, setCpfNovo] = useState("");
+  const [buscaUnica, setBuscaUnica] = useState("");
+  const [mostrarCadastro, setMostrarCadastro] = useState(false);
   const [criando, setCriando] = useState(false);
   const [erro, setErro] = useState("");
   const [serverResults, setServerResults] = useState<PatientQuickOption[]>([]);
@@ -28,10 +35,12 @@ export function usePatientQuickRegister({
     serverResults.find((p) => p.id === patientId) ||
     null;
 
-  const searchQuery = useMemo(
-    () => buildPatientQuickSearchQuery(nomeNovo, telefoneNovo, cpfNovo),
-    [nomeNovo, telefoneNovo, cpfNovo],
-  );
+  const searchQuery = useMemo(() => {
+    if (variant === "agenda" && !mostrarCadastro) {
+      return buildAgendaPatientSearchQuery(buscaUnica);
+    }
+    return buildPatientQuickSearchQuery(nomeNovo, telefoneNovo, cpfNovo);
+  }, [variant, mostrarCadastro, buscaUnica, nomeNovo, telefoneNovo, cpfNovo]);
 
   const resultados = useMemo(() => {
     if (!searchQuery || patientId) return [];
@@ -72,6 +81,8 @@ export function usePatientQuickRegister({
       onSelectPatient?.(p);
       setSelectedCache(p);
       setErro("");
+      setMostrarCadastro(false);
+      setBuscaUnica("");
     },
     [onSelect, onSelectPatient],
   );
@@ -82,6 +93,8 @@ export function usePatientQuickRegister({
     setNomeNovo("");
     setTelefoneNovo("");
     setCpfNovo("");
+    setBuscaUnica("");
+    setMostrarCadastro(false);
     setServerResults([]);
     setErro("");
   }, [onClear]);
@@ -109,6 +122,22 @@ export function usePatientQuickRegister({
     }
   }, [cpfNovo, handleSelecionar, nomeNovo, onCreatePatient, onPatientCreated, telefoneNovo]);
 
+  const abrirCadastro = useCallback(() => {
+    setMostrarCadastro(true);
+    setErro("");
+    const digits = buscaUnica.replace(/\D/g, "");
+    const compact = buscaUnica.replace(/\s/g, "");
+    const looksLikeDigits =
+      digits.length >= 3 && digits.length >= Math.ceil(compact.length * 0.6);
+    if (buscaUnica.trim() && !looksLikeDigits) {
+      setNomeNovo(buscaUnica.trim());
+    } else if (looksLikeDigits && digits.length === 11) {
+      setCpfNovo(buscaUnica.trim());
+    } else if (looksLikeDigits) {
+      setTelefoneNovo(buscaUnica.trim());
+    }
+  }, [buscaUnica]);
+
   return {
     selecionado,
     nomeNovo,
@@ -117,6 +146,11 @@ export function usePatientQuickRegister({
     setTelefoneNovo,
     cpfNovo,
     setCpfNovo,
+    buscaUnica,
+    setBuscaUnica,
+    mostrarCadastro,
+    setMostrarCadastro,
+    abrirCadastro,
     criando,
     erro,
     searchQuery,
@@ -126,5 +160,6 @@ export function usePatientQuickRegister({
     handleTrocar,
     handleCriar,
     disabled,
+    variant,
   };
 }

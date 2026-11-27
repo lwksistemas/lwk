@@ -1,12 +1,11 @@
 "use client";
 
 import { createPortal } from "react-dom";
-import { ArrowLeft, CalendarDays, Loader2, Save } from "lucide-react";
-import { ClinicaBelezaPanel } from "@/components/clinica-beleza/ClinicaBelezaPageContent";
+import { ArrowLeft, CalendarDays, Loader2 } from "lucide-react";
 import { useClinicaBelezaTheme } from "@/components/clinica-beleza/ClinicaBelezaThemeContext";
-import { CriarAgendamentoAdvancedSection } from "@/components/clinica-beleza/criar-agendamento/CriarAgendamentoAdvancedSection";
 import { CriarAgendamentoAgendaSection } from "@/components/clinica-beleza/criar-agendamento/CriarAgendamentoAgendaSection";
 import { CriarAgendamentoClienteSection } from "@/components/clinica-beleza/criar-agendamento/CriarAgendamentoClienteSection";
+import { CriarAgendamentoDireitaSection } from "@/components/clinica-beleza/criar-agendamento/CriarAgendamentoDireitaSection";
 import {
   type CriarAgendamentoProfessional,
   type ModalCriarAgendamentoMode,
@@ -88,11 +87,7 @@ export function ModalCriarAgendamento({
       }}
     >
       <div
-        className={`flex flex-col bg-white dark:bg-neutral-900 sm:rounded-xl shadow-2xl overflow-hidden ${
-          form.agendaEhProtocolo
-            ? "w-[min(96vw,1280px)] max-h-[min(88vh,820px)]"
-            : "w-full sm:max-w-2xl md:max-w-3xl lg:max-w-4xl max-h-[100dvh] sm:max-h-[92vh]"
-        }`}
+        className="flex flex-col w-[min(96vw,1180px)] max-h-[100dvh] sm:max-h-[min(92vh,900px)] bg-white dark:bg-neutral-900 sm:rounded-2xl shadow-2xl overflow-hidden"
         role="dialog"
         aria-modal="true"
         aria-labelledby="modal-criar-agendamento-title"
@@ -131,42 +126,53 @@ export function ModalCriarAgendamento({
 
         <form className="flex flex-col flex-1 min-h-0" onSubmit={form.handleSubmit}>
           <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-5 bg-[var(--cb-page-bg,#f7f2f4)] dark:bg-gray-950">
-            {form.createError && (
+            {form.createError ? (
               <div className="mb-4 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 text-sm">
                 {form.createError}
               </div>
-            )}
+            ) : null}
 
-            <ClinicaBelezaPanel className="p-4 sm:p-5 md:p-6">
-              <div className={`grid grid-cols-1 md:grid-cols-2 w-full ${form.agendaEhProtocolo ? "gap-5 items-start" : "gap-5 md:gap-6 lg:gap-8"}`}>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-5 items-start">
+              <div className="space-y-4 min-w-0">
                 <CriarAgendamentoClienteSection
                   {...form}
                   onSearchPatients={onSearchPatients}
                 />
                 <CriarAgendamentoAgendaSection {...form} />
               </div>
-              <CriarAgendamentoAdvancedSection {...form} />
-            </ClinicaBelezaPanel>
+              <div className="min-w-0">
+                <CriarAgendamentoDireitaSection {...form} />
+              </div>
+            </div>
           </div>
 
-          <footer className="shrink-0 border-t border-gray-200 dark:border-neutral-700 bg-white/80 dark:bg-neutral-800/80 px-4 sm:px-5 py-3 sm:py-4">
-            <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3 w-full">
-              <button
-                type="button"
-                onClick={form.resetAndClose}
-                className="sm:min-w-[120px] py-2.5 px-5 rounded-lg border border-gray-300 dark:border-neutral-600 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-white dark:hover:bg-neutral-800"
-              >
-                Cancelar
-              </button>
-              <button
-                type="submit"
-                disabled={form.createLoading}
-                className="sm:min-w-[180px] flex items-center justify-center gap-2 py-2.5 px-5 rounded-lg text-white text-sm font-medium disabled:opacity-60"
-                style={{ backgroundColor: accent }}
-              >
-                {form.createLoading ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
-                {form.submitLabel}
-              </button>
+          <footer className="shrink-0 border-t border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-4 sm:px-5 py-3 sm:py-3.5">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 w-full">
+              <p className="text-xs text-gray-500 dark:text-gray-400 order-2 sm:order-1">
+                Confira os dados antes de agendar.
+              </p>
+              <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3 w-full sm:w-auto order-1 sm:order-2">
+                <button
+                  type="button"
+                  onClick={form.resetAndClose}
+                  className="sm:min-w-[120px] py-2.5 px-5 rounded-lg border border-gray-300 dark:border-neutral-600 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-neutral-800"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={form.createLoading}
+                  className="sm:min-w-[180px] flex items-center justify-center gap-2 py-2.5 px-5 rounded-lg text-white text-sm font-medium disabled:opacity-60"
+                  style={{ backgroundColor: accent }}
+                >
+                  {form.createLoading ? (
+                    <Loader2 size={18} className="animate-spin" />
+                  ) : (
+                    <CalendarDays size={18} />
+                  )}
+                  {form.submitLabel}
+                </button>
+              </div>
             </div>
           </footer>
         </form>

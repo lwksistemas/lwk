@@ -11,6 +11,16 @@ export function buildPatientQuickSearchQuery(nome: string, telefone: string, cpf
   return "";
 }
 
+/** Campo único do modal de agenda: dígitos → CPF/tel; senão nome. */
+export function buildAgendaPatientSearchQuery(busca: string): string {
+  const t = (busca || "").trim();
+  if (!t) return "";
+  const compact = t.replace(/\s/g, "");
+  const digits = compact.replace(/\D/g, "");
+  if (digits.length >= 3 && digits.length >= Math.ceil(compact.length * 0.6)) return digits;
+  return t;
+}
+
 export function filterPatientsLocal(
   patients: PatientQuickOption[],
   searchQuery: string,

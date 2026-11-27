@@ -2,11 +2,12 @@
 ✅ OTIMIZADO: Fecha conexões após cada loja para evitar "too many connections"
 """
 import os
+import time
 
 from django.conf import settings
 from django.core.management import call_command
-from django.core.management.base import BaseCommand
-from django.db import connections
+from django.core.management.base import BaseCommand, CommandError
+from django.db import OperationalError, connections
 
 from superadmin.models import Loja
 
@@ -14,7 +15,8 @@ from superadmin.models import Loja
 class Command(BaseCommand):
     help = (
         "Aplica migrations nos schemas das lojas. "
-        "Use --apps clinica_beleza para não tocar em CRM/outros tipos."
+        "Use --apps clinica_beleza para não tocar em CRM/outros tipos. "
+        "Termina com erro (exit ≠ 0) se alguma loja falhar."
     )
 
     def add_arguments(self, parser):
@@ -32,18 +34,13 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-        """✅ FIX: Retry logic para evitar timeout do PostgreSQL
-        """
-        import time
-
-        from django.db import OperationalError
-
         from superadmin.tenant_deploy import (
             deve_rodar_fix_colunas_crm,
             filtrar_apps_loja,
             parse_apps_option,
             slugs_tipo_que_usam_algum,
         )
+        from tenants.middleware import set_current_loja_id, set_current_tenant_db
 
         filtro_apps = parse_apps_option(options.get("apps"))
         filtro_tipos = parse_apps_option(options.get("tipos"))
@@ -54,7 +51,6 @@ class Command(BaseCommand):
         if filtro_tipos:
             self.stdout.write(f"🔧 Só tipos: {', '.join(filtro_tipos)}\n")
 
-        # ✅ FIX: Retry logic para buscar lojas
         max_retries = 3
         retry_delay = 2
         lojas = None
@@ -80,22 +76,19 @@ class Command(BaseCommand):
                     time.sleep(retry_delay)
                     retry_delay *= 2
                 else:
-                    self.stdout.write(
-                        self.style.ERROR(
-                            f"❌ Falha ao buscar lojas após {max_retries} tentativas: {e}",
-                        ),
-                    )
-                    return
+                    raise CommandError(
+                        f"Falha ao buscar lojas após {max_retries} tentativas: {e}",
+                    ) from e
 
         if not lojas:
-            self.stdout.write(self.style.ERROR("❌ Nenhuma loja encontrada"))
+            self.stdout.write(self.style.WARNING("Nenhuma loja encontrada — nada a migrar."))
             return
 
-        # Configurar bancos das lojas
         DATABASE_URL = os.environ.get("DATABASE_URL")
         if not DATABASE_URL:
-            self.stdout.write(self.style.ERROR("❌ DATABASE_URL não configurada"))
-            return
+            raise CommandError("DATABASE_URL não configurada")
+
+        falhas: list[str] = []
 
         for loja in lojas:
             self.stdout.write(f"\n{'='*60}")
@@ -119,52 +112,56 @@ class Command(BaseCommand):
                     self.stdout.write(self.style.WARNING(f"  🔧 Histórico alinhado: {nomes}"))
             except Exception as repair_err:
                 self.stdout.write(self.style.WARNING(f"  ⚠️ Reparar histórico: {repair_err}"))
-            for app in apps_to_migrate:
-                # ✅ FIX: Retry logic para cada migration
-                for attempt in range(max_retries):
-                    try:
-                        self.stdout.write(f"  Migrando {app}... (tentativa {attempt + 1})")
-                        call_command(
-                            "migrate",
-                            app,
-                            "--database", loja.database_name,
-                            verbosity=0,
-                        )
-                        self.stdout.write(self.style.SUCCESS(f"  ✅ {app} migrado"))
-                        break  # Sucesso, sair do loop
-                    except OperationalError as e:
-                        if "timeout" in str(e).lower() and attempt < max_retries - 1:
-                            self.stdout.write(
-                                self.style.WARNING(
-                                    f"  ⚠️ Timeout em {app} (tentativa {attempt + 1}/{max_retries}). "
-                                    f"Tentando novamente em {retry_delay}s...",
-                                ),
+
+            set_current_tenant_db(loja.database_name)
+            set_current_loja_id(loja.id)
+            try:
+                for app in apps_to_migrate:
+                    app_ok = False
+                    last_err: Exception | None = None
+                    for attempt in range(max_retries):
+                        try:
+                            self.stdout.write(f"  Migrando {app}... (tentativa {attempt + 1})")
+                            call_command(
+                                "migrate",
+                                app,
+                                "--database", loja.database_name,
+                                verbosity=0,
                             )
-                            time.sleep(retry_delay)
-                        else:
-                            self.stdout.write(
-                                self.style.WARNING(
-                                    f"  ⚠️ Erro em {app} após {max_retries} tentativas: {e}",
-                                ),
-                            )
+                            self.stdout.write(self.style.SUCCESS(f"  ✅ {app} migrado"))
+                            app_ok = True
                             break
+                        except OperationalError as e:
+                            last_err = e
+                            if "timeout" in str(e).lower() and attempt < max_retries - 1:
+                                self.stdout.write(
+                                    self.style.WARNING(
+                                        f"  ⚠️ Timeout em {app} (tentativa {attempt + 1}/{max_retries}). "
+                                        f"Tentando novamente em {retry_delay}s...",
+                                    ),
+                                )
+                                time.sleep(retry_delay)
+                            else:
+                                break
+                        except Exception as e:
+                            last_err = e
+                            break
+                    if not app_ok:
+                        msg = f"{loja.slug or loja.id}/{app}: {last_err}"
+                        falhas.append(msg)
+                        self.stdout.write(self.style.ERROR(f"  ❌ Erro em {app}: {last_err}"))
+            finally:
+                set_current_tenant_db("default")
+                set_current_loja_id(None)
+                if loja.database_name in connections:
+                    try:
+                        connections[loja.database_name].close()
+                        self.stdout.write(f"✅ Conexões fechadas para {loja.database_name}")
                     except Exception as e:
-                        self.stdout.write(self.style.WARNING(f"  ⚠️ Erro em {app}: {e}"))
-                        break
-
-            # ✅ CRÍTICO: Fechar todas as conexões desta loja antes de processar a próxima
-            # Evita "too many connections for role" ao processar múltiplas lojas
-            if loja.database_name in connections:
-                try:
-                    connections[loja.database_name].close()
-                    self.stdout.write(f"✅ Conexões fechadas para {loja.database_name}")
-                except Exception as e:
-                    self.stdout.write(self.style.WARNING(f"⚠️ Erro ao fechar conexões: {e}"))
-
-            # Remover banco das configurações para liberar memória
-            if loja.database_name in settings.DATABASES:
-                del settings.DATABASES[loja.database_name]
-                self.stdout.write("✅ Banco removido das configurações")
+                        self.stdout.write(self.style.WARNING(f"⚠️ Erro ao fechar conexões: {e}"))
+                if loja.database_name in settings.DATABASES:
+                    del settings.DATABASES[loja.database_name]
+                    self.stdout.write("✅ Banco removido das configurações")
 
         if deve_rodar_fix_colunas_crm(filtro_apps or None):
             self.stdout.write(f"\n{'='*60}")
@@ -174,7 +171,15 @@ class Command(BaseCommand):
                 call_command("fix_duracao_minutos_column", verbosity=1)
                 call_command("fix_vendedor_column", verbosity=1)
             except Exception as e:
-                self.stdout.write(self.style.WARNING(f"  ⚠️ fix columns: {e}"))
+                falhas.append(f"fix_columns: {e}")
+                self.stdout.write(self.style.ERROR(f"  ❌ fix columns: {e}"))
 
         self.stdout.write(f"\n{'='*60}")
+        if falhas:
+            resumo = "; ".join(falhas[:10])
+            if len(falhas) > 10:
+                resumo += f" (+{len(falhas) - 10} outras)"
+            raise CommandError(
+                f"migrate_all_lojas falhou em {len(falhas)} passo(s): {resumo}",
+            )
         self.stdout.write(self.style.SUCCESS("\n✅ Processo concluído!"))

@@ -21,4 +21,6 @@ export interface PatientQuickRegisterFieldProps {
   onCreatePatient: (data: { nome: string; telefone: string; cpf: string }) => Promise<PatientQuickOption>;
   onSearchPatients?: (query: string) => Promise<PatientQuickOption[]>;
   disabled?: boolean;
+  /** agenda: busca única + cadastro só ao clicar em Novo paciente. */
+  variant?: "default" | "agenda";
 }

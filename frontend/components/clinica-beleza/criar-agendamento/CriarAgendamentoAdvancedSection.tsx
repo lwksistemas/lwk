@@ -18,7 +18,10 @@ type Props = Pick<
   | "setNotes"
   | "protocoloSelecionado"
   | "protocoloCliente"
->;
+> & {
+  /** Quando as notas já estão fora (coluna direita). */
+  hideNotes?: boolean;
+};
 
 export function CriarAgendamentoAdvancedSection({
   showAdvanced,
@@ -34,23 +37,30 @@ export function CriarAgendamentoAdvancedSection({
   setNotes,
   protocoloSelecionado,
   protocoloCliente,
+  hideNotes = false,
 }: Props) {
   const inputClass = CRIAR_AGENDAMENTO_INPUT_CLASS;
+  const temRetornoProc =
+    retornoProcAtivo && regrasRetornoProc.length > 0 && patientId && !protocoloSelecionado && !protocoloCliente;
+
+  if (hideNotes && !temRetornoProc && !verificandoRetorno) {
+    return null;
+  }
 
   return (
-    <div className="mt-6 pt-6 border-t border-gray-100 dark:border-neutral-800 space-y-3">
+    <div className={hideNotes ? "pt-1 space-y-2" : "mt-6 pt-6 border-t border-gray-100 dark:border-neutral-800 space-y-3"}>
       <button
         type="button"
         onClick={() => setShowAdvanced((v) => !v)}
         className="w-full flex items-center justify-between gap-2 text-sm font-medium text-gray-700 dark:text-gray-300"
       >
-        <span>Mais opções (retorno, observações…)</span>
+        <span>{hideNotes ? "Opções avançadas (retorno de procedimento)" : "Mais opções (retorno, observações…)"}</span>
         {showAdvanced ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
       </button>
 
       {showAdvanced && (
         <div className="space-y-4 pt-2">
-          {retornoProcAtivo && regrasRetornoProc.length > 0 && patientId && !protocoloSelecionado && !protocoloCliente && (
+          {temRetornoProc ? (
             <div>
               <FieldLabel>Retorno do procedimento</FieldLabel>
               <select
@@ -66,22 +76,24 @@ export function CriarAgendamentoAdvancedSection({
                 ))}
               </select>
             </div>
-          )}
+          ) : null}
 
-          {verificandoRetorno && patientId && !retornoInfo?.elegivel && (
+          {verificandoRetorno && patientId && !retornoInfo?.elegivel ? (
             <p className="text-xs text-gray-500 dark:text-gray-400">Verificando retorno...</p>
-          )}
+          ) : null}
 
-          <div>
-            <FieldLabel>Observações</FieldLabel>
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              rows={3}
-              className={`${inputClass} resize-y min-h-[72px]`}
-              placeholder="Opcional"
-            />
-          </div>
+          {!hideNotes ? (
+            <div>
+              <FieldLabel>Observações</FieldLabel>
+              <textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                rows={3}
+                className={`${inputClass} resize-y min-h-[72px]`}
+                placeholder="Opcional"
+              />
+            </div>
+          ) : null}
         </div>
       )}
     </div>

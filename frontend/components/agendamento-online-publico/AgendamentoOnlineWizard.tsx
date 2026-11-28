@@ -457,7 +457,7 @@ export function AgendamentoOnlineWizard({ slug }: { slug: string }) {
       <div ref={topoRef} />
       {!naBoas ? (
         <header className="sticky top-0 z-20 border-b border-pink-100 bg-white/90 backdrop-blur">
-          <div className="mx-auto flex h-14 w-full max-w-6xl items-center gap-3 px-4 sm:px-6">
+          <div className="mx-auto flex h-14 w-full items-center gap-3 px-3 sm:px-5">
             {step > 0 && step < 7 ? (
               <button
                 type="button"
@@ -483,7 +483,11 @@ export function AgendamentoOnlineWizard({ slug }: { slug: string }) {
         </header>
       ) : null}
 
-      <main className="relative z-[1] mx-auto w-full max-w-6xl px-4 pb-28 pt-4 sm:px-6 sm:pt-6">
+      <main
+        className={`relative z-[1] w-full pb-28 ${
+          naBoas ? "max-w-none px-0 pt-0" : "max-w-none px-3 pt-4 sm:px-5 sm:pt-6"
+        }`}
+      >
         {step === 0 && (
           <Boas
             info={info}
@@ -923,7 +927,7 @@ function Linha({
 function BarraInferior({ children }: { children: ReactNode }) {
   return (
     <div className="fixed inset-x-0 bottom-0 z-10 border-t border-pink-100 bg-white/95 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur">
-      <div className="mx-auto max-w-6xl pr-16 sm:px-2">{children}</div>
+      <div className="w-full pr-16 sm:px-2">{children}</div>
     </div>
   );
 }
@@ -988,10 +992,10 @@ function Boas({
     info.texto_apresentacao?.trim() || "Agende seu atendimento de forma prática, rápida e segura.";
 
   return (
-    <div className="space-y-6 pb-8 sm:space-y-8">
-      <section className="overflow-hidden rounded-[1.75rem] border border-pink-100/80 bg-white/70 shadow-sm backdrop-blur-sm sm:rounded-[2rem]">
-        <div className="grid md:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)]">
-          <div className="relative min-h-[220px] overflow-hidden bg-pink-100 sm:min-h-[280px] md:min-h-[320px]">
+    <div className="w-full space-y-0 pb-10">
+      <section className="w-full overflow-hidden border-b border-pink-100 bg-white/80">
+        <div className="grid w-full md:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
+          <div className="relative min-h-[240px] overflow-hidden bg-pink-100 sm:min-h-[300px] md:min-h-[360px]">
             {info.banner_url ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={info.banner_url} alt="" className="absolute inset-0 h-full w-full object-cover" />
@@ -1003,10 +1007,10 @@ function Boas({
                 }}
               />
             )}
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-transparent to-white/40 md:to-white/70" />
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-transparent to-white/50 md:to-white/80" />
           </div>
 
-          <div className="flex flex-col justify-center gap-4 px-5 py-7 text-center sm:px-8 sm:py-10 md:text-left">
+          <div className="flex flex-col justify-center gap-4 px-5 py-8 text-center sm:px-8 sm:py-12 md:px-10 md:text-left lg:px-14">
             <div className="flex flex-col items-center gap-3 md:flex-row md:items-center">
               <div className="rounded-full bg-white p-1.5 shadow-md ring-1 ring-pink-100">
                 <LogoClinica info={info} size={64} />
@@ -1016,18 +1020,18 @@ function Boas({
               </div>
             </div>
             <div>
-              <h1 className="text-3xl font-bold tracking-tight sm:text-4xl" style={primaryText}>
+              <h1 className="text-3xl font-bold tracking-tight sm:text-4xl lg:text-5xl" style={primaryText}>
                 Agendamento Online
               </h1>
-              <p className="mt-2 text-sm leading-relaxed text-gray-600 sm:text-base">{apresentacao}</p>
+              <p className="mt-2 text-sm leading-relaxed text-gray-600 sm:text-base lg:text-lg">{apresentacao}</p>
             </div>
           </div>
         </div>
       </section>
 
-      <Card className="!p-5 sm:!p-7">
-        <h2 className="mb-5 text-center text-xl font-bold sm:mb-7 sm:text-2xl">Como agendar?</h2>
-        <ol className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6 lg:gap-2">
+      <section className="w-full border-b border-pink-100 bg-white px-4 py-8 sm:px-8 sm:py-10 lg:px-12">
+        <h2 className="mb-6 text-center text-xl font-bold sm:mb-8 sm:text-2xl">Como agendar?</h2>
+        <ol className="grid w-full grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-6 lg:gap-3">
           {ROTULOS_PASSOS.map((p, i) => {
             const Icon = p.icon;
             return (
@@ -1053,7 +1057,7 @@ function Boas({
           })}
         </ol>
 
-        <div className="mx-auto mt-8 flex max-w-xl flex-col gap-3">
+        <div className="mt-8 flex w-full flex-col gap-3 sm:mt-10">
           <BotaoPrimario onClick={onIniciar} className="!rounded-2xl">
             <CalendarCheck className="h-5 w-5" /> Iniciar Agendamento
             <ChevronRight className="h-5 w-5" />
@@ -1070,13 +1074,16 @@ function Boas({
             </a>
           ) : null}
         </div>
-      </Card>
+      </section>
 
-      <ul className="grid gap-4 sm:grid-cols-3">
+      <ul className="grid w-full gap-0 border-b border-pink-100 bg-white sm:grid-cols-3">
         {BENEFICIOS.map((b) => {
           const Icon = b.icon;
           return (
-            <li key={b.texto} className="flex items-center gap-3 rounded-2xl bg-white/80 px-4 py-3 text-sm font-medium text-gray-700 shadow-sm ring-1 ring-pink-100">
+            <li
+              key={b.texto}
+              className="flex items-center gap-3 border-pink-100 px-5 py-5 text-sm font-medium text-gray-700 sm:border-r sm:last:border-r-0"
+            >
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full" style={softBg}>
                 <Icon className="h-5 w-5" style={primaryText} />
               </span>
@@ -1087,7 +1094,7 @@ function Boas({
       </ul>
 
       {info.endereco || info.telefone ? (
-        <div className="space-y-1 text-center text-xs text-gray-500">
+        <div className="space-y-1 px-4 py-5 text-center text-xs text-gray-500">
           {info.endereco ? (
             <p className="inline-flex items-center justify-center gap-1">
               <MapPin className="h-3.5 w-3.5" /> {info.endereco}

@@ -17,15 +17,15 @@ function diasRestantesRetorno(info: RetornoVerificacaoResult): number | null {
   return Math.max(0, Number(dias));
 }
 
-/** Texto curto para o card de resumo — evita corte da mensagem longa da API. */
+/** Texto curto do resumo — uma linha quando elegível. */
 export function formatRetornoResumoCompact(info: RetornoVerificacaoResult | null | undefined): string {
   if (!info?.elegivel) return "Não informado";
   const n = diasRestantesRetorno(info);
-  if (n == null) return "Avaliação isenta";
-  return `Avaliação isenta · ${n} ${n === 1 ? "dia restante" : "dias restantes"}`;
+  if (n == null) return RETORNO_AVALIACAO_ISENTA_TITULO;
+  return `${RETORNO_AVALIACAO_ISENTA_TITULO} · ${n} ${n === 1 ? "dia restante" : "dias restantes"}`;
 }
 
-/** Corpo do aviso verde no modal (somente texto; regras financeiras inalteradas). */
+/** Aviso verde compacto em uma linha (somente texto; regras financeiras inalteradas). */
 export function formatRetornoBannerMensagem(
   info: RetornoVerificacaoResult | null | undefined,
   temProcedimentos: boolean,
@@ -34,10 +34,11 @@ export function formatRetornoBannerMensagem(
   const n = diasRestantesRetorno(info);
   const prazo =
     n == null
-      ? "Prazo de retorno sem taxa de avaliação."
-      : `${n} ${n === 1 ? "dia restante" : "dias restantes"} para retorno sem taxa de avaliação.`;
-  if (!temProcedimentos) return prazo;
-  return `${prazo} Os procedimentos selecionados serão cobrados conforme os valores apresentados.`;
+      ? "prazo de retorno sem taxa de avaliação"
+      : `${n} ${n === 1 ? "dia restante" : "dias restantes"} para retorno sem taxa de avaliação`;
+  const base = `${RETORNO_AVALIACAO_ISENTA_TITULO} · ${prazo}.`;
+  if (!temProcedimentos) return base;
+  return `${base} Os procedimentos selecionados serão cobrados conforme os valores apresentados.`;
 }
 
 /** HH:MM de término a partir do horário de início e da duração em minutos. */

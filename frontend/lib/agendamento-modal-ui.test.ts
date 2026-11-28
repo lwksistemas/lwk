@@ -29,7 +29,7 @@ describe("formatDuracaoPrevista", () => {
 });
 
 describe("formatRetornoResumoCompact", () => {
-  it("compacta avaliação isenta com dias restantes", () => {
+  it("compacta retorno com avaliação isenta em uma linha", () => {
     expect(formatRetornoResumoCompact(null)).toBe("Não informado");
     expect(formatRetornoResumoCompact({ elegivel: false })).toBe("Não informado");
     expect(
@@ -38,25 +38,25 @@ describe("formatRetornoResumoCompact", () => {
         dias_restantes: 26,
         mensagem: "Retorno da avaliação (26 dia(s) restantes no prazo de 30). Taxa de avaliação isenta.",
       }),
-    ).toBe("Avaliação isenta · 26 dias restantes");
+    ).toBe("Retorno com avaliação isenta · 26 dias restantes");
     expect(formatRetornoResumoCompact({ elegivel: true, dias_restantes: 1 })).toBe(
-      "Avaliação isenta · 1 dia restante",
+      "Retorno com avaliação isenta · 1 dia restante",
     );
-    expect(formatRetornoResumoCompact({ elegivel: true })).toBe("Avaliação isenta");
+    expect(formatRetornoResumoCompact({ elegivel: true })).toBe(RETORNO_AVALIACAO_ISENTA_TITULO);
   });
 });
 
 describe("formatRetornoBannerMensagem", () => {
-  it("distingue texto com e sem procedimentos", () => {
+  it("mantém título e prazo na mesma linha", () => {
     expect(RETORNO_AVALIACAO_ISENTA_TITULO).toBe("Retorno com avaliação isenta");
     expect(formatRetornoBannerMensagem({ elegivel: true, dias_restantes: 25 }, false)).toBe(
-      "25 dias restantes para retorno sem taxa de avaliação.",
+      "Retorno com avaliação isenta · 25 dias restantes para retorno sem taxa de avaliação.",
     );
     expect(formatRetornoBannerMensagem({ elegivel: true, dias_restantes: 25 }, true)).toBe(
-      "25 dias restantes para retorno sem taxa de avaliação. Os procedimentos selecionados serão cobrados conforme os valores apresentados.",
+      "Retorno com avaliação isenta · 25 dias restantes para retorno sem taxa de avaliação. Os procedimentos selecionados serão cobrados conforme os valores apresentados.",
     );
     expect(formatRetornoBannerMensagem({ elegivel: true, dias_restantes: 1 }, false)).toBe(
-      "1 dia restante para retorno sem taxa de avaliação.",
+      "Retorno com avaliação isenta · 1 dia restante para retorno sem taxa de avaliação.",
     );
   });
 });

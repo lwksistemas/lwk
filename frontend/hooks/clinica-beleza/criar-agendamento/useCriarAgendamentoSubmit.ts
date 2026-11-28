@@ -67,6 +67,8 @@ export function useCriarAgendamentoSubmit(
     protocoloModeloId,
     protocolosDaCliente,
     setProtocoloClienteId,
+    createLoading,
+    disponibilidadeError,
     setCreateLoading,
     setCreateError,
     setTime,
@@ -107,6 +109,7 @@ export function useCriarAgendamentoSubmit(
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (createLoading) return;
     const validationError = validateBase();
     if (validationError) {
       setCreateError(mapSubmitValidationError(validationError));
@@ -119,6 +122,10 @@ export function useCriarAgendamentoSubmit(
     const agendaId = nomeAgendaId || resolveDefaultNomeAgendaId(nomesAgenda);
     if (!agendaId) {
       setCreateError("Selecione o tipo de agenda.");
+      return;
+    }
+    if (disponibilidadeError) {
+      setCreateError(disponibilidadeError);
       return;
     }
     const localId = localAtendimentoId || resolveDefaultLocalId(locaisAtendimento);

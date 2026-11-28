@@ -1,6 +1,9 @@
 """Criar, alterar, excluir e reenviar confirmação de agendamento."""
 import logging
+from datetime import timedelta
 
+from django.utils.dateparse import parse_datetime
+from django.utils.timezone import get_current_timezone, is_naive, make_aware
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -12,8 +15,9 @@ from clinica_beleza.agenda_service import (
     atualizar_agendamento,
     detectar_conflito,
     horario_agendamento_passou,
+    validar_disponibilidade_janela,
 )
-from clinica_beleza.models import Appointment
+from clinica_beleza.models import Appointment, LocalAtendimento, Procedure, Professional
 from clinica_beleza.permissions import (
     CLINICA_AGENDA,
     appointment_in_agenda_scope,
@@ -299,3 +303,95 @@ class AgendaReenviarMensagemView(APIView):
         except Exception:
             logger.exception("WhatsApp reenvio agendamento %s", pk)
             return Response({"sent": False, "message": "Não foi possível enviar. Tente novamente."})
+
+
+class AgendaVerificarDisponibilidadeView(APIView):
+    """POST /clinica-beleza/agenda/verificar-disponibilidade/
+
+    Confere se a janela [início, início+duração] cabe na agenda do profissional
+    (conflitos, bloqueios, expediente e intervalo/almoço).
+    """
+
+    permission_classes = CLINICA_AGENDA
+
+    def post(self, request):
+        scope = resolve_agenda_professional_scope(request)
+        data = request.data or {}
+        professional_id = data.get("professional")
+        if scope is not None:
+            if scope and str(professional_id or scope) != str(scope):
+                return _agenda_scope_forbidden_response()
+            professional_id = scope
+
+        date_raw = data.get("date")
+        if not professional_id or not date_raw:
+            return Response(
+                {"disponivel": False, "error": "Informe profissional e data/hora."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        professional = Professional.objects.filter(pk=professional_id, is_active=True).first()
+        if professional is None:
+            return Response(
+                {"disponivel": False, "error": "Profissional não encontrado."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        date_start = parse_datetime(str(date_raw))
+        if date_start is None:
+            return Response(
+                {"disponivel": False, "error": "Data/hora inválida."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if is_naive(date_start):
+            date_start = make_aware(date_start, get_current_timezone())
+
+        from clinica_beleza.duracao_consulta import calcular_duracao_novo_agendamento
+
+        procedure_ids = data.get("procedure_ids") or data.get("procedures") or []
+        if isinstance(procedure_ids, (str, int)):
+            procedure_ids = [procedure_ids]
+        procedures = list(
+            Procedure.objects.filter(pk__in=[int(x) for x in procedure_ids if str(x).isdigit()], is_active=True)
+        ) if procedure_ids else []
+
+        local = None
+        local_id = data.get("local_atendimento")
+        if local_id:
+            local = LocalAtendimento.objects.filter(pk=local_id, is_active=True).first()
+
+        duration_raw = data.get("duration_minutes")
+        if duration_raw not in (None, ""):
+            try:
+                total_duration = max(1, int(duration_raw))
+            except (TypeError, ValueError):
+                return Response(
+                    {"disponivel": False, "error": "Duração inválida."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+        else:
+            total_duration = calcular_duracao_novo_agendamento(
+                professional=professional,
+                procedures_list=procedures or None,
+                procedure=procedures[0] if procedures else None,
+                local_atendimento=local,
+            )
+
+        date_end = date_start + timedelta(minutes=total_duration)
+        appointment_id = data.get("appointment_id")
+        try:
+            validar_disponibilidade_janela(
+                professional,
+                date_start,
+                date_end,
+                appointment_id=appointment_id,
+                evento="AGENDAMENTO_CRIADO",
+            )
+        except AgendaValidationError as exc:
+            return Response({"disponivel": False, "error": exc.message})
+
+        return Response({
+            "disponivel": True,
+            "duration_minutes": total_duration,
+            "date_end": date_end.isoformat(),
+        })

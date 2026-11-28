@@ -16,6 +16,7 @@ from .views import (
     AgendaDeleteView,
     AgendaReenviarMensagemView,
     AgendaUpdateView,
+    AgendaVerificarDisponibilidadeView,
     AgendaView,
     BloqueioHorarioDetailView,
     BloqueioHorarioListView,
@@ -466,6 +467,11 @@ urlpatterns = [
     # Agenda/Calendário
     path("agenda/", AgendaView.as_view(), name="agenda"),
     path("agenda/create/", AgendaCreateView.as_view(), name="agenda-create"),
+    path(
+        "agenda/verificar-disponibilidade/",
+        AgendaVerificarDisponibilidadeView.as_view(),
+        name="agenda-verificar-disponibilidade",
+    ),
     path("agenda/<int:pk>/update/", AgendaUpdateView.as_view(), name="agenda-update"),
     path("agenda/<int:pk>/delete/", AgendaDeleteView.as_view(), name="agenda-delete"),
     path("agenda/<int:pk>/reenviar-mensagem/", AgendaReenviarMensagemView.as_view(), name="agenda-reenviar-mensagem"),

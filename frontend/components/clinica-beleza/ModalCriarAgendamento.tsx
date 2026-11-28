@@ -168,7 +168,8 @@ export function ModalCriarAgendamento({
                 </button>
                 <button
                   type="submit"
-                  disabled={form.createLoading}
+                  disabled={!form.canSubmit}
+                  aria-busy={form.createLoading}
                   className="sm:min-w-[120px] flex items-center justify-center gap-2 py-1.5 px-3.5 rounded-lg text-white text-sm font-semibold disabled:opacity-60 shadow-sm"
                   style={{ backgroundImage: cbPrimaryGradient(135) }}
                 >

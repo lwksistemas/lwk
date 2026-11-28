@@ -4,6 +4,7 @@ from .agendamento import (
     AgendaDeleteView,
     AgendaReenviarMensagemView,
     AgendaUpdateView,
+    AgendaVerificarDisponibilidadeView,
 )
 from .bloqueios import BloqueioHorarioDetailView, BloqueioHorarioListView
 from .calendario import AgendaView
@@ -14,6 +15,7 @@ __all__ = [
     "AgendaDeleteView",
     "AgendaReenviarMensagemView",
     "AgendaUpdateView",
+    "AgendaVerificarDisponibilidadeView",
     "AgendaView",
     "BloqueioHorarioDetailView",
     "BloqueioHorarioListView",

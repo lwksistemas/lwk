@@ -1,3 +1,4 @@
+from datetime import timedelta
 from decimal import Decimal
 
 from django.utils.timezone import now
@@ -118,13 +119,26 @@ def criar_consulta_avulsa(
     valor_final = _resolver_valor_final_avulso(valor_consulta, local_atendimento)
     appointment_status, consulta_status = _resolver_statuses_avulso(iniciar)
 
+    from ..agenda_service import registrar_criacao_agendamento, validar_disponibilidade_janela
+    from ..duracao_consulta import calcular_duracao_novo_agendamento
+
+    total_duration = calcular_duracao_novo_agendamento(
+        professional=professional,
+        procedures_list=proc_list or None,
+        procedure=primary_procedure,
+        local_atendimento=local_atendimento,
+    )
+    date_end = ts + timedelta(minutes=total_duration)
+    validar_disponibilidade_janela(
+        professional, ts, date_end, appointment_id=None, evento="AGENDAMENTO_CRIADO",
+    )
+
     appointment = consulta_service.Appointment.objects.create(
         date=ts, status=appointment_status, patient=patient, professional=professional,
         procedure=primary_procedure, convenio=convenio, local_atendimento=local_atendimento,
         nome_agenda=nome_agenda, retorno_procedure=retorno_procedure,
         notes=(notes or "").strip() or None, loja_id=loja_id,
     )
-    from ..agenda_service import registrar_criacao_agendamento
 
     registrar_criacao_agendamento(appointment, usuario, request=request)
     if proc_list:

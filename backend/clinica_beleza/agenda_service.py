@@ -107,6 +107,74 @@ def validar_regras_agendamento(evento: str, professional, date_start, date_end, 
         raise AgendaValidationError(e.messages[0] if e.messages else str(e))
 
 
+def _format_hm(value) -> str:
+    if value is None:
+        return "00:00"
+    if hasattr(value, "strftime"):
+        return value.strftime("%H:%M")
+    return str(value)[:5]
+
+
+def validar_expediente_profissional(professional, date_start, date_end):
+    """Garante que [date_start, date_end] cabe no expediente (inclui intervalo/almoço).
+
+    Sem horários cadastrados, não restringe (compatível com a agenda atual).
+    """
+    from django.utils import timezone
+
+    from .models import HorarioTrabalhoProfissional
+    from .protocolo_comercial import intervalos_fora_do_expediente
+
+    if not professional:
+        return
+    horarios = list(
+        HorarioTrabalhoProfissional.objects.filter(professional_id=professional.id, ativo=True)
+    )
+    if not horarios:
+        return
+
+    local_start = timezone.localtime(date_start) if timezone.is_aware(date_start) else date_start
+    dia = local_start.weekday()
+    horario_dia = next((h for h in horarios if h.dia_semana == dia), None)
+    if horario_dia is None:
+        raise AgendaValidationError("Profissional não trabalha neste dia da semana.")
+
+    for ini, fim in intervalos_fora_do_expediente(horarios, date_start, date_end):
+        if date_start < fim and date_end > ini:
+            entrada = _format_hm(horario_dia.hora_entrada)
+            saida = _format_hm(horario_dia.hora_saida)
+            if horario_dia.intervalo_inicio and horario_dia.intervalo_fim:
+                ini_i = _format_hm(horario_dia.intervalo_inicio)
+                fim_i = _format_hm(horario_dia.intervalo_fim)
+                raise AgendaValidationError(
+                    f"Horário fora do expediente ({entrada}–{saida}, intervalo {ini_i}–{fim_i})."
+                )
+            raise AgendaValidationError(
+                f"Horário fora do expediente do profissional ({entrada}–{saida})."
+            )
+
+
+def validar_disponibilidade_janela(
+    professional,
+    date_start,
+    date_end,
+    *,
+    appointment_id=None,
+    evento="AGENDAMENTO_CRIADO",
+):
+    """Valida bloqueios, conflitos do profissional e expediente na janela completa.
+
+    Lança AgendaValidationError com mensagem clara para a secretária.
+    """
+    if not professional:
+        return
+    prof_id = getattr(professional, "id", professional)
+    if bloqueio_impede_agendamento(date_start, date_end, prof_id):
+        raise AgendaValidationError("Horário bloqueado. Escolha outro horário ou profissional.")
+    validar_regras_agendamento(evento, professional, date_start, date_end, appointment_id=appointment_id)
+    validar_expediente_profissional(professional, date_start, date_end)
+
+
 # ---------------------------------------------------------------------------
 # Detecção de conflito offline
 # ---------------------------------------------------------------------------
@@ -248,14 +316,9 @@ def criar_agendamento(validated_data, *, user=None, request=None, serializer=Non
 
     date_end = date_start + timedelta(minutes=total_duration)
 
-    # Verificar bloqueios (apenas se tem profissional definido)
-    if professional and bloqueio_impede_agendamento(date_start, date_end, professional.id):
-        raise AgendaValidationError("Horário bloqueado. Escolha outro horário ou profissional.")
-
-    # Regras de negócio (pré-criação) — apenas se tem profissional
     if professional:
-        validar_regras_agendamento(
-            "AGENDAMENTO_CRIADO", professional, date_start, date_end, appointment_id=None,
+        validar_disponibilidade_janela(
+            professional, date_start, date_end, appointment_id=None, evento="AGENDAMENTO_CRIADO",
         )
 
     # Criar via serializer (lida com AppointmentProcedure) ou direto
@@ -542,14 +605,15 @@ def atualizar_agendamento(appointment, *, new_date=None, new_status=None,
 
     mudanca_material = date_changed or professional_changed or procedures_changed
 
-    # Validar bloqueios e regras se data, duração ou profissional mudou
+    # Validar bloqueios, conflitos e expediente se data, duração ou profissional mudou
     if date_changed or duracao_changed or professional_changed or procedures_changed:
         date_end = date_start + timedelta(minutes=appointment.get_duracao_efetiva())
-        if bloqueio_impede_agendamento(date_start, date_end, appointment.professional_id):
-            raise AgendaValidationError("Horário bloqueado. Escolha outro horário.")
-        validar_regras_agendamento(
-            "AGENDAMENTO_ATUALIZADO", appointment.professional,
-            date_start, date_end, appointment_id=appointment.id,
+        validar_disponibilidade_janela(
+            appointment.professional,
+            date_start,
+            date_end,
+            appointment_id=appointment.id,
+            evento="AGENDAMENTO_ATUALIZADO",
         )
 
     # Status

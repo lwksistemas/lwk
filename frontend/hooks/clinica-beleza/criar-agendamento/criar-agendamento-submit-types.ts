@@ -35,6 +35,8 @@ export interface CriarAgendamentoSubmitContext {
   protocoloModeloId: number | "";
   protocolosDaCliente: ProtocoloClientePendente[];
   setProtocoloClienteId: (id: number | "") => void;
+  createLoading: boolean;
+  disponibilidadeError: string;
   setCreateLoading: (v: boolean) => void;
   setCreateError: (v: string) => void;
   setTime: (v: string) => void;

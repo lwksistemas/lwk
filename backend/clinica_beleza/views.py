@@ -20,6 +20,7 @@ from .views_agenda import (  # noqa: F401
     AgendaDeleteView,
     AgendaReenviarMensagemView,
     AgendaUpdateView,
+    AgendaVerificarDisponibilidadeView,
     AgendaView,
     BloqueioHorarioDetailView,
     BloqueioHorarioListView,

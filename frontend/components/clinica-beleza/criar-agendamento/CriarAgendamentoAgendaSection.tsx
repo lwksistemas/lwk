@@ -15,6 +15,10 @@ import {
   formatarValorProtocolo,
   rotuloIntervaloProtocolo,
 } from "@/components/clinica-beleza/protocolos-page/protocolos-page-utils";
+import {
+  formatRetornoBannerMensagem,
+  RETORNO_AVALIACAO_ISENTA_TITULO,
+} from "./agendamento-resumo-format";
 import { AgendamentoSectionCard } from "./AgendamentoSectionCard";
 import { FieldLabel } from "./CriarAgendamentoFormFields";
 import { TipoAgendaButtons } from "./TipoAgendaButtons";
@@ -57,6 +61,7 @@ type Props = Pick<
   | "localUnico"
   | "locaisAtendimento"
   | "patientId"
+  | "selectedProcedures"
   | "retornoInfo"
   | "protocoloSelecionado"
   | "protocoloCliente"
@@ -92,6 +97,7 @@ export function CriarAgendamentoAgendaSection({
   localUnico,
   locaisAtendimento,
   patientId,
+  selectedProcedures,
   retornoInfo,
   protocoloSelecionado,
   protocoloCliente,
@@ -242,8 +248,10 @@ export function CriarAgendamentoAgendaSection({
 
       {retornoInfo?.elegivel && patientId && !protocoloSelecionado && !protocoloCliente ? (
         <div className="p-2 rounded-lg text-sm bg-emerald-50 dark:bg-emerald-900/20 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-          <span className="font-medium">Retorno gratuito</span>
-          <span className="block text-xs mt-0.5">{retornoInfo.mensagem}</span>
+          <span className="font-medium">{RETORNO_AVALIACAO_ISENTA_TITULO}</span>
+          <span className="block text-xs mt-0.5">
+            {formatRetornoBannerMensagem(retornoInfo, selectedProcedures.length > 0)}
+          </span>
         </div>
       ) : null}
 

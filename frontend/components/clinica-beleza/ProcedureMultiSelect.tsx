@@ -389,7 +389,7 @@ export function ProcedureMultiSelect({
             if (value.trim()) setListaAberta(true);
           }}
           placeholder="Buscar procedimento..."
-          className="w-full pl-8 pr-9 py-1.5 text-sm border border-[#E9D5E3] dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 text-gray-900 dark:text-gray-100 min-h-[34px] focus:outline-none focus:ring-2 focus:ring-offset-0 focus:[--tw-ring-color:var(--cb-primary,#8b3d52)] focus:border-[var(--cb-primary,#8b3d52)] dark:focus:ring-offset-neutral-800"
+          className="w-full pl-8 pr-9 py-1.5 text-sm border border-[#E9D5E3] dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-700 text-gray-900 dark:text-gray-100 min-h-[34px] outline-none"
         />
         {busca || listaAberta ? (
           <button

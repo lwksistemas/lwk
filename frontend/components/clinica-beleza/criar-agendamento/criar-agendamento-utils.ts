@@ -73,9 +73,11 @@ export function resolveDefaultLocalId(items: LocalAtendimentoItem[]): number | "
 
 export { formatDateInputValue };
 
-/** Foco com a cor primária da loja (`--cb-primary`), em vez do azul padrão do navegador. */
-export const CRIAR_AGENDAMENTO_FOCUS_CLASS =
-  "focus:outline-none focus:ring-2 focus:ring-offset-0 focus:[--tw-ring-color:var(--cb-primary,#8b3d52)] focus:border-[var(--cb-primary,#8b3d52)] dark:focus:ring-offset-neutral-900";
+/**
+ * Foco dos campos do modal — a cor vem de `.cb-theme-focus` em globals.css
+ * (sobrescreve o anel azul global sem borda dupla).
+ */
+export const CRIAR_AGENDAMENTO_FOCUS_CLASS = "outline-none";
 
 export const CRIAR_AGENDAMENTO_INPUT_CLASS =
   `w-full px-2.5 py-1.5 text-sm border border-[#E9D5E3] dark:border-neutral-600 rounded-lg bg-white dark:bg-neutral-800 text-gray-900 dark:text-gray-100 min-h-[34px] ${CRIAR_AGENDAMENTO_FOCUS_CLASS}`;

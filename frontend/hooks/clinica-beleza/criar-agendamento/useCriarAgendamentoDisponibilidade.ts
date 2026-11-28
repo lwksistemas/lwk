@@ -15,6 +15,8 @@ type Args = {
   durationMinutes: number;
   procedureIds: number[];
   localAtendimentoId: number | "";
+  /** Mudança de tipo de agenda também revalida (mesmo com duração igual). */
+  nomeAgendaId?: number | "";
   horariosProfissional: HorarioTrabalho[];
   setCreateError?: (msg: string) => void;
 };
@@ -29,6 +31,7 @@ export function useCriarAgendamentoDisponibilidade(args: Args) {
     durationMinutes,
     procedureIds,
     localAtendimentoId,
+    nomeAgendaId,
     horariosProfissional,
     setCreateError,
   } = args;
@@ -104,6 +107,7 @@ export function useCriarAgendamentoDisponibilidade(args: Args) {
     durationMinutes,
     procedureIdsKey,
     localAtendimentoId,
+    nomeAgendaId,
     horariosProfissional,
     setCreateError,
   ]);

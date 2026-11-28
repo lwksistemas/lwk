@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   formatDuracaoPrevista,
+  formatRetornoBannerMensagem,
   formatRetornoResumoCompact,
   formatTerminoPrevisto,
+  RETORNO_AVALIACAO_ISENTA_TITULO,
 } from "@/components/clinica-beleza/criar-agendamento/agendamento-resumo-format";
 import { iconeTipoAgenda } from "@/components/clinica-beleza/criar-agendamento/TipoAgendaButtons";
 import {
@@ -27,7 +29,7 @@ describe("formatDuracaoPrevista", () => {
 });
 
 describe("formatRetornoResumoCompact", () => {
-  it("compacta retorno gratuito com dias restantes", () => {
+  it("compacta avaliação isenta com dias restantes", () => {
     expect(formatRetornoResumoCompact(null)).toBe("Não informado");
     expect(formatRetornoResumoCompact({ elegivel: false })).toBe("Não informado");
     expect(
@@ -36,11 +38,26 @@ describe("formatRetornoResumoCompact", () => {
         dias_restantes: 26,
         mensagem: "Retorno da avaliação (26 dia(s) restantes no prazo de 30). Taxa de avaliação isenta.",
       }),
-    ).toBe("Retorno gratuito · 26 dias restantes");
+    ).toBe("Avaliação isenta · 26 dias restantes");
     expect(formatRetornoResumoCompact({ elegivel: true, dias_restantes: 1 })).toBe(
-      "Retorno gratuito · 1 dia restante",
+      "Avaliação isenta · 1 dia restante",
     );
-    expect(formatRetornoResumoCompact({ elegivel: true })).toBe("Retorno gratuito");
+    expect(formatRetornoResumoCompact({ elegivel: true })).toBe("Avaliação isenta");
+  });
+});
+
+describe("formatRetornoBannerMensagem", () => {
+  it("distingue texto com e sem procedimentos", () => {
+    expect(RETORNO_AVALIACAO_ISENTA_TITULO).toBe("Retorno com avaliação isenta");
+    expect(formatRetornoBannerMensagem({ elegivel: true, dias_restantes: 25 }, false)).toBe(
+      "25 dias restantes para retorno sem taxa de avaliação.",
+    );
+    expect(formatRetornoBannerMensagem({ elegivel: true, dias_restantes: 25 }, true)).toBe(
+      "25 dias restantes para retorno sem taxa de avaliação. Os procedimentos selecionados serão cobrados conforme os valores apresentados.",
+    );
+    expect(formatRetornoBannerMensagem({ elegivel: true, dias_restantes: 1 }, false)).toBe(
+      "1 dia restante para retorno sem taxa de avaliação.",
+    );
   });
 });
 
@@ -51,6 +68,11 @@ describe("formatTerminoPrevisto", () => {
     expect(formatTerminoPrevisto("23:30", 60)).toBe("00:30");
     expect(formatTerminoPrevisto("17:05", 0)).toBeNull();
     expect(formatTerminoPrevisto("", 60)).toBeNull();
+  });
+
+  it("confirma o exemplo 11:45 + 2h30 → 14:15 na janela de conflito", () => {
+    expect(formatTerminoPrevisto("11:45", 150)).toBe("14:15");
+    expect(formatDuracaoPrevista(150)).toBe("2h 30min");
   });
 });
 

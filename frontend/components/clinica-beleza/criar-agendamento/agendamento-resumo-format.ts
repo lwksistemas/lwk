@@ -9,13 +9,35 @@ export function formatDuracaoPrevista(minutos: number): string {
   return `${m}min`;
 }
 
+export const RETORNO_AVALIACAO_ISENTA_TITULO = "Retorno com avaliação isenta";
+
+function diasRestantesRetorno(info: RetornoVerificacaoResult): number | null {
+  const dias = info.dias_restantes;
+  if (dias == null || Number.isNaN(Number(dias))) return null;
+  return Math.max(0, Number(dias));
+}
+
 /** Texto curto para o card de resumo — evita corte da mensagem longa da API. */
 export function formatRetornoResumoCompact(info: RetornoVerificacaoResult | null | undefined): string {
   if (!info?.elegivel) return "Não informado";
-  const dias = info.dias_restantes;
-  if (dias == null || Number.isNaN(Number(dias))) return "Retorno gratuito";
-  const n = Math.max(0, Number(dias));
-  return `Retorno gratuito · ${n} ${n === 1 ? "dia restante" : "dias restantes"}`;
+  const n = diasRestantesRetorno(info);
+  if (n == null) return "Avaliação isenta";
+  return `Avaliação isenta · ${n} ${n === 1 ? "dia restante" : "dias restantes"}`;
+}
+
+/** Corpo do aviso verde no modal (somente texto; regras financeiras inalteradas). */
+export function formatRetornoBannerMensagem(
+  info: RetornoVerificacaoResult | null | undefined,
+  temProcedimentos: boolean,
+): string {
+  if (!info?.elegivel) return "";
+  const n = diasRestantesRetorno(info);
+  const prazo =
+    n == null
+      ? "Prazo de retorno sem taxa de avaliação."
+      : `${n} ${n === 1 ? "dia restante" : "dias restantes"} para retorno sem taxa de avaliação.`;
+  if (!temProcedimentos) return prazo;
+  return `${prazo} Os procedimentos selecionados serão cobrados conforme os valores apresentados.`;
 }
 
 /** HH:MM de término a partir do horário de início e da duração em minutos. */

@@ -279,6 +279,19 @@ html.dark {
   @apply outline-none ring-2 ring-blue-500 ring-offset-2 dark:ring-offset-gray-900;
 }
 
+/* Modal Novo Agendamento: foco na cor da loja (substitui o anel azul global, sem borda dupla) */
+.cb-theme-focus :is(input, select, textarea):focus,
+.cb-theme-focus :is(input, select, textarea):focus-visible {
+  outline: 2px solid var(--cb-primary, #8b3d52);
+  outline-offset: 1px;
+  --tw-ring-color: transparent;
+  --tw-ring-offset-width: 0px;
+  --tw-ring-offset-color: transparent;
+  --tw-ring-shadow: 0 0 #0000;
+  --tw-ring-offset-shadow: 0 0 #0000;
+  box-shadow: none;
+}
+
 @layer utilities {
 /* ========== COMPONENTES UTILITÁRIOS ========== */
 

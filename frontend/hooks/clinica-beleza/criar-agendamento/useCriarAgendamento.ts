@@ -193,6 +193,7 @@ export function useCriarAgendamento(options: UseCriarAgendamentoOptions) {
     durationMinutes: duracaoChecagem,
     procedureIds: procedureIdsDisponibilidade,
     localAtendimentoId,
+    nomeAgendaId,
     horariosProfissional,
     setCreateError,
   });

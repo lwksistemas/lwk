@@ -87,7 +87,7 @@ export function ModalCriarAgendamento({
       }}
     >
       <div
-        className="flex flex-col w-[min(96vw,1020px)] max-h-[min(100dvh,720px)] sm:max-h-[min(90vh,720px)] h-fit bg-white dark:bg-neutral-900 sm:rounded-2xl shadow-2xl overflow-hidden"
+        className="cb-theme-focus flex flex-col w-[min(96vw,1020px)] max-h-[min(100dvh,720px)] sm:max-h-[min(90vh,720px)] h-fit bg-white dark:bg-neutral-900 sm:rounded-2xl shadow-2xl overflow-hidden"
         role="dialog"
         aria-modal="true"
         aria-labelledby="modal-criar-agendamento-title"

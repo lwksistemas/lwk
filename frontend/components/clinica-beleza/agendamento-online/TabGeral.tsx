@@ -50,7 +50,7 @@ export function TabGeral({
       </SectionCard>
 
       <SectionCard title="Regras de horário" description="Controle até quando e com que antecedência o cliente pode agendar.">
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <NumberInput
             label="Antecedência mínima (horas)"
             hint="Tempo mínimo entre agora e o início do horário."
@@ -111,7 +111,7 @@ export function TabGeral({
           onChange={(v) => set("permitir_reagendamento_cliente", v)}
           primary={primary}
         />
-        <div className="max-w-xs">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <NumberInput
             label="Prazo para cancelar/reagendar (horas)"
             hint="Horas mínimas antes do horário marcado."

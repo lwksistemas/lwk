@@ -141,7 +141,7 @@ export function TabPagina({
       </SectionCard>
 
       <SectionCard title="Identidade da página" description="Deixe em branco para usar os dados da clínica.">
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           <TextInput label="Nome exibido" value={draft.nome_publico} onChange={(v) => set("nome_publico", v)} />
           <TextInput
             label="Telefone / WhatsApp público"

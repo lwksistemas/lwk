@@ -59,7 +59,7 @@ export default function ClinicaBelezaAgendamentoOnlineConfigPage() {
         backHref={base}
       />
       <ClinicaBelezaPageContent>
-        <div className="mx-auto w-full max-w-4xl">
+        <div className="w-full">
           <Link
             href={base}
             className="mb-3 inline-flex items-center gap-1.5 text-sm font-medium hover:underline"

@@ -69,7 +69,7 @@ export function TabComunicacao({
           onChange={(v) => set("botao_whatsapp_ativo", v)}
           primary={primary}
         />
-        <div className="max-w-sm">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <TextInput
             label="WhatsApp da secretaria"
             hint="Opcional. Vazio = telefone da clínica. Use DDD, ex.: 11999998888."

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, 
 import {
   AlertCircle,
   ArrowLeft,
+  Award,
   CalendarCheck,
   CalendarDays,
   Check,
@@ -12,10 +13,12 @@ import {
   Clock,
   ClipboardList,
   Loader2,
+  Lock,
   MapPin,
   MessageCircle,
   Phone,
   Search,
+  ShieldCheck,
   Sparkles,
   Stethoscope,
   User,
@@ -40,12 +43,18 @@ import { Calendario, parseYmd } from "./Calendario";
 type Step = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
 
 const ROTULOS_PASSOS = [
-  { titulo: "Categoria", desc: "Escolha o tipo de atendimento", icon: Sparkles },
-  { titulo: "Procedimento", desc: "Selecione o que deseja fazer", icon: ClipboardList },
-  { titulo: "Profissional", desc: "Escolha quem vai atender", icon: Stethoscope },
-  { titulo: "Data e hora", desc: "Veja os horários livres", icon: CalendarDays },
-  { titulo: "Seus dados", desc: "Preencha suas informações", icon: User },
-  { titulo: "Confirmação", desc: "Revise e finalize", icon: CheckCircle2 },
+  { titulo: "Categoria", desc: "Escolha a categoria", icon: Sparkles },
+  { titulo: "Procedimento", desc: "Escolha o procedimento", icon: ClipboardList },
+  { titulo: "Profissional", desc: "Selecione o profissional", icon: Stethoscope },
+  { titulo: "Data e hora", desc: "Escolha a data e o horário", icon: CalendarDays },
+  { titulo: "Seus dados", desc: "Informe seus dados", icon: User },
+  { titulo: "Confirmação", desc: "Confirme o agendamento", icon: CheckCircle2 },
+] as const;
+
+const BENEFICIOS = [
+  { icon: ShieldCheck, texto: "Agendamento rápido e seguro" },
+  { icon: Lock, texto: "Seus dados protegidos (LGPD)" },
+  { icon: Award, texto: "Atendimento com profissionais qualificados" },
 ] as const;
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
@@ -433,36 +442,48 @@ export function AgendamentoOnlineWizard({ slug }: { slug: string }) {
 
   /* --------------------------------- Layout --------------------------------- */
 
-  return (
-    <div className="min-h-[100dvh] bg-gradient-to-b from-pink-50 via-white to-white text-gray-900" style={rootStyle}>
-      <div ref={topoRef} />
-      <header className="sticky top-0 z-20 border-b border-pink-100 bg-white/90 backdrop-blur">
-        <div className="mx-auto flex h-14 max-w-3xl items-center gap-3 px-4">
-          {step > 0 && step < 7 ? (
-            <button
-              type="button"
-              onClick={voltar}
-              aria-label="Voltar"
-              className="rounded-full p-2 text-gray-700 hover:bg-gray-100"
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </button>
-          ) : (
-            <LogoClinica info={info} size={32} />
-          )}
-          <p className="min-w-0 flex-1 truncate text-sm font-semibold">{nomeClinica}</p>
-          {step > 0 && step < 7 ? (
-            <span className="shrink-0 text-xs font-medium text-gray-500">Passo {step} de 6</span>
-          ) : null}
-        </div>
-        {step > 0 && step < 7 ? (
-          <div className="h-1 w-full bg-pink-100" aria-hidden>
-            <div className="h-full transition-all" style={{ ...primaryBg, width: `${(step / 6) * 100}%` }} />
-          </div>
-        ) : null}
-      </header>
+  const naBoas = step === 0;
 
-      <main className="mx-auto w-full max-w-3xl px-4 pb-28 pt-4 sm:pt-6">
+  return (
+    <div
+      className={`relative min-h-[100dvh] text-gray-900 ${
+        naBoas
+          ? "overflow-x-hidden bg-[radial-gradient(120%_80%_at_10%_-10%,#fce7f3_0%,#fff5f8_35%,#ffffff_70%)]"
+          : "bg-gradient-to-b from-pink-50 via-white to-white"
+      }`}
+      style={rootStyle}
+    >
+      {naBoas ? <FundoOndas /> : null}
+      <div ref={topoRef} />
+      {!naBoas ? (
+        <header className="sticky top-0 z-20 border-b border-pink-100 bg-white/90 backdrop-blur">
+          <div className="mx-auto flex h-14 w-full max-w-6xl items-center gap-3 px-4 sm:px-6">
+            {step > 0 && step < 7 ? (
+              <button
+                type="button"
+                onClick={voltar}
+                aria-label="Voltar"
+                className="rounded-full p-2 text-gray-700 hover:bg-gray-100"
+              >
+                <ArrowLeft className="h-5 w-5" />
+              </button>
+            ) : (
+              <LogoClinica info={info} size={32} />
+            )}
+            <p className="min-w-0 flex-1 truncate text-sm font-semibold">{nomeClinica}</p>
+            {step > 0 && step < 7 ? (
+              <span className="shrink-0 text-xs font-medium text-gray-500">Passo {step} de 6</span>
+            ) : null}
+          </div>
+          {step > 0 && step < 7 ? (
+            <div className="h-1 w-full bg-pink-100" aria-hidden>
+              <div className="h-full transition-all" style={{ ...primaryBg, width: `${(step / 6) * 100}%` }} />
+            </div>
+          ) : null}
+        </header>
+      ) : null}
+
+      <main className="relative z-[1] mx-auto w-full max-w-6xl px-4 pb-28 pt-4 sm:px-6 sm:pt-6">
         {step === 0 && (
           <Boas
             info={info}
@@ -902,7 +923,28 @@ function Linha({
 function BarraInferior({ children }: { children: ReactNode }) {
   return (
     <div className="fixed inset-x-0 bottom-0 z-10 border-t border-pink-100 bg-white/95 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur">
-      <div className="mx-auto max-w-3xl pr-16">{children}</div>
+      <div className="mx-auto max-w-6xl pr-16 sm:px-2">{children}</div>
+    </div>
+  );
+}
+
+function FundoOndas() {
+  return (
+    <div className="pointer-events-none absolute inset-x-0 top-0 h-[420px] overflow-hidden" aria-hidden>
+      <svg className="absolute -top-16 left-0 h-[360px] w-[140%] opacity-40" viewBox="0 0 1440 320" preserveAspectRatio="none">
+        <path
+          fill="var(--ao-primary)"
+          fillOpacity="0.12"
+          d="M0,96L80,112C160,128,320,160,480,154.7C640,149,800,107,960,101.3C1120,96,1280,128,1360,144L1440,160L1440,0L1360,0C1280,0,1120,0,960,0C800,0,640,0,480,0C320,0,160,0,80,0L0,0Z"
+        />
+      </svg>
+      <svg className="absolute top-10 left-[-10%] h-[300px] w-[130%] opacity-50" viewBox="0 0 1440 320" preserveAspectRatio="none">
+        <path
+          fill="var(--ao-secondary)"
+          fillOpacity="0.1"
+          d="M0,192L60,170.7C120,149,240,107,360,112C480,117,600,171,720,186.7C840,203,960,181,1080,154.7C1200,128,1320,96,1380,80L1440,64L1440,0L1380,0C1320,0,1200,0,1080,0C960,0,840,0,720,0C600,0,480,0,360,0C240,0,120,0,60,0L0,0Z"
+        />
+      </svg>
     </div>
   );
 }
@@ -942,58 +984,107 @@ function Boas({
   onIniciar: () => void;
   whatsappHref: string;
 }) {
-  return (
-    <div className="space-y-6">
-      <div
-        className="relative overflow-hidden rounded-[2rem] shadow-md"
-        style={{
-          background: info.banner_url
-            ? `linear-gradient(to top, rgba(0,0,0,.55), rgba(0,0,0,.05)), url(${JSON.stringify(info.banner_url)}) center/cover`
-            : `linear-gradient(135deg, var(--ao-primary), var(--ao-secondary))`,
-        }}
-      >
-        <div className="flex min-h-[220px] flex-col items-center justify-end gap-3 p-6 text-center text-white sm:min-h-[260px]">
-          <div className="rounded-full bg-white p-1 shadow-lg">
-            <LogoClinica info={info} size={72} />
-          </div>
-          <h1 className="text-2xl font-bold drop-shadow sm:text-3xl">{nome}</h1>
-          <p className="max-w-md text-sm text-white/90">{info.texto_apresentacao}</p>
-        </div>
-      </div>
+  const apresentacao =
+    info.texto_apresentacao?.trim() || "Agende seu atendimento de forma prática, rápida e segura.";
 
-      <Card>
-        <h2 className="mb-4 text-lg font-bold">Como agendar?</h2>
-        <ol className="grid gap-3 sm:grid-cols-2">
-          {ROTULOS_PASSOS.map((p, i) => (
-            <li key={p.titulo} className="flex items-center gap-3 rounded-2xl p-2.5" style={softBg}>
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white" style={primaryBg}>
-                {i + 1}
-              </span>
-              <span className="min-w-0">
-                <span className="block text-sm font-semibold">{p.titulo}</span>
-                <span className="block text-xs text-gray-600">{p.desc}</span>
-              </span>
-            </li>
-          ))}
+  return (
+    <div className="space-y-6 pb-8 sm:space-y-8">
+      <section className="overflow-hidden rounded-[1.75rem] border border-pink-100/80 bg-white/70 shadow-sm backdrop-blur-sm sm:rounded-[2rem]">
+        <div className="grid md:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)]">
+          <div className="relative min-h-[220px] overflow-hidden bg-pink-100 sm:min-h-[280px] md:min-h-[320px]">
+            {info.banner_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={info.banner_url} alt="" className="absolute inset-0 h-full w-full object-cover" />
+            ) : (
+              <div
+                className="absolute inset-0"
+                style={{
+                  background: `linear-gradient(145deg, color-mix(in srgb, var(--ao-primary) 55%, white), color-mix(in srgb, var(--ao-secondary) 75%, #fce7f3))`,
+                }}
+              />
+            )}
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-transparent to-white/40 md:to-white/70" />
+          </div>
+
+          <div className="flex flex-col justify-center gap-4 px-5 py-7 text-center sm:px-8 sm:py-10 md:text-left">
+            <div className="flex flex-col items-center gap-3 md:flex-row md:items-center">
+              <div className="rounded-full bg-white p-1.5 shadow-md ring-1 ring-pink-100">
+                <LogoClinica info={info} size={64} />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold tracking-wide text-gray-700 sm:text-base">{nome}</p>
+              </div>
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight sm:text-4xl" style={primaryText}>
+                Agendamento Online
+              </h1>
+              <p className="mt-2 text-sm leading-relaxed text-gray-600 sm:text-base">{apresentacao}</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <Card className="!p-5 sm:!p-7">
+        <h2 className="mb-5 text-center text-xl font-bold sm:mb-7 sm:text-2xl">Como agendar?</h2>
+        <ol className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6 lg:gap-2">
+          {ROTULOS_PASSOS.map((p, i) => {
+            const Icon = p.icon;
+            return (
+              <li key={p.titulo} className="relative flex flex-col items-center text-center">
+                {i < ROTULOS_PASSOS.length - 1 ? (
+                  <ChevronRight
+                    className="pointer-events-none absolute -right-2 top-6 hidden h-5 w-5 text-pink-300 lg:block"
+                    aria-hidden
+                  />
+                ) : null}
+                <span
+                  className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl text-white shadow-sm"
+                  style={primaryBg}
+                >
+                  <Icon className="h-6 w-6" />
+                </span>
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-pink-500">
+                  {String(i + 1).padStart(2, "0")}
+                </span>
+                <span className="mt-1 text-sm font-medium leading-snug text-gray-800">{p.desc}</span>
+              </li>
+            );
+          })}
         </ol>
+
+        <div className="mx-auto mt-8 flex max-w-xl flex-col gap-3">
+          <BotaoPrimario onClick={onIniciar} className="!rounded-2xl">
+            <CalendarCheck className="h-5 w-5" /> Iniciar Agendamento
+            <ChevronRight className="h-5 w-5" />
+          </BotaoPrimario>
+          {whatsappHref ? (
+            <a
+              href={whatsappHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border border-pink-200 bg-white px-6 text-base font-semibold transition hover:bg-pink-50"
+              style={primaryText}
+            >
+              <MessageCircle className="h-5 w-5" /> Falar com a Secretária no WhatsApp
+            </a>
+          ) : null}
+        </div>
       </Card>
 
-      <div className="space-y-3">
-        <BotaoPrimario onClick={onIniciar}>
-          <CalendarCheck className="h-5 w-5" /> Iniciar Agendamento
-        </BotaoPrimario>
-        {whatsappHref ? (
-          <a
-            href={whatsappHref}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full border border-pink-200 bg-white px-6 text-base font-semibold"
-            style={primaryText}
-          >
-            <MessageCircle className="h-5 w-5" /> Falar pelo WhatsApp
-          </a>
-        ) : null}
-      </div>
+      <ul className="grid gap-4 sm:grid-cols-3">
+        {BENEFICIOS.map((b) => {
+          const Icon = b.icon;
+          return (
+            <li key={b.texto} className="flex items-center gap-3 rounded-2xl bg-white/80 px-4 py-3 text-sm font-medium text-gray-700 shadow-sm ring-1 ring-pink-100">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full" style={softBg}>
+                <Icon className="h-5 w-5" style={primaryText} />
+              </span>
+              {b.texto}
+            </li>
+          );
+        })}
+      </ul>
 
       {info.endereco || info.telefone ? (
         <div className="space-y-1 text-center text-xs text-gray-500">

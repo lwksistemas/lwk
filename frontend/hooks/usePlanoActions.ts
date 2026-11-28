@@ -21,6 +21,7 @@ export interface PlanoFormData {
   tem_fotos_paciente: boolean;
   tem_memed: boolean;
   tem_simulacao_estetica: boolean;
+  tem_agendamento_online: boolean;
   is_active: boolean;
   ordem: number;
 }

@@ -139,6 +139,11 @@ export function PlanoCard({ plano, onEdit, onDelete }: PlanoCardProps) {
               Simulação
             </span>
           )}
+          {plano.tem_agendamento_online && (
+            <span className="px-2 py-1 bg-fuchsia-100 text-fuchsia-800 text-xs rounded">
+              Agenda online
+            </span>
+          )}
         </div>
       </div>
 

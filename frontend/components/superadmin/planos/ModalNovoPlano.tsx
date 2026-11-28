@@ -23,6 +23,7 @@ interface Plano {
   tem_fotos_paciente: boolean;
   tem_memed: boolean;
   tem_simulacao_estetica: boolean;
+  tem_agendamento_online: boolean;
   is_active: boolean;
   ordem: number;
 }
@@ -79,6 +80,7 @@ export function ModalNovoPlano({
     tem_fotos_paciente: editingPlano?.tem_fotos_paciente || false,
     tem_memed: editingPlano?.tem_memed || false,
     tem_simulacao_estetica: editingPlano?.tem_simulacao_estetica || false,
+    tem_agendamento_online: editingPlano?.tem_agendamento_online || false,
     is_active: editingPlano?.is_active ?? true,
     ordem: editingPlano?.ordem || 1,
   });
@@ -457,6 +459,17 @@ export function ModalNovoPlano({
                   className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
                 />
                 <span className="text-sm text-gray-900 dark:text-gray-100">Simulação estética (chave da clínica)</span>
+              </label>
+
+              <label className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  name="tem_agendamento_online"
+                  checked={formData.tem_agendamento_online}
+                  onChange={handleChange}
+                  className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                />
+                <span className="text-sm text-gray-900 dark:text-gray-100">Agendamento Online</span>
               </label>
 
               <label className="flex items-center space-x-2">

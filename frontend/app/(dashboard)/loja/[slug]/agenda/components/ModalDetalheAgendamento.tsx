@@ -447,6 +447,11 @@ export function ModalDetalheAgendamento({
                   <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
                     {statusLabel}
                   </span>
+                  {event.extendedProps.origem === "online" ? (
+                    <span className="ml-auto rounded-full bg-pink-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-pink-700">
+                      Online
+                    </span>
+                  ) : null}
                 </div>
               ) : (
                 <div className="flex items-center gap-2">
@@ -472,6 +477,11 @@ export function ModalDetalheAgendamento({
                       </option>
                     ))}
                   </select>
+                  {event.extendedProps.origem === "online" ? (
+                    <span className="shrink-0 rounded-full bg-pink-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-pink-700">
+                      Online
+                    </span>
+                  ) : null}
                 </div>
               )}
               {blocoStatusAjuda}

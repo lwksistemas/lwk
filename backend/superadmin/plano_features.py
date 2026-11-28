@@ -13,6 +13,10 @@ MSG_UPGRADE_SIMULACAO = (
     "Seu plano não inclui simulação estética. "
     "Faça upgrade para o Completo para configurar a chave da clínica."
 )
+MSG_UPGRADE_AGENDAMENTO_ONLINE = (
+    "Seu plano não inclui agendamento online. "
+    "Faça upgrade para liberar o agendamento pela internet."
+)
 
 
 def _loja_com_plano(loja_or_id):
@@ -64,6 +68,17 @@ def loja_plano_permite_simulacao_estetica(loja_or_id) -> tuple[bool, str | None]
     return False, MSG_UPGRADE_SIMULACAO
 
 
+def loja_plano_permite_agendamento_online(loja_or_id) -> tuple[bool, str | None]:
+    """Retorna (ok, erro). Sem plano cadastrado → libera (legado)."""
+    loja = _loja_com_plano(loja_or_id)
+    if not loja or not loja.plano_id:
+        return True, None
+    plano = loja.plano
+    if getattr(plano, "tem_agendamento_online", False):
+        return True, None
+    return False, MSG_UPGRADE_AGENDAMENTO_ONLINE
+
+
 def plano_flags_dict(loja_or_id) -> dict:
     """Flags para API/frontend."""
     loja = _loja_com_plano(loja_or_id)
@@ -73,6 +88,7 @@ def plano_flags_dict(loja_or_id) -> dict:
             "tem_memed": True,
             "tem_whatsapp_integration": True,
             "tem_simulacao_estetica": True,
+            "tem_agendamento_online": True,
         }
     plano = loja.plano
     return {
@@ -80,4 +96,5 @@ def plano_flags_dict(loja_or_id) -> dict:
         "tem_memed": bool(getattr(plano, "tem_memed", False)),
         "tem_whatsapp_integration": bool(getattr(plano, "tem_whatsapp_integration", False)),
         "tem_simulacao_estetica": bool(getattr(plano, "tem_simulacao_estetica", False)),
+        "tem_agendamento_online": bool(getattr(plano, "tem_agendamento_online", False)),
     }

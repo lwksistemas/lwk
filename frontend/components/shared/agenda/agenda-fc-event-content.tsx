@@ -125,12 +125,17 @@ export function makeAgendaFcEventContent(opts: { showProfessional: boolean }) {
         })
       : "";
     const prof = showProf ? primeiroNomeProfissional(String(p.professional_name || "")) : "";
+    const online = !isBloq && !isInt && p.origem === "online";
+    const pillOnline = online ? (
+      <span className="agenda-fc-event-online" title="Agendado pela internet">Online</span>
+    ) : null;
 
     if (isMonth) {
       return (
         <div className={`agenda-fc-event-inner agenda-fc-event-month${isBloq ? " is-bloqueio" : ""}`}>
           {hora ? <span className="agenda-fc-event-time">{hora}</span> : null}
           <span className="agenda-fc-event-title">{nome}</span>
+          {pillOnline}
         </div>
       );
     }
@@ -145,6 +150,7 @@ export function makeAgendaFcEventContent(opts: { showProfessional: boolean }) {
             {hora ? <span className="agenda-fc-event-time">{hora}</span> : null}
             {prof ? <span className="agenda-fc-event-prof">{prof}</span> : null}
             <span className="agenda-fc-event-title">{nome}</span>
+            {pillOnline}
           </span>
           {procedimento ? <span className="agenda-fc-event-proc">{procedimento}</span> : null}
         </div>
@@ -158,6 +164,7 @@ export function makeAgendaFcEventContent(opts: { showProfessional: boolean }) {
         {hora ? <div className="agenda-fc-event-time">{hora}</div> : null}
         {prof ? <div className="agenda-fc-event-prof">{prof}</div> : null}
         <div className="agenda-fc-event-title">{nome}</div>
+        {pillOnline}
         {procedimento ? <div className="agenda-fc-event-proc" title={procedimento}>{procedimento}</div> : null}
       </div>
     );

@@ -168,6 +168,18 @@ from .views_memed import (
     MemedTokenView,
     MemedVerificarCpfPacienteView,
 )
+from .views_agendamento_online import (
+    AgendamentoOnlineConfigView,
+    AgendamentoOnlineProcedimentoDetailView,
+    AgendamentoOnlineProcedimentosView,
+    AgendamentoOnlineProfissionaisView,
+    AgendamentoOnlinePublicoCategoriasView,
+    AgendamentoOnlinePublicoCriarView,
+    AgendamentoOnlinePublicoDisponibilidadeView,
+    AgendamentoOnlinePublicoInfoView,
+    AgendamentoOnlinePublicoProcedimentosView,
+    AgendamentoOnlinePublicoProfissionaisView,
+)
 from .views_login_config import LoginConfigView
 from .views_nfse_config import NFSeConfigTestISSNetView, NFSeConfigView
 from .views_nomes_agenda import (
@@ -472,6 +484,16 @@ urlpatterns = [
         AgendaVerificarDisponibilidadeView.as_view(),
         name="agenda-verificar-disponibilidade",
     ),
+    path("agendamento-online/config/", AgendamentoOnlineConfigView.as_view(), name="agendamento-online-config"),
+    path("agendamento-online/profissionais/", AgendamentoOnlineProfissionaisView.as_view(), name="agendamento-online-profissionais"),
+    path("agendamento-online/procedimentos/", AgendamentoOnlineProcedimentosView.as_view(), name="agendamento-online-procedimentos"),
+    path("agendamento-online/procedimentos/<int:pk>/", AgendamentoOnlineProcedimentoDetailView.as_view(), name="agendamento-online-procedimento-detail"),
+    path("agendamento-online/publico/<slug:slug>/", AgendamentoOnlinePublicoInfoView.as_view(), name="agendamento-online-publico-info"),
+    path("agendamento-online/publico/<slug:slug>/categorias/", AgendamentoOnlinePublicoCategoriasView.as_view(), name="agendamento-online-publico-categorias"),
+    path("agendamento-online/publico/<slug:slug>/procedimentos/", AgendamentoOnlinePublicoProcedimentosView.as_view(), name="agendamento-online-publico-procedimentos"),
+    path("agendamento-online/publico/<slug:slug>/profissionais/", AgendamentoOnlinePublicoProfissionaisView.as_view(), name="agendamento-online-publico-profissionais"),
+    path("agendamento-online/publico/<slug:slug>/disponibilidade/", AgendamentoOnlinePublicoDisponibilidadeView.as_view(), name="agendamento-online-publico-disponibilidade"),
+    path("agendamento-online/publico/<slug:slug>/criar/", AgendamentoOnlinePublicoCriarView.as_view(), name="agendamento-online-publico-criar"),
     path("agenda/<int:pk>/update/", AgendaUpdateView.as_view(), name="agenda-update"),
     path("agenda/<int:pk>/delete/", AgendaDeleteView.as_view(), name="agenda-delete"),
     path("agenda/<int:pk>/reenviar-mensagem/", AgendaReenviarMensagemView.as_view(), name="agenda-reenviar-mensagem"),

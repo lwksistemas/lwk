@@ -43,6 +43,8 @@ export interface AgendaEventData {
     professional?: number | null;
     procedures_list?: { id: number; nome?: string; categoria?: string; valor?: number }[];
     retorno_gratuito?: boolean;
+    /** "online" quando veio da página pública de agendamento online. */
+    origem?: "online" | "interno";
     protocolo?: {
       nome: string;
       sessao: number;

@@ -53,7 +53,7 @@ export default function RootLayout({
                     root.classList.toggle('dark', isDark);
                     root.style.colorScheme = isDark ? 'dark' : 'only light';
                   }
-                  if (path.indexOf('/confirmar-agendamento') === 0 || path.indexOf('/assinar') === 0) {
+                  if (path.indexOf('/confirmar-agendamento') === 0 || path.indexOf('/assinar') === 0 || /\\/loja\\/[^/]+\\/agendamento-online(?:\\/|$)/.test(path)) {
                     aplicar(false);
                     return;
                   }

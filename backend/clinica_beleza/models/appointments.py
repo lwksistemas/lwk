@@ -202,6 +202,20 @@ class Appointment(LojaIsolationMixin, models.Model):
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Atualizado em")
     # Sincronização offline: version para detectar conflitos; updated_by_id = ID do user (schema public)
     version = models.PositiveIntegerField(default=1, verbose_name="Versão")
+    ORIGEM_INTERNO = "interno"
+    ORIGEM_ONLINE = "online"
+    ORIGEM_CHOICES = (
+        (ORIGEM_INTERNO, "Interno"),
+        (ORIGEM_ONLINE, "Online"),
+    )
+    origem = models.CharField(
+        max_length=20,
+        choices=ORIGEM_CHOICES,
+        default=ORIGEM_INTERNO,
+        db_index=True,
+        verbose_name="Origem",
+        help_text="Interno (secretaria) ou Online (página pública).",
+    )
     created_by_id = models.PositiveIntegerField(
         null=True, blank=True, verbose_name="Criado por (user id)",
         help_text="Usuário autenticado que criou o agendamento. Não muda nas edições seguintes.",

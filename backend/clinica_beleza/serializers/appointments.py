@@ -224,6 +224,7 @@ class AgendaEventSerializer(serializers.ModelSerializer):
             "local_atendimento", "local_atendimento_id", "local_atendimento_name",
             "retorno_gratuito", "retorno_tipo", "retorno_mensagem", "retorno_procedure_id",
             "version", "updated_at", "created_by_id", "updated_by_id",
+            "origem",
         ]
 
     def _retorno_info(self, obj):

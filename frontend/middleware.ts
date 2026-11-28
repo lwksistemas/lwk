@@ -72,6 +72,11 @@ export function middleware(request: NextRequest) {
     if (pathname.match(/^\/loja\/[^\/]+\/login$/)) {
       return NextResponse.next();
     }
+
+    // Página pública de agendamento online (clientes da clínica, sem login)
+    if (pathname.match(/^\/loja\/[^\/]+\/agendamento-online\/?$/)) {
+      return NextResponse.next();
+    }
     
     // Rota de troca de senha (não tem slug no path, mas precisa de autenticação de loja)
     if (pathname === '/loja/trocar-senha') {

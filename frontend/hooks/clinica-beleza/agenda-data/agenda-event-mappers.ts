@@ -144,6 +144,12 @@ export function formatarAgendaEvento(
         raw.retorno_gratuito ??
           (raw.extendedProps as { retorno_gratuito?: unknown } | undefined)?.retorno_gratuito,
       ),
+      origem:
+        String(
+          raw.origem ?? (raw.extendedProps as { origem?: unknown } | undefined)?.origem ?? "",
+        ) === "online"
+          ? "online"
+          : undefined,
       version: versaoAgenda(raw.version),
       updated_at: raw.updated_at ? String(raw.updated_at) : undefined,
       consulta_id: (() => {

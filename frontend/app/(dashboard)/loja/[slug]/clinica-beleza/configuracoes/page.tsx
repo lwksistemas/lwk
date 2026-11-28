@@ -12,23 +12,34 @@ export default function ClinicaBelezaConfiguracoesPage() {
   const slug = (useParams()?.slug as string) ?? '';
   const base = `/loja/${slug}/clinica-beleza/configuracoes`;
   const [temSimulacao, setTemSimulacao] = useState(false);
+  const [temAgendamentoOnline, setTemAgendamentoOnline] = useState(false);
 
   useEffect(() => {
     let vivo = true;
     lojaApi
       .info()
       .then((info) => {
-        if (vivo) setTemSimulacao(Boolean(info.tem_simulacao_estetica));
+        if (!vivo) return;
+        setTemSimulacao(Boolean(info.tem_simulacao_estetica));
+        setTemAgendamentoOnline(Boolean(info.tem_agendamento_online));
       })
       .catch(() => {
-        if (vivo) setTemSimulacao(false);
+        if (!vivo) return;
+        setTemSimulacao(false);
+        setTemAgendamentoOnline(false);
       });
     return () => {
       vivo = false;
     };
   }, []);
 
-  const opcoes = [
+  const opcoes: {
+    titulo: string;
+    descricao: string;
+    href: string;
+    itens: string[];
+    destaque?: boolean;
+  }[] = [
     {
       titulo: 'Pagar assinatura',
       descricao: 'Baixar boleto e ver o histórico de pagamentos.',
@@ -81,6 +92,17 @@ export default function ClinicaBelezaConfiguracoesPage() {
           },
         ]
       : []),
+    ...(temAgendamentoOnline
+      ? [
+          {
+            titulo: 'Agendamento Online',
+            descricao: 'Configure a disponibilidade de profissionais e procedimentos para agendamento pela internet.',
+            href: `${base}/agendamento-online`,
+            itens: ['Horários online', 'Procedimentos', 'Valores', 'Página pública'],
+            destaque: true,
+          },
+        ]
+      : []),
     {
       titulo: 'Nota fiscal (NFS-e)',
       descricao: 'Provedor e certificado da nota de serviço.',
@@ -111,7 +133,14 @@ export default function ClinicaBelezaConfiguracoesPage() {
         </p>
         <ul className="grid gap-3 md:grid-cols-2">
           {opcoes.map((op) => (
-            <li key={op.href} className="overflow-hidden rounded-3xl border border-[#f0e4e6] bg-white dark:border-gray-700 dark:bg-gray-800">
+            <li
+              key={op.href}
+              className={`overflow-hidden rounded-3xl border dark:border-gray-700 ${
+                op.destaque
+                  ? 'border-pink-200 bg-pink-50 dark:bg-pink-950/20'
+                  : 'border-[#f0e4e6] bg-white dark:bg-gray-800'
+              }`}
+            >
               <Link href={op.href} className="flex h-full items-start justify-between gap-3 px-4 py-3 hover:bg-[#fbf6f4] dark:hover:bg-gray-700/40">
                 <span className="min-w-0 text-left">
                   <span className="block font-medium text-gray-900 dark:text-gray-100">{op.titulo}</span>

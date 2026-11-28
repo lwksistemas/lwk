@@ -40,6 +40,7 @@ export const lojaApi = {
       tem_memed?: boolean;
       tem_whatsapp_integration?: boolean;
       tem_simulacao_estetica?: boolean;
+      tem_agendamento_online?: boolean;
     }>("/loja-info/"),
   updateContato: (data: {
     telefone_contato?: string;

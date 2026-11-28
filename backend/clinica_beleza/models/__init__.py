@@ -2,6 +2,12 @@
 
 Importe via ``from clinica_beleza.models import X``.
 """
+from .agendamento_online import (
+    AgendamentoOnlineConfig,
+    AgendamentoOnlineHorario,
+    AgendamentoOnlineProcedimento,
+    AgendamentoOnlineProfissional,
+)
 from .appointments import Appointment, AppointmentProcedure, BloqueioHorario
 from .consultas import (
     Consulta,
@@ -65,6 +71,10 @@ from .termos_consentimento import TermoConsentimentoConfig, TermoConsentimentoTe
 
 __all__ = [
     "AgendaRetornoConfig",
+    "AgendamentoOnlineConfig",
+    "AgendamentoOnlineHorario",
+    "AgendamentoOnlineProcedimento",
+    "AgendamentoOnlineProfissional",
     "Appointment",
     "AppointmentProcedure",
     "BloqueioHorario",

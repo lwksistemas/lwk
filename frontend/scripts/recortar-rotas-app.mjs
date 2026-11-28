@@ -23,6 +23,7 @@ const TIRAR_DO_CRM = [
   "app/assinar-recibo",
   "app/teleconsulta",
   "app/assinar-reserva",
+  "app/loja/[slug]/agendamento-online",
 ];
 
 const TIRAR_DA_CLINICA = [
@@ -53,6 +54,7 @@ const TIRAR_DO_SALAO = [
   "app/teleconsulta",
   "app/assinar-reserva",
   "app/relatorio-comissao",
+  "app/loja/[slug]/agendamento-online",
 ];
 
 const alvos =

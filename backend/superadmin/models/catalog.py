@@ -111,6 +111,10 @@ class PlanoAssinatura(models.Model):
         default=False,
         help_text="Permite a clínica configurar a própria chave de simulação estética.",
     )
+    tem_agendamento_online = models.BooleanField(
+        default=False,
+        help_text="Permite a clínica oferecer agendamento pela internet.",
+    )
 
     is_active = models.BooleanField(default=True)
     ordem = models.IntegerField(default=0)  # Para ordenar na exibição

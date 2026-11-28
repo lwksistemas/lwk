@@ -180,6 +180,13 @@ from .views_agendamento_online import (
     AgendamentoOnlinePublicoProcedimentosView,
     AgendamentoOnlinePublicoProfissionaisView,
 )
+from .views_novidades import (
+    NovidadeBulkView,
+    NovidadeConfigView,
+    NovidadeDetailView,
+    NovidadeListView,
+    NovidadePublicoView,
+)
 from .views_login_config import LoginConfigView
 from .views_nfse_config import NFSeConfigTestISSNetView, NFSeConfigView
 from .views_nomes_agenda import (
@@ -505,6 +512,12 @@ urlpatterns = [
     path("campanhas/", CampanhaPromocaoListView.as_view(), name="campanhas-list"),
     path("campanhas/<int:pk>/", CampanhaPromocaoDetailView.as_view(), name="campanhas-detail"),
     path("campanhas/<int:pk>/enviar/", CampanhaPromocaoEnviarView.as_view(), name="campanhas-enviar"),
+    # Novidades / promoções na página pública
+    path("novidades/config/", NovidadeConfigView.as_view(), name="novidades-config"),
+    path("novidades/", NovidadeListView.as_view(), name="novidades-list"),
+    path("novidades/bulk/", NovidadeBulkView.as_view(), name="novidades-bulk"),
+    path("novidades/<int:pk>/", NovidadeDetailView.as_view(), name="novidades-detail"),
+    path("novidades/publico/<slug:slug>/", NovidadePublicoView.as_view(), name="novidades-publico"),
     # Estoque
     path("estoque/", ProdutoEstoqueListView.as_view(), name="estoque-list"),
     path("estoque/resumo/", EstoqueResumoView.as_view(), name="estoque-resumo"),

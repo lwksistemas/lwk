@@ -8,6 +8,7 @@ from .agendamento_online import (
     AgendamentoOnlineProcedimento,
     AgendamentoOnlineProfissional,
 )
+from .novidades import Novidade, NovidadeConfig
 from .appointments import Appointment, AppointmentProcedure, BloqueioHorario
 from .consultas import (
     Consulta,
@@ -75,6 +76,8 @@ __all__ = [
     "AgendamentoOnlineHorario",
     "AgendamentoOnlineProcedimento",
     "AgendamentoOnlineProfissional",
+    "Novidade",
+    "NovidadeConfig",
     "Appointment",
     "AppointmentProcedure",
     "BloqueioHorario",

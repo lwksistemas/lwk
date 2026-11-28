@@ -12,9 +12,12 @@ import {
   ChevronRight,
   Clock,
   ClipboardList,
+  Home,
+  Info,
   Loader2,
   Lock,
   MapPin,
+  Megaphone,
   MessageCircle,
   Phone,
   Search,
@@ -33,12 +36,17 @@ import {
   type PublicoProfissional,
 } from "@/lib/clinica-beleza-api/agendamento-online";
 import {
+  novidadesPublico,
+  type Novidade,
+} from "@/lib/clinica-beleza-api/novidades";
+import {
   formatarDuracao,
   formatarPrecoBRL,
   mascaraCelular,
   telefoneParaWhatsApp,
 } from "@/lib/agendamento-online-format";
 import { Calendario, parseYmd } from "./Calendario";
+import { NovidadesCarousel } from "./NovidadesCarousel";
 
 type Step = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
 
@@ -171,6 +179,9 @@ export function AgendamentoOnlineWizard({ slug }: { slug: string }) {
   const [enviando, setEnviando] = useState(false);
   const [erroEnvio, setErroEnvio] = useState("");
   const [resultado, setResultado] = useState<PublicoCriarResultado | null>(null);
+  const [novidades, setNovidades] = useState<Novidade[]>([]);
+  const [novidadesIntervalo, setNovidadesIntervalo] = useState(5);
+  const [novidadesAtivo, setNovidadesAtivo] = useState(false);
 
   const topoRef = useRef<HTMLDivElement>(null);
 
@@ -191,6 +202,15 @@ export function AgendamentoOnlineWizard({ slug }: { slug: string }) {
             if (vivo) setCategorias(cats);
           } catch {
             /* sem categorias: vai direto para procedimentos */
+          }
+          try {
+            const nov = await novidadesPublico(slug);
+            if (!vivo) return;
+            setNovidadesAtivo(Boolean(nov.ativo && nov.itens?.length));
+            setNovidades(nov.itens || []);
+            setNovidadesIntervalo(nov.intervalo_carrossel || 5);
+          } catch {
+            /* novidades opcionais */
           }
         }
       } catch (err) {
@@ -442,62 +462,47 @@ export function AgendamentoOnlineWizard({ slug }: { slug: string }) {
 
   /* --------------------------------- Layout --------------------------------- */
 
-  const naBoas = step === 0;
+  const iniciar = () => irPara(temCategorias ? 1 : 2);
+  const mostrarNovidades = novidadesAtivo && novidades.length > 0 && step < 7;
 
   return (
     <div
-      className={`relative min-h-[100dvh] text-gray-900 ${
-        naBoas
-          ? "overflow-x-hidden bg-[radial-gradient(120%_80%_at_10%_-10%,#fce7f3_0%,#fff5f8_35%,#ffffff_70%)]"
-          : "bg-gradient-to-b from-pink-50 via-white to-white"
-      }`}
+      className="relative min-h-[100dvh] overflow-x-hidden bg-[radial-gradient(120%_80%_at_10%_-10%,#fce7f3_0%,#fff5f8_35%,#ffffff_70%)] text-gray-900"
       style={rootStyle}
     >
-      {naBoas ? <FundoOndas /> : null}
+      <FundoOndas />
       <div ref={topoRef} />
-      {!naBoas ? (
-        <header className="sticky top-0 z-20 border-b border-pink-100 bg-white/90 backdrop-blur">
-          <div className="mx-auto flex h-14 w-full items-center gap-3 px-3 sm:px-5">
-            {step > 0 && step < 7 ? (
-              <button
-                type="button"
-                onClick={voltar}
-                aria-label="Voltar"
-                className="rounded-full p-2 text-gray-700 hover:bg-gray-100"
-              >
-                <ArrowLeft className="h-5 w-5" />
-              </button>
-            ) : (
-              <LogoClinica info={info} size={32} />
-            )}
-            <p className="min-w-0 flex-1 truncate text-sm font-semibold">{nomeClinica}</p>
-            {step > 0 && step < 7 ? (
-              <span className="shrink-0 text-xs font-medium text-gray-500">Passo {step} de 6</span>
-            ) : null}
-          </div>
-          {step > 0 && step < 7 ? (
-            <div className="h-1 w-full bg-pink-100" aria-hidden>
-              <div className="h-full transition-all" style={{ ...primaryBg, width: `${(step / 6) * 100}%` }} />
-            </div>
-          ) : null}
-        </header>
-      ) : null}
+      <CabecalhoPublico
+        info={info}
+        nome={nomeClinica}
+        whatsappHref={whatsappHref}
+        step={step}
+        onInicio={() => irPara(0)}
+        onAgendar={iniciar}
+        onVoltar={voltar}
+      />
 
-      <main
-        className={`relative z-[1] w-full pb-28 ${
-          naBoas ? "max-w-none px-0 pt-0" : "max-w-none px-3 pt-4 sm:px-5 sm:pt-6"
-        }`}
-      >
+      <main className="relative z-[1] w-full px-3 pb-28 pt-4 sm:px-5 sm:pt-5">
         {step === 0 && (
           <Boas
             info={info}
             nome={nomeClinica}
-            onIniciar={() => irPara(temCategorias ? 1 : 2)}
+            onIniciar={iniciar}
             whatsappHref={whatsappHref}
+            novidades={novidades}
+            novidadesIntervalo={novidadesIntervalo}
+            mostrarNovidades={mostrarNovidades}
+            primary={primaria}
           />
         )}
 
-        {step === 1 && (
+        {step >= 1 && step <= 6 ? (
+          <div className={`grid gap-4 ${mostrarNovidades ? "xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]" : ""}`}>
+            <div className="min-w-0 rounded-[1.5rem] border border-pink-100 bg-white/90 p-4 shadow-sm sm:p-5">
+              {step > 0 && step < 7 ? (
+                <StepperPassos step={step} />
+              ) : null}
+              {step === 1 && (
           <Secao titulo="Escolha uma categoria" desc="Que tipo de atendimento você procura?">
             <div className="grid gap-3 sm:grid-cols-2">
               {categorias.map((c) => {
@@ -822,6 +827,20 @@ export function AgendamentoOnlineWizard({ slug }: { slug: string }) {
             </BarraInferior>
           </Secao>
         )}
+            </div>
+            {mostrarNovidades ? (
+              <div className="min-h-[420px] min-w-0">
+                <NovidadesCarousel
+                  itens={novidades}
+                  intervaloSegundos={novidadesIntervalo}
+                  primary={primaria}
+                  onAgendar={iniciar}
+                  className="h-full min-h-[480px]"
+                />
+              </div>
+            ) : null}
+          </div>
+        ) : null}
 
         {step === 7 && resultado && (
           <div className="py-6 text-center">
@@ -977,106 +996,217 @@ function LogoClinica({ info, size }: { info: PublicoInfo; size: number }) {
   return <Avatar nome={info.nome || "C"} size={size} />;
 }
 
+function CabecalhoPublico({
+  info,
+  nome,
+  whatsappHref,
+  step,
+  onInicio,
+  onAgendar,
+  onVoltar,
+}: {
+  info: PublicoInfo;
+  nome: string;
+  whatsappHref: string;
+  step: Step;
+  onInicio: () => void;
+  onAgendar: () => void;
+  onVoltar: () => void;
+}) {
+  const nav = [
+    { id: "inicio", label: "Início", icon: Home, onClick: onInicio },
+    { id: "agenda", label: "Agendamento Online", icon: CalendarDays, onClick: onAgendar },
+    { id: "novidades", label: "Novidades", icon: Megaphone, onClick: () => document.getElementById("ao-novidades")?.scrollIntoView({ behavior: "smooth" }) },
+    { id: "sobre", label: "Sobre a Clínica", icon: Info, onClick: () => document.getElementById("ao-sobre")?.scrollIntoView({ behavior: "smooth" }) },
+    { id: "contato", label: "Contato", icon: MapPin, onClick: () => document.getElementById("ao-contato")?.scrollIntoView({ behavior: "smooth" }) },
+  ] as const;
+
+  return (
+    <header className="sticky top-0 z-30 border-b border-pink-100 bg-white/95 backdrop-blur">
+      <div className="flex w-full flex-wrap items-center gap-3 px-3 py-3 sm:px-5">
+        {step > 0 && step < 7 ? (
+          <button type="button" onClick={onVoltar} aria-label="Voltar" className="rounded-full p-2 hover:bg-pink-50 lg:hidden">
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+        ) : null}
+        <button type="button" onClick={onInicio} className="flex min-w-0 items-center gap-2">
+          <LogoClinica info={info} size={40} />
+          <span className="truncate text-sm font-bold text-gray-900 sm:text-base">{nome}</span>
+        </button>
+        <nav className="order-3 flex w-full gap-1 overflow-x-auto pb-1 lg:order-none lg:mx-auto lg:w-auto lg:justify-center [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {nav.map((n) => {
+            const Icon = n.icon;
+            const ativo =
+              (n.id === "inicio" && step === 0) ||
+              (n.id === "agenda" && step > 0 && step < 7);
+            return (
+              <button
+                key={n.id}
+                type="button"
+                onClick={n.onClick}
+                className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium ${
+                  ativo ? "text-[var(--ao-primary)]" : "text-gray-600 hover:bg-pink-50"
+                }`}
+                style={ativo ? { boxShadow: "inset 0 -2px 0 var(--ao-primary)" } : undefined}
+              >
+                <Icon className="h-4 w-4" />
+                {n.label}
+                {n.id === "novidades" ? (
+                  <span className="rounded-full bg-rose-600 px-1.5 py-0.5 text-[10px] font-bold uppercase text-white">Novo</span>
+                ) : null}
+              </button>
+            );
+          })}
+        </nav>
+        {whatsappHref ? (
+          <a
+            href={whatsappHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="ml-auto inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-white shadow-sm"
+            style={primaryBg}
+          >
+            <MessageCircle className="h-4 w-4" />
+            <span className="hidden sm:inline">Falar com a Secretária</span>
+          </a>
+        ) : null}
+      </div>
+      {step > 0 && step < 7 ? (
+        <div className="h-1 w-full bg-pink-100" aria-hidden>
+          <div className="h-full transition-all" style={{ ...primaryBg, width: `${(step / 6) * 100}%` }} />
+        </div>
+      ) : null}
+    </header>
+  );
+}
+
+function StepperPassos({ step }: { step: number }) {
+  return (
+    <ol className="mb-5 flex gap-1 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      {ROTULOS_PASSOS.map((p, i) => {
+        const n = i + 1;
+        const feito = step > n;
+        const atual = step === n;
+        return (
+          <li
+            key={p.titulo}
+            className={`flex min-w-[5.5rem] flex-1 flex-col items-center gap-1 rounded-xl px-1 py-2 text-center ${
+              atual ? "bg-pink-50" : ""
+            }`}
+          >
+            <span
+              className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${
+                feito || atual ? "text-white" : "bg-pink-100 text-pink-400"
+              }`}
+              style={feito || atual ? primaryBg : undefined}
+            >
+              {feito ? <Check className="h-3.5 w-3.5" strokeWidth={3} /> : n}
+            </span>
+            <span className={`text-[11px] font-medium ${atual ? "text-[var(--ao-primary)]" : "text-gray-500"}`}>
+              {p.titulo}
+            </span>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
 function Boas({
   info,
   nome,
   onIniciar,
   whatsappHref,
+  novidades,
+  novidadesIntervalo,
+  mostrarNovidades,
+  primary,
 }: {
   info: PublicoInfo;
   nome: string;
   onIniciar: () => void;
   whatsappHref: string;
+  novidades: Novidade[];
+  novidadesIntervalo: number;
+  mostrarNovidades: boolean;
+  primary: string;
 }) {
   const apresentacao =
     info.texto_apresentacao?.trim() || "Agende seu atendimento de forma prática, rápida e segura.";
 
   return (
-    <div className="w-full space-y-0 pb-10">
-      <section className="w-full overflow-hidden border-b border-pink-100 bg-white/80">
-        <div className="grid w-full md:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
-          <div className="relative min-h-[240px] overflow-hidden bg-pink-100 sm:min-h-[300px] md:min-h-[360px]">
-            {info.banner_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={info.banner_url} alt="" className="absolute inset-0 h-full w-full object-cover" />
-            ) : (
-              <div
-                className="absolute inset-0"
-                style={{
-                  background: `linear-gradient(145deg, color-mix(in srgb, var(--ao-primary) 55%, white), color-mix(in srgb, var(--ao-secondary) 75%, #fce7f3))`,
-                }}
-              />
-            )}
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-transparent to-white/50 md:to-white/80" />
-          </div>
-
-          <div className="flex flex-col justify-center gap-4 px-5 py-8 text-center sm:px-8 sm:py-12 md:px-10 md:text-left lg:px-14">
-            <div className="flex flex-col items-center gap-3 md:flex-row md:items-center">
-              <div className="rounded-full bg-white p-1.5 shadow-md ring-1 ring-pink-100">
-                <LogoClinica info={info} size={64} />
-              </div>
-              <div className="min-w-0">
-                <p className="text-sm font-semibold tracking-wide text-gray-700 sm:text-base">{nome}</p>
-              </div>
-            </div>
+    <div className="w-full space-y-4 pb-8">
+      <div className={`grid gap-4 ${mostrarNovidades ? "xl:grid-cols-2" : ""}`}>
+        <section className="rounded-[1.5rem] border border-pink-100 bg-white/95 p-5 shadow-sm sm:p-7">
+          <div className="mb-5 flex items-center gap-3">
+            <LogoClinica info={info} size={48} />
             <div>
-              <h1 className="text-3xl font-bold tracking-tight sm:text-4xl lg:text-5xl" style={primaryText}>
+              <p className="text-sm font-semibold text-gray-700">{nome}</p>
+              <h1 className="text-2xl font-bold sm:text-3xl" style={primaryText}>
                 Agendamento Online
               </h1>
-              <p className="mt-2 text-sm leading-relaxed text-gray-600 sm:text-base lg:text-lg">{apresentacao}</p>
             </div>
           </div>
-        </div>
-      </section>
+          <p className="text-sm text-gray-600 sm:text-base">{apresentacao}</p>
 
-      <section className="w-full border-b border-pink-100 bg-white px-4 py-8 sm:px-8 sm:py-10 lg:px-12">
-        <h2 className="mb-6 text-center text-xl font-bold sm:mb-8 sm:text-2xl">Como agendar?</h2>
-        <ol className="grid w-full grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-6 lg:gap-3">
-          {ROTULOS_PASSOS.map((p, i) => {
-            const Icon = p.icon;
-            return (
-              <li key={p.titulo} className="relative flex flex-col items-center text-center">
-                {i < ROTULOS_PASSOS.length - 1 ? (
-                  <ChevronRight
-                    className="pointer-events-none absolute -right-2 top-6 hidden h-5 w-5 text-pink-300 lg:block"
-                    aria-hidden
-                  />
-                ) : null}
-                <span
-                  className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl text-white shadow-sm"
-                  style={primaryBg}
+          <h2 className="mb-4 mt-6 text-lg font-bold">Como agendar?</h2>
+          <ol className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            {ROTULOS_PASSOS.map((p, i) => {
+              const Icon = p.icon;
+              return (
+                <li key={p.titulo} className="flex flex-col items-center rounded-2xl bg-pink-50/80 px-2 py-3 text-center">
+                  <span className="mb-2 flex h-11 w-11 items-center justify-center rounded-2xl text-white" style={primaryBg}>
+                    <Icon className="h-5 w-5" />
+                  </span>
+                  <span className="text-[10px] font-bold uppercase tracking-wide text-pink-500">
+                    {String(i + 1).padStart(2, "0")}
+                  </span>
+                  <span className="mt-1 text-xs font-medium leading-snug text-gray-800">{p.desc}</span>
+                </li>
+              );
+            })}
+          </ol>
+
+          <div className="mt-6 flex flex-col gap-3">
+            <BotaoPrimario onClick={onIniciar} className="!rounded-2xl">
+              <CalendarCheck className="h-5 w-5" /> Iniciar Agendamento
+              <ChevronRight className="h-5 w-5" />
+            </BotaoPrimario>
+            {whatsappHref ? (
+              <>
+                <div className="flex items-center gap-3 text-xs uppercase tracking-wide text-gray-400">
+                  <span className="h-px flex-1 bg-pink-100" /> ou <span className="h-px flex-1 bg-pink-100" />
+                </div>
+                <a
+                  href={whatsappHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border-2 border-emerald-400 bg-white px-6 text-base font-semibold text-emerald-700 transition hover:bg-emerald-50"
                 >
-                  <Icon className="h-6 w-6" />
-                </span>
-                <span className="text-[11px] font-semibold uppercase tracking-wide text-pink-500">
-                  {String(i + 1).padStart(2, "0")}
-                </span>
-                <span className="mt-1 text-sm font-medium leading-snug text-gray-800">{p.desc}</span>
-              </li>
-            );
-          })}
-        </ol>
+                  <MessageCircle className="h-5 w-5" /> Falar com a Secretária no WhatsApp
+                </a>
+              </>
+            ) : null}
+          </div>
+        </section>
 
-        <div className="mt-8 flex w-full flex-col gap-3 sm:mt-10">
-          <BotaoPrimario onClick={onIniciar} className="!rounded-2xl">
-            <CalendarCheck className="h-5 w-5" /> Iniciar Agendamento
-            <ChevronRight className="h-5 w-5" />
-          </BotaoPrimario>
-          {whatsappHref ? (
-            <a
-              href={whatsappHref}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border border-pink-200 bg-white px-6 text-base font-semibold transition hover:bg-pink-50"
-              style={primaryText}
-            >
-              <MessageCircle className="h-5 w-5" /> Falar com a Secretária no WhatsApp
-            </a>
-          ) : null}
-        </div>
-      </section>
+        {mostrarNovidades ? (
+          <div id="ao-novidades" className="min-h-[420px]">
+            <NovidadesCarousel
+              itens={novidades}
+              intervaloSegundos={novidadesIntervalo}
+              primary={primary}
+              onAgendar={onIniciar}
+              className="h-full min-h-[480px]"
+            />
+          </div>
+        ) : null}
+      </div>
 
-      <ul className="grid w-full gap-0 border-b border-pink-100 bg-white sm:grid-cols-3">
+      <ul
+        id="ao-sobre"
+        className="grid w-full gap-0 overflow-hidden rounded-[1.25rem] border border-pink-100 bg-white sm:grid-cols-3"
+      >
         {BENEFICIOS.map((b) => {
           const Icon = b.icon;
           return (
@@ -1093,8 +1223,8 @@ function Boas({
         })}
       </ul>
 
-      {info.endereco || info.telefone ? (
-        <div className="space-y-1 px-4 py-5 text-center text-xs text-gray-500">
+      {(info.endereco || info.telefone) ? (
+        <div id="ao-contato" className="space-y-1 px-2 py-3 text-center text-xs text-gray-500">
           {info.endereco ? (
             <p className="inline-flex items-center justify-center gap-1">
               <MapPin className="h-3.5 w-3.5" /> {info.endereco}
